@@ -250,6 +250,7 @@ The following properties are optional, and are designed to support specific use 
 | calls:{<br> &nbsp;insert, <br> &nbsp;remove, <br> &nbsp;move <br> &nbsp;replace <br> &nbsp;fetchCradleCells, <br> &nbsp;has, <br> &nbsp;getCradleIDList <br> &nbsp;getCradleSpecs,  <br>} | Pass an empty object which will be populated by RS3. RS3 provided functions: 5 operations on the cradle, and 3 ways to query the cradle |
 | spacing{<br> &nbsp;cradleMargin:[start, end]<br> &nbsp;bandPadding:[start, end]<br> &nbsp;cellGap:number <br>} | all integers. cradleMargin is cross-axis spacing at the edges; bandPadding is axis spacing at the start and end of each band; cellGap is cross-axis spacing between cells  |
 | operations:{<br> &nbsp;dispatchAttachedEvents<br>} | when dispatchAttachedEvents is set to `true`, RS3 dispatches events to container components to alert them to the need to restore scroll positions |
+|scrollerName: string|for debugging, added to the viewport element as data-scrollername|
 
 Notes about the callbacks (the returned values are found in the arguments of the functions): 
 
@@ -301,6 +302,8 @@ The following three are queries of the state of the cradle.
   visibleBands
   orientation
   layout
+  cellDimensions // as passed to the scroller
+  spacing // as passed to the scroller
 }
 ```
 `cradleActual` holds the same properties (but with actual counts), plus the following:

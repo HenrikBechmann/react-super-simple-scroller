@@ -872,7 +872,7 @@ const Viewport = (props) =>{
 
     // the data-type values cannot be changed - the literals are used in code (to save intersection entries)
     return <>
-        <div data-type = 'viewport' style = {viewportStyles} onScroll = {onViewportScroll} ref = {viewportRef}>
+        <div data-type = 'viewport' data-scrollername = {scrollerName} style = {viewportStyles} onScroll = {onViewportScroll} ref = {viewportRef}>
             <div data-type = 'scrollblock' style = {styles.scrollblockStyles} ref = {scrollblockRef}>
                 <div data-type = 'axis' style = {styles.axisStyles} ref = {axisRef}>
                     <div data-type = 'headblock' style = {styles.headblockStyles} ref = {headblockRef}>
