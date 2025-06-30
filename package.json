@@ -1,0 +1,40 @@
+{
+  "name": "react-super-simple-scroller",
+  "version": "1.0.0",
+  "description": "Yet another react infinite scroller",
+  "keywords": [
+    "react",
+    "infinite",
+    "scroller",
+    "horizontal",
+    "vertical",
+    "resizable"
+  ],
+  "license": "MIT",
+  "author": "Henrik Bechmann <hbechmann@gmail.com> (https://https://bsky.app/profile/henrikbechmann.bsky.social)",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "build": "webpack --config webpack.config.js --mode production"
+  },
+  "peerDependencies": {
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  },
+  "devDependencies": {
+    "babel-loader": "^10.0.0",
+    "ts-loader": "^9.5.2",
+    "webpack-cli": "^6.0.1",
+    "@babel/core": "^7.27.7",
+    "@babel/preset-react": "^7.27.1",
+    "save-dev": "^0.0.1-security"
+  },
+  "presets": ["@babel/preset-react"],
+  "rules": [
+    {
+      "test": "/tsx?$/", 
+      "use": "ts-loader",
+      "exclude":"/node_modules/"
+    }
+  ]  
+}
