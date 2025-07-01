@@ -55,7 +55,7 @@ const ScrollerDemo = (props) => {
   
   const fetchCells = useCallback((direction, referenceID, count)=>{
     const list = []
-	if (referenceID >=0 && referenceID <=500) {
+    if (referenceID >=0 && referenceID <=500) {
       if (direction == 'seed') {
         list.push({
           id = referenceID,
