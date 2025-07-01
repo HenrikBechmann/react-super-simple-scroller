@@ -34,7 +34,7 @@ const
     // defaults for below
     DEFAULT_STANDARD_SCROLL_MOMENTUM_FADE = 700,
     DEFAULT_SHORT_MOMENTUM_FADE = 200,
-    DEFAULT_RUNWAY_BANDS = 8
+    DEFAULT_RUNWAY_BANDS = 4
 
 let // can be set by parameter
     STANDARD_SCROLL_MOMENTUM_FADE = DEFAULT_STANDARD_SCROLL_MOMENTUM_FADE,
@@ -760,7 +760,7 @@ const Viewport = (props) =>{
 
         }
 
-        const runwayBands = Math.max(RUNWAY_BANDS, visibleBands)
+        const runwayBands = RUNWAY_BANDS
 
         const
             totalBands = visibleBands + (runwayBands * 2),
@@ -935,7 +935,6 @@ const ReactSuperSimpleScroller = (
         technical?: {
             STANDARD_SCROLL_MOMENTUM_FADE?: number,
             SHORT_MOMENTUM_FADE?: number,
-            RUNWAY_BANDS?: number,
         }
         spacing?: {
             cradleMargin?: number[],
@@ -944,6 +943,7 @@ const ReactSuperSimpleScroller = (
         },
         operations?: {
             dispatchAttachedEvents?:boolean,
+            runway?: number
         },
         scrollerName? : string
     }) => {
@@ -957,11 +957,13 @@ const ReactSuperSimpleScroller = (
         { technical } = moreProperties // technical for internal constants
 
     useEffect(()=>{
-        const techvalues = technical ?? {}
+        const 
+            techvalues = technical ?? {},
+            operationsvalues = operations ?? {}
 
         STANDARD_SCROLL_MOMENTUM_FADE = techvalues.STANDARD_SCROLL_MOMENTUM_FADE ?? DEFAULT_STANDARD_SCROLL_MOMENTUM_FADE
         SHORT_MOMENTUM_FADE = techvalues.SHORT_MOMENTUM_FADE ?? DEFAULT_SHORT_MOMENTUM_FADE
-        RUNWAY_BANDS = techvalues.RUNWAY_BANDS ?? DEFAULT_RUNWAY_BANDS
+        RUNWAY_BANDS = operations.runway ?? DEFAULT_RUNWAY_BANDS
 
     },[technical])
 

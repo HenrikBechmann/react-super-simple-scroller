@@ -249,7 +249,7 @@ The following properties are optional, and are designed to support specific use 
 | callbacks:{<br> &nbsp;axisReferenceID,<br> &nbsp;removed,<br> &nbsp;failed,<br> &nbsp;error,<br> &nbsp;warning<br>} | host-provided functions to provide support for data synchronization, and feedback from the scroller |
 | calls:{<br> &nbsp;insert, <br> &nbsp;remove, <br> &nbsp;move <br> &nbsp;replace <br> &nbsp;fetchCradleCells, <br> &nbsp;has, <br> &nbsp;getCradleIDList <br> &nbsp;getCradleSpecs,  <br>} | Pass an empty object which will be populated by RS3. RS3 provided functions: 5 operations on the cradle, and 3 ways to query the cradle |
 | spacing{<br> &nbsp;cradleMargin:[start, end]<br> &nbsp;bandPadding:[start, end]<br> &nbsp;cellGap:number <br>} | all integers. cradleMargin is cross-axis spacing at the edges; bandPadding is axis spacing at the start and end of each band; cellGap is cross-axis spacing between cells  |
-| operations:{<br> &nbsp;dispatchAttachedEvents<br>} | when dispatchAttachedEvents is set to `true`, RS3 dispatches events to container components to alert them to the need to restore scroll positions |
+| operations:{<br> &nbsp;dispatchAttachedEvents<br>runway<br>} | when dispatchAttachedEvents is set to `true`, RS3 dispatches events to container components to alert them to the need to restore scroll positions.`runway` is the number of bands out of view, both start and end. Default 4 |
 |scrollerName: string|for debugging, added to the viewport element as data-scrollername|
 
 Notes about the callbacks (the returned values are found in the arguments of the functions): 
@@ -325,14 +325,11 @@ The `technical` object property is really only there for experimentation. It con
 {
   STANDARD_SCROLL_MOMENTUM_FADE // ms, default 700
   SHORT_MOMENTUM_FADE // ms, default 200
-  RUNWAY_BANDS // integer, default 8
 }
 ```
 The STANDARD_SCROLL_MOMENTUM_FADE is used to suppress scroll momentum when the start or end of data is reached. Also used for resizing debouncing.
 
 The SHORT_MOMENTUM_FADE is used for the first bootstrapping resizeObserver callback.
-
-RUNWAY_BANDS is the number of bands to load outside of the visible viewport bands (both head and tail). The number of visible bands is measured with maxHeight/maxWidth plus band padding (depending on orientation) for ‘uniform’ layout, or minHeight/minWidth plus band padding for ‘variable' layout. The runway applied is actually the maximum of the RUNWAY_BANDS or the visible bands (presuming that narrow bands require more runway for smoothness).
 
 ## Restoring scroll positions
 
