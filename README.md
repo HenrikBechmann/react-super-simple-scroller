@@ -6,6 +6,8 @@ RS3 is yet another React infinite scroller.
 
 This product is often referred to as the “scroller” in the documentation below.
 
+This product is in beta.
+
 ## Features
 
 - vertical or horizontal scrolling

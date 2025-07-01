@@ -17,6 +17,10 @@
     "build": "webpack --config webpack.config.js --mode production",
     "dev": "webpack --config webpack.config.js --mode development"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/HenrikBechmann/react-super-simple-scroller"
+  },
   "peerDependencies": {
     "react": "^18.3.0",
     "react-dom": "^18.3.0"
