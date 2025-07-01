@@ -963,7 +963,7 @@ const ReactSuperSimpleScroller = (
 
         STANDARD_SCROLL_MOMENTUM_FADE = techvalues.STANDARD_SCROLL_MOMENTUM_FADE ?? DEFAULT_STANDARD_SCROLL_MOMENTUM_FADE
         SHORT_MOMENTUM_FADE = techvalues.SHORT_MOMENTUM_FADE ?? DEFAULT_SHORT_MOMENTUM_FADE
-        RUNWAY_BANDS = operations.runway ?? DEFAULT_RUNWAY_BANDS
+        RUNWAY_BANDS = operations?.runway ?? DEFAULT_RUNWAY_BANDS
 
     },[technical])
 

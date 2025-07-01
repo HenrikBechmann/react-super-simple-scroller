@@ -59,7 +59,7 @@ const ScrollerDemo = (props) => {
   
   const fetchCells = useCallback((direction, referenceID, count)=>{
     const list = []
-    if (referenceID >0 && referenceID <500) {
+    if (referenceID >=0 && referenceID <=500) {
       if (direction == 'seed') {
         list.push({
           id = referenceID,
@@ -403,3 +403,7 @@ If your component _contains_ a component that uses scrolling (here using RS3 as 
   }
 ```
 See the Properties section above for details on obtaining scroller calls, and for setting the `operations` parameter.
+
+## Licence
+
+MIT
