@@ -13,7 +13,7 @@
   "license": "MIT",
   "author": "Henrik Bechmann <hbechmann@gmail.com> (https://https://bsky.app/profile/henrikbechmann.bsky.social)",
   "type": "commonjs",
-  "main": "index.js",
+  "main": "src/ReactSuperSimpleScroller.tsx",
   "scripts": {
     "build": "webpack --config webpack.config.js --mode production",
     "dev": "webpack --config webpack.config.js --mode development"
