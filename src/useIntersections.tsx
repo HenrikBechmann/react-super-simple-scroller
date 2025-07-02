@@ -386,7 +386,7 @@ const useIntersections = ({
 
         } else { // reposition axis to top
 
-            console.log('SHIFT AXIS BACKWARD (from head overflow)')
+            // console.log('SHIFT AXIS BACKWARD (from head overflow)')
 
             shiftAxis('backward',cradleActual.backwardBands)
 
