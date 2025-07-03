@@ -2,7 +2,7 @@ README.md
 
 ## React Super Simple Scroller (RS3)
 
-RS3 is yet another React infinite scroller.
+RS3 is yet another React infinite scroller, but with a twist.
 
 This product is often referred to as the “scroller” in the documentation below.
 
@@ -129,7 +129,7 @@ The axis is the only element for which position is maintained with `transform:tr
 
 The head and tail blocks contain a set of child _band_ elements (light one-row CSS _grids_) as needed. The bands contain one or more _container_ elements, as needed, which contain the host-provided cell React components.
 
-The cell container elements are created by the scroller (with `createElement`) when creating _portals_ (`createPortal(component, container, key`). The portals are rendered to React’s virtual DOM as a single list in a hidden div, which ties the rendered components to the containers. Then the containers are placed, and moved, as needed within the scroller cradle using standard DOM manipulation. Moving the container elements does not disturb the React component states (with the exception of scroll positions — see below).
+The cell `container` elements are created by the scroller (with `createElement`) when creating _portals_ (`createPortal(component, container, key`). The portals are rendered to React’s virtual DOM as a single list in a hidden div, which ties the rendered components to the containers. Then the containers are placed, and moved, as needed within the scroller cradle using standard DOM manipulation. Moving the container elements does not disturb the React component states (with the exception of scroll positions — see below).
 
 Finally, a number of one-pixel-height _trigger_ elements are strategically placed, and monitored by `IntersectionObserver` to generate the DOM manipulations required to maintain the illusion of a smooth flow of content while scrolling.
 
@@ -166,7 +166,7 @@ Resizing similarly disconnects the `IntersectionObserver`, performs DOM manipula
 
 Before the `IntersectionObserver` is reconnected, the scroller attempts to add content from the host (see `fetchCells` below) to the currently leading edge of the cradle as needed, and it trims content from the trailing edge.
 
-Most commonly, when scrolling, band elements are attached with child container elements to the moving leading edge of the cradle. Each band is then progressively moved closer to the axis, “jumps” the axis, and continues its migration to the trailing edge, where it is finally trimmed away.
+Most commonly, when scrolling, `band` elements are attached with child `container` elements to the moving leading edge of the cradle. Each `band` is then progressively moved closer to the axis, “jumps” the axis, and continues its migration to the trailing edge, where it is finally trimmed away.
 
 ### Self-configuration
 
@@ -190,7 +190,7 @@ Each cellPack is an object with two properties: `id`, and `component`. The `id` 
 
 Returning an empty array signals to the scroller that the beginning or end of data (depending on the direction) has been reached.
 
-Also the scroller assumes the cellPacks are provided in the returned array in the order that they should be presented. The cells are added to the cradle in the order received (see `fetchCells` below for details).
+Also the scroller assumes the cellPacks in the returned array are in the order in which they should be presented. The cells are added to the cradle in the order received (see `fetchCells` below for details).
 
 The ’seed’ call is a request for the single cellPack (but in an array) indicated in the scroller’s seedReferenceID parameter. Host-returned ‘forward’ items are added to the tailblock, and ‘backward' items are added to the headblock.
 
@@ -202,13 +202,13 @@ Another strategy is to load a light generic placeholder component and then use t
 
 ## Properties
 
-These are the properties that can be passed to RS3.
+Below are the properties that can be passed to RS3.
 
 Note that the object and function properties are tested by RS3 for object identity changes. If a change is detected, then RS3 resets, requesting new cellPacks for all cell id’s around the current axisReferenceID.
 
 Most of the time you will want to avoid this by using `useRef`, `useState` and `useCallback` to store your parameters. On the other hand, if you want to change parameters, make sure that you pass an object with a new identity for the new parameter.
 
-RS3 is responsive to all parameter changes other than calls, callbacks, and technical.
+RS3 is responsive to all parameter changes other than `calls`, `callbacks`, and `technical`.
 
 ### Required
 
@@ -230,13 +230,13 @@ Notes:
 `cellsPerBand = Math.ceil((viewportDimensions.width - (cradleMarginStart + cradleMarginEnd) + cellGap)/(cellMaxWidth + cellGap))` 
 where 
 - `viewportDimensions` is measured by RS3
-- `cradleMarginStart`, `cradleMarginEnd` and `cellGap` are taken from the `spacing` property object (see below)
+- `cradleMarginStart`, `cradleMarginEnd` and `cellGap` are taken from the `spacing` property object (see below — but all default to 0)
 
-This even distribution can be over-ridden with minWidth. If the minWidth is large enough, then the distribution is fixed to the minWidth value, and may cause a cross-axis overflow. This can cause the cradle to scroll slightly left and right to accommodate the overflow. The host scroller container can be set to fixed dimensions to avoid this cross-axis scrolling if desired.
+This even distribution inside the bounds of the `viewport` can be over-ridden with minWidth. If the minWidth is large enough, then the distribution is tied to the minWidth value, and may cause a cross-axis overflow. This can cause the cradle to scroll slightly left and right to accommodate the overflow. The host scroller container can be set to fixed dimensions to avoid this cross-axis scrolling if desired.
 
-Setting the minWidth and maxWidth to the same number creates a fixedWidth cell. Setting min to about half of max gives the most reliable distribution fit.
+Setting the minWidth and maxWidth to the same number creates a fixedWidth cell. Setting min to about half of max gives the most reliable distribution fit inside the `viewport` dimensions.
 
-All this may require some experimentation.
+All this may require some experimentation by developers.
 
 If **layout** is set to ‘uniform’, the height of the cell container is set to ‘maxHeight’. If layout is set to ‘variable’, the minHeight and maxHeight styles of the cell container are set to the matching `cellDimensions` values.
 
@@ -252,7 +252,7 @@ The following properties are optional, and are designed to support specific use 
 |:----|:----|
 | callbacks:{<br> &nbsp;axisReferenceID,<br> &nbsp;removed,<br> &nbsp;failed,<br> &nbsp;error,<br> &nbsp;warning<br>} | host-provided functions to provide support for data synchronization, and feedback from the scroller |
 | calls:{<br> &nbsp;insert, <br> &nbsp;remove, <br> &nbsp;move <br> &nbsp;replace <br> &nbsp;fetchCradleCells, <br> &nbsp;has, <br> &nbsp;getCradleIDList <br> &nbsp;getCradleSpecs,  <br>} | Pass an empty object which will be populated by RS3. RS3 provided functions: 5 operations on the cradle, and 3 ways to query the cradle |
-| spacing{<br> &nbsp;cradleMargin:[start, end]<br> &nbsp;bandPadding:[start, end]<br> &nbsp;cellGap:number <br>} | all integers. cradleMargin is cross-axis spacing at the edges; bandPadding is axis spacing at the start and end of each band; cellGap is cross-axis spacing between cells  |
+| spacing:{<br> &nbsp;cradleMargin:[start, end]<br> &nbsp;bandPadding:[start, end]<br> &nbsp;cellGap:number <br>} | all integers. cradleMargin is cross-axis spacing at the edges; bandPadding is axis spacing at the start and end of each band; cellGap is cross-axis spacing between cells  |
 | operations:{<br> &nbsp;dispatchAttachedEvents,<br> runway<br>} | when dispatchAttachedEvents is set to `true`, RS3 dispatches events to container components to alert them to the need to restore scroll positions. Default `false`. `runway` is the number of bands out of view, both start and end. Default 4 |
 |scrollerName: string|for debugging, added to the viewport element as data-scrollername|
 
@@ -276,7 +276,7 @@ The following three are mainly intended to be support for drag and drop.
 
 **remove(targetReferenceID)** `await` return of `true` or `false`.
 
-**move(sourceReferenceID, targetReferenceID, position)** `await` return of `true` or `false`. Position must be before or after.
+**move(sourceReferenceID, targetReferenceID, position)** `await` return of `true` or `false`. Position must be 'before' or 'after'.
 
 The following two are specialized operations.
 
@@ -339,7 +339,7 @@ The SHORT_MOMENTUM_FADE is used for the first bootstrapping resizeObserver callb
 
 This section is relevant if your cells have scrolling content.
 
-Moving containers around the DOM does not disturb the contained React component states, except for scroll positions. The reason is that when a container or its band parent are moved with DOM manipulations, the container or band element tree are momentarily detached from the DOM, before being re-attached to the DOM in a new location.
+Moving containers around the DOM does not disturb the contained React component states, except for scroll positions. The reason is that when a `container` or its `band` parent are moved with DOM manipulations, the `container` or `band` element tree are momentarily detached from the DOM, before being re-attached in a new location.
 
 Fortunately restoring scroll positions is relatively straightforward.
 
