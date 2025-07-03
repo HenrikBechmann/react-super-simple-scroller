@@ -253,7 +253,7 @@ The following properties are optional, and are designed to support specific use 
 | property | details |
 |:----|:----|
 | callbacks:{<br> &nbsp;axisReferenceID,<br> &nbsp;removed,<br> &nbsp;failed,<br> &nbsp;error,<br> &nbsp;warning<br>} | host-provided functions to provide support for data synchronization, and feedback from the scroller |
-| calls:{<br> &nbsp;insert, <br> &nbsp;remove, <br> &nbsp;move <br> &nbsp;replace <br> &nbsp;fetchCradleCells, <br> &nbsp;has, <br> &nbsp;getCradleIDList <br> &nbsp;getCradleSpecs,  <br>} | Pass an empty object which will be populated by RS3. RS3 provided functions: 5 operations on the cradle, and 3 ways to query the cradle |
+| calls:{<br> &nbsp;insert, <br> &nbsp;remove, <br> &nbsp;move <br> &nbsp;replace, <br> &nbsp;dispatchEvent, <br> &nbsp;fetchCradleCells, <br> &nbsp;has, <br> &nbsp;getCradleIDList <br> &nbsp;getCradleSpecs, <br>} | Pass an empty object which will be populated by RS3. RS3 provided functions: 6 operations on the cradle, and 3 ways to query the cradle |
 | spacing:{<br> &nbsp;cradleMargin:[start, end]<br> &nbsp;bandPadding:[start, end]<br> &nbsp;cellGap:number <br>} | all integers. cradleMargin is cross-axis spacing at the edges; bandPadding is axis spacing at the start and end of each band; cellGap is cross-axis spacing between cells  |
 | operations:{<br> &nbsp;dispatchAttachedEvents,<br> runway<br>} | when dispatchAttachedEvents is set to `true`, RS3 dispatches events to container components to alert them to the need to restore scroll positions. Default `false`. `runway` is the number of bands out of view, both start and end. Default 4 |
 |scrollerName: string|for debugging, added to the viewport element as data-scrollername|
@@ -280,9 +280,11 @@ The following three are mainly intended to be support for drag and drop.
 
 **move(sourceReferenceID, targetReferenceID, position)** `await` return of `true` or `false`. Position must be 'before' or 'after'.
 
-The following two are specialized operations.
+The following two three specialized operations.
 
 **replace(referenceID, cellPack)** `await` return of `true` or `false`. Replaces both the referenceID and the component.
+
+**dispatchEvent(referenceID, event)** returns `true` or `false`. The dispatched event must be synthetic.
 
 **fetchCradleCells(referenceID?)** no return value. This re-runs the fetching of cradle cells. Useful to initiate fetch after a change in the underlying data. If no referenceID is passed, uses the current axisReferenceID, and just tries to add cells to the existing cradle. When a referenceID is passed, the cradle is emptied and reset, which can be useful to reposition the cradle after, say, the end user has selected a cell (that may be out of scope) to view, or if the cell sort order has changed.
 
