@@ -8,11 +8,6 @@ import { createPortal } from 'react-dom'
 import { createContainer, createBand, isValidID } from './utilities'
 
 /*
-    add dispatchEvent(referenceID, event)
-    ?enqueue replace, insert, remove, move, fillCradle, getSeed
-*/
-
-/*
     - calls available to host
     has,
     insert,
@@ -23,6 +18,7 @@ import { createContainer, createBand, isValidID } from './utilities'
     getCradleSpecs,
     fetchCradleCells,
     restoreScrollPositions,
+    dispatchEvent,
 */
 
 const useCalls = ({
@@ -987,6 +983,68 @@ const useCalls = ({
 
     }
 
+    const dispatchEvent = (referenceID:any, event) => {
+
+        if (!isValidID(referenceID )) {
+            if (callbacks.error) {
+                callbacks.error(
+                    {
+                        source: 'dispatchEvent',
+                        message:'must be a valid referenceID',
+                        arguments: [referenceID, event],
+                        timestamp: Date.now()
+                    }
+                )
+            }
+            return false
+        }
+
+        if (!portalContainerMapRef.current.has(referenceID)) {
+            if (callbacks.warning) {
+                callbacks.warning(
+                    {
+                        source: 'dispatchEvent',
+                        message:'referenceID not found in cradle',
+                        arguments: [referenceID, event],
+                        timestamp: Date.now()
+                    }
+                )
+            }
+            return false
+        }
+
+        let isValidEvent = (event instanceof Event)
+
+        if (isValidEvent) {
+
+            if (event.isTrusted) { // not synthetic
+                isValidEvent = false
+            }
+        }
+
+        if (!isValidEvent) {
+
+            if (callbacks.error) {
+                callbacks.error(
+                    {
+                        source: 'dispatchEvent',
+                        message:'event must be a synthetic event',
+                        arguments: [referenceID, event],
+                        timestamp: Date.now()
+                    }
+                )
+            }
+            return false
+        }
+
+        const targetContainer = portalContainerMapRef.current.get(referenceID)
+
+        targetContainer.firstChild && targetContainer.firstChild.dispatchEvent(event)
+
+        return true
+
+    }
+
     const calls = {
         has,
         insert,
@@ -997,6 +1055,7 @@ const useCalls = ({
         getCradleSpecs,
         fetchCradleCells,
         restoreScrollPositions,
+        dispatchEvent,
     }
 
     return calls
