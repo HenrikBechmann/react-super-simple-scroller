@@ -261,6 +261,8 @@ const Viewport = (props) =>{
 
         await getCells('forward') // returns promise
 
+        return true
+
     }
 
     const getSeed = async (referenceID) => {
@@ -280,6 +282,8 @@ const Viewport = (props) =>{
         }
 
         await getCells('seed', referenceID)
+
+        return true
 
     }
 

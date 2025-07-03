@@ -8,6 +8,11 @@ import { createPortal } from 'react-dom'
 import { createContainer, createBand, isValidID } from './utilities'
 
 /*
+    add dispatchEvent(referenceID, event)
+    ?enqueue replace, insert, remove, move, fillCradle, getSeed
+*/
+
+/*
     - calls available to host
     has,
     insert,
