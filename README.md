@@ -17,10 +17,12 @@ This product is in beta.
 - self-configuring
 - support for oversized cells (larger than the viewport)
 - fixed or variable axis cell length, and uniform cross-axis cell length
+- dynamic changes to scroller cradle content
+- dispatch synthetic events to cells
 
 Designed for modern browsers.
 
-The compiled build is ~46KB.
+The compiled build is ~47KB.
 
 ## Usage
 Here is the simplest base case.
@@ -280,7 +282,7 @@ The following three are mainly intended to be support for drag and drop.
 
 The following two are specialized operations.
 
-**replace(referenceID, cellPack)** Returns `true` or `false`.
+**replace(referenceID, cellPack)** `await` return of `true` or `false`. Replaces both the referenceID and the component.
 
 **fetchCradleCells(referenceID?)** no return value. This re-runs the fetching of cradle cells. Useful to initiate fetch after a change in the underlying data. If no referenceID is passed, uses the current axisReferenceID, and just tries to add cells to the existing cradle. When a referenceID is passed, the cradle is emptied and reset, which can be useful to reposition the cradle after, say, the end user has selected a cell (that may be out of scope) to view, or if the cell sort order has changed.
 

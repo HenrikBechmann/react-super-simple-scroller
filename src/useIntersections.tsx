@@ -9,6 +9,8 @@ const useIntersections = ({
     STANDARD_SCROLL_MOMENTUM_FADE,
     AXIS_START_POSITION,
 
+    scrollerQueueRef,
+
     orientationRef,
 
     // DOM elements
@@ -46,6 +48,8 @@ const useIntersections = ({
     trimCradle,
 
 }) => {
+
+    const scrollerQueue = scrollerQueueRef.current
 
     // -------------------------[ intersection observations controller ]-------------------------
 
@@ -188,13 +192,15 @@ const useIntersections = ({
 
             adjustForHeadOverflow()
 
-            await fillCradle()
+            await scrollerQueue.enqueue(async () => {
+                await fillCradle()
 
-            setTimeout(()=>{ // yield for DOM
+                setTimeout(()=>{ // yield for DOM
 
-                intersectionsConnect()
+                    intersectionsConnect()
 
-            },1)
+                },1)                
+            })
 
             return
 
@@ -225,13 +231,17 @@ const useIntersections = ({
 
             adjustForTailOverflow()
 
-            await fillCradle()
+            await scrollerQueue.enqueue(async () => {
 
-            setTimeout(()=>{ // yield for DOM
+                await fillCradle()
 
-                intersectionsConnect()
+                setTimeout(()=>{ // yield for DOM
 
-            },1)
+                    intersectionsConnect()
+
+                },1)
+
+            })
 
             return
 
@@ -286,13 +296,17 @@ const useIntersections = ({
 
             shiftAxis('backward',count) // axis backward, bands forward
 
-            await fillCradle()
-            
-            setTimeout(()=>{ // yield for DOM
+            await scrollerQueue.enqueue(async () => {
 
-                intersectionsConnect()
+                await fillCradle()
+                
+                setTimeout(()=>{ // yield for DOM
 
-            },1)
+                    intersectionsConnect()
+
+                },1)
+
+            })
 
             return
         }
@@ -347,13 +361,17 @@ const useIntersections = ({
 
             shiftAxis('forward', axisshiftcount) // axis forward, bands backward
 
-            await fillCradle()
+            await scrollerQueue.enqueue(async () => {
 
-            setTimeout(()=>{ // yield for DOM
+                await fillCradle()
 
-                intersectionsConnect()
+                setTimeout(()=>{ // yield for DOM
 
-            },1)
+                    intersectionsConnect()
+
+                },1)
+
+            })
 
             return
 

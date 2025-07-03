@@ -363,6 +363,8 @@ const Viewport = (props) =>{
 
         evaluateIntersections = useIntersections({
 
+            scrollerQueueRef,
+
             orientationRef,
 
             intersectionsMapRef,

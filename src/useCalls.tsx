@@ -70,6 +70,8 @@ const useCalls = ({
 
     const callbacks = callbacksRef.current ?? {}
 
+    const scrollerQueue = scrollerQueueRef.current
+
     const insert = async (cellPack: {id:any, component:FC }, targetReferenceID: any, position: 'before' | 'after' = 'before') => {
 
         if ( !( (typeof cellPack == 'object') && 
@@ -398,11 +400,14 @@ const useCalls = ({
 
         setPortalRenderList([...cellPortalListRef.current])
 
-        await fillCradle()
+        await scrollerQueue.enqueue(async () => {
+            await fillCradle()
 
-        setTimeout(()=>{
-            intersectionsConnect()
-        },1)
+            setTimeout(()=>{
+                intersectionsConnect()
+            },1)
+
+        })
 
         updateCurrentAxisReferenceID()
 
@@ -739,11 +744,13 @@ const useCalls = ({
 
         trimCradle()
 
-        await fillCradle()
+        await scrollerQueue.enqueue(async () => {
+            await fillCradle()
 
-        setTimeout(()=>{
-            intersectionsConnect()
-        },1)
+            setTimeout(()=>{
+                intersectionsConnect()
+            },1)
+        })
 
         updateCurrentAxisReferenceID()
 
@@ -781,17 +788,22 @@ const useCalls = ({
     const fetchCradleCells = async (seedReferenceID?:any) => {
 
         if (seedReferenceID != null) {
-            scrollerQueueRef.current.enqueue(async () => {
+
+            await scrollerQueue.enqueue(async () => {
                 await reset(seedReferenceID)
             })
+
         } else {
+
             intersectionsDisconnect()
 
-            await fillCradle()
+            await scrollerQueue.enqueue(async () => {
+                await fillCradle()
 
-            setTimeout(()=>{
-                intersectionsConnect()
-            },1)
+                setTimeout(()=>{
+                    intersectionsConnect()
+                },1)
+            })
         }
 
     }
