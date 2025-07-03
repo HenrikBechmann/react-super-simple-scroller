@@ -413,9 +413,6 @@ const useCalls = ({
 
             await doRemove(targetReferenceID)
 
-        })
-
-        await scrollerQueue.enqueue(async () => {
             await fillCradle()
 
             setTimeout(()=>{
@@ -768,9 +765,6 @@ const useCalls = ({
 
             await doMove(sourceReferenceID, targetReferenceID, position)
 
-        })
-
-        await scrollerQueue.enqueue(async () => {
             await fillCradle()
 
             setTimeout(()=>{
@@ -824,6 +818,7 @@ const useCalls = ({
             intersectionsDisconnect()
 
             await scrollerQueue.enqueue(async () => {
+
                 await fillCradle()
 
                 setTimeout(()=>{
@@ -974,6 +969,7 @@ const useCalls = ({
         }
 
         await scrollerQueue.enqueue(async () => {
+            
             await doReplace(referenceID, cellPack)
         })
 
