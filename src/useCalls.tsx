@@ -291,9 +291,9 @@ const useCalls = ({
 
             await doInsert(cellPack, targetReferenceID, position)
 
-        })
+            updateCurrentAxisReferenceID()
 
-        updateCurrentAxisReferenceID()
+        })
 
         return true
 
@@ -419,12 +419,11 @@ const useCalls = ({
                 intersectionsConnect()
             },1)
 
+            updateCurrentAxisReferenceID()
+
+            callbacks.removed && callbacks.removed([targetReferenceID])
+
         })
-
-
-        updateCurrentAxisReferenceID()
-
-        callbacks.removed && callbacks.removed([targetReferenceID])
 
         return true
 
@@ -770,9 +769,10 @@ const useCalls = ({
             setTimeout(()=>{
                 intersectionsConnect()
             },1)
-        })
+    
+            updateCurrentAxisReferenceID()
 
-        updateCurrentAxisReferenceID()
+        })
 
         return true
 
@@ -971,9 +971,10 @@ const useCalls = ({
         await scrollerQueue.enqueue(async () => {
             
             await doReplace(referenceID, cellPack)
-        })
 
-        updateCurrentAxisReferenceID()
+            updateCurrentAxisReferenceID()
+
+        })
 
         return true
 
