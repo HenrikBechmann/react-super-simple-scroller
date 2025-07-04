@@ -280,7 +280,7 @@ The following three are mainly intended to be support for drag and drop.
 
 **move(sourceReferenceID, targetReferenceID, position)** `await` return of `true` or `false`. Position must be 'before' or 'after'.
 
-The following two three specialized operations.
+The following three are specialized operations.
 
 **replace(referenceID, cellPack)** `await` return of `true` or `false`. Replaces both the referenceID and the component.
 
