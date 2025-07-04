@@ -1,4 +1,4 @@
-### version 1.1.0 July 5, 2025
+### version 1.1.0 July 4, 2025
 
 - queued mutation cycles
 - replace now requires await for response
