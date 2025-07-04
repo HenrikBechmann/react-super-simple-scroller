@@ -282,7 +282,7 @@ const useCalls = ({
             trimCradle()
 
             setTimeout(()=>{
-                intersectionsConnect()
+                !scrollerQueue.queue.length && intersectionsConnect()
             },1)
 
             return true
@@ -426,7 +426,7 @@ const useCalls = ({
                 await fillCradle()
 
                 setTimeout(()=>{
-                    intersectionsConnect()
+                    !scrollerQueue.queue.length && intersectionsConnect()
                 },1)
 
                 updateCurrentAxisReferenceID()
@@ -784,7 +784,7 @@ const useCalls = ({
                 await fillCradle()
 
                 setTimeout(()=>{
-                    intersectionsConnect()
+                    !scrollerQueue.queue.length && intersectionsConnect()
                 },1)
         
                 updateCurrentAxisReferenceID()
@@ -843,7 +843,7 @@ const useCalls = ({
                 await fillCradle()
 
                 setTimeout(()=>{
-                    intersectionsConnect()
+                    !scrollerQueue.queue.length && intersectionsConnect()
                 },1)
             })
         }
