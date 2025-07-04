@@ -411,17 +411,18 @@ const useCalls = ({
         }
         await scrollerQueue.enqueue(async () => {
 
-            await doRemove(targetReferenceID)
+            if (await doRemove(targetReferenceID)) {
 
-            await fillCradle()
+                await fillCradle()
 
-            setTimeout(()=>{
-                intersectionsConnect()
-            },1)
+                setTimeout(()=>{
+                    intersectionsConnect()
+                },1)
 
-            updateCurrentAxisReferenceID()
+                updateCurrentAxisReferenceID()
 
-            callbacks.removed && callbacks.removed([targetReferenceID])
+                callbacks.removed && callbacks.removed([targetReferenceID])
+            }
 
         })
 
@@ -762,15 +763,17 @@ const useCalls = ({
 
         await scrollerQueue.enqueue(async () => {
 
-            await doMove(sourceReferenceID, targetReferenceID, position)
+            if (await doMove(sourceReferenceID, targetReferenceID, position)) {
 
-            await fillCradle()
+                await fillCradle()
 
-            setTimeout(()=>{
-                intersectionsConnect()
-            },1)
-    
-            updateCurrentAxisReferenceID()
+                setTimeout(()=>{
+                    intersectionsConnect()
+                },1)
+        
+                updateCurrentAxisReferenceID()
+
+            }
 
         })
 
@@ -815,9 +818,9 @@ const useCalls = ({
 
         } else {
 
-            intersectionsDisconnect()
-
             await scrollerQueue.enqueue(async () => {
+
+                intersectionsDisconnect()
 
                 await fillCradle()
 

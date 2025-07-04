@@ -192,6 +192,8 @@ const useIntersections = ({
 
             await scrollerQueue.enqueue(async () => {
     
+                intersectionsDisconnect()
+
                 adjustForHeadOverflow()
 
                 await fillCradle()
@@ -231,6 +233,8 @@ const useIntersections = ({
             } 
 
             await scrollerQueue.enqueue(async () => {
+
+                intersectionsDisconnect()
 
                 adjustForTailOverflow()
 
@@ -297,6 +301,8 @@ const useIntersections = ({
 
             await scrollerQueue.enqueue(async () => {
 
+                intersectionsDisconnect()
+
                 shiftAxis('backward',count) // axis backward, bands forward
 
                 await fillCradle()
@@ -361,6 +367,8 @@ const useIntersections = ({
             // console.log('SHIFT AXIS FORWARD', axisshiftcount) 
 
             await scrollerQueue.enqueue(async () => {
+
+                intersectionsDisconnect()
 
                 shiftAxis('forward', axisshiftcount) // axis forward, bands backward
 
