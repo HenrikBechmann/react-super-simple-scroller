@@ -188,9 +188,9 @@ const useIntersections = ({
                     viewportRef.current && (viewportRef.current.style.overflow = 'auto')
                 },STANDARD_SCROLL_MOMENTUM_FADE)
 
-            } 
+            }
 
-            await scrollerQueue.enqueue(async () => {
+            const executeHeadOverflow = async () => {
     
                 intersectionsDisconnect()
 
@@ -203,7 +203,13 @@ const useIntersections = ({
                     intersectionsConnect()
 
                 },1)                
-            })
+            }
+
+            if (scrollerQueue.pendingPromise) {
+                await scrollerQueue.enqueue(executeHeadOverflow)
+            } else {
+                await executeHeadOverflow()
+            }
 
             return
 
@@ -232,7 +238,7 @@ const useIntersections = ({
 
             } 
 
-            await scrollerQueue.enqueue(async () => {
+            const executeTailOverflow = async () => {
 
                 intersectionsDisconnect()
 
@@ -246,7 +252,13 @@ const useIntersections = ({
 
                 },1)
 
-            })
+            }
+
+            if (scrollerQueue.pendingPromise) {
+                await scrollerQueue.enqueue(executeTailOverflow)
+            } else {
+                await executeTailOverflow()
+            }
 
             return
 
@@ -299,7 +311,7 @@ const useIntersections = ({
 
             // console.log('SHIFT AXIS BACKWARD', count)
 
-            await scrollerQueue.enqueue(async () => {
+            const executeShiftBackward = async () => {
 
                 intersectionsDisconnect()
 
@@ -313,7 +325,13 @@ const useIntersections = ({
 
                 },1)
 
-            })
+            } 
+
+            if (scrollerQueue.pendingPromise) {
+                await scrollerQueue.enqueue(executeShiftBackward)
+            } else {
+                await executeShiftBackward()
+            }
 
             return
         }
@@ -364,9 +382,9 @@ const useIntersections = ({
 
             const axisshiftcount = bandCount
 
-            // console.log('SHIFT AXIS FORWARD', axisshiftcount) 
+            // console.log('SHIFT AXIS FORWARD', axisshiftcount)
 
-            await scrollerQueue.enqueue(async () => {
+            const executeShiftForward = async () => {
 
                 intersectionsDisconnect()
 
@@ -380,7 +398,13 @@ const useIntersections = ({
 
                 },1)
 
-            })
+            }
+
+            if (scrollerQueue.pendingPromis) {
+                await scrollerQueue.enqueue(executeShiftForward)
+            } else {
+                await executeShiftForward()
+            }
 
             return
 
