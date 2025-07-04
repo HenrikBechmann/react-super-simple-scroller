@@ -49,7 +49,7 @@ const useIntersections = ({
 
 }) => {
 
-    const scrollerQueue = scrollerQueueRef.current
+    const DOMManipulationQueue = scrollerQueueRef.current
 
     // -------------------------[ intersection observations controller ]-------------------------
 
@@ -200,12 +200,12 @@ const useIntersections = ({
 
                 setTimeout(()=>{ // yield for DOM
 
-                    !scrollerQueue.queue.length && intersectionsConnect()
+                    !DOMManipulationQueue.queue.length && intersectionsConnect()
 
                 },1)                
             }
 
-            await scrollerQueue.enqueue(executeHeadOverflow)
+            await DOMManipulationQueue.enqueue(executeHeadOverflow)
 
             return
 
@@ -244,13 +244,13 @@ const useIntersections = ({
 
                 setTimeout(()=>{ // yield for DOM
 
-                    !scrollerQueue.queue.length && intersectionsConnect()
+                    !DOMManipulationQueue.queue.length && intersectionsConnect()
 
                 },1)
 
             }
 
-            await scrollerQueue.enqueue(executeTailOverflow)
+            await DOMManipulationQueue.enqueue(executeTailOverflow)
 
             return
 
@@ -313,13 +313,13 @@ const useIntersections = ({
                 
                 setTimeout(()=>{ // yield for DOM
 
-                    !scrollerQueue.queue.length && intersectionsConnect()
+                    !DOMManipulationQueue.queue.length && intersectionsConnect()
 
                 },1)
 
             } 
 
-            await scrollerQueue.enqueue(executeShiftBackward)
+            await DOMManipulationQueue.enqueue(executeShiftBackward)
 
             return
         }
@@ -382,13 +382,13 @@ const useIntersections = ({
 
                 setTimeout(()=>{ // yield for DOM
 
-                    !scrollerQueue.queue.length && intersectionsConnect()
+                    !DOMManipulationQueue.queue.length && intersectionsConnect()
 
                 },1)
 
             }
 
-            await scrollerQueue.enqueue(executeShiftForward)
+            await DOMManipulationQueue.enqueue(executeShiftForward)
 
             return
 

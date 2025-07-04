@@ -66,7 +66,7 @@ const useCalls = ({
 
     const callbacks = callbacksRef.current ?? {}
 
-    const scrollerQueue = scrollerQueueRef.current
+    const DOMManipulationQueue = scrollerQueueRef.current
 
     const insert = async (cellPack: {id:any, component:FC }, targetReferenceID: any, position: 'before' | 'after' = 'before') => {
 
@@ -282,7 +282,7 @@ const useCalls = ({
             trimCradle()
 
             setTimeout(()=>{
-                !scrollerQueue.queue.length && intersectionsConnect()
+                !DOMManipulationQueue.queue.length && intersectionsConnect()
             },1)
 
             return true
@@ -290,7 +290,7 @@ const useCalls = ({
         }
 
 
-        const result = await scrollerQueue.enqueue(async ()=>{
+        const result = await DOMManipulationQueue.enqueue(async ()=>{
 
             const result = await doInsert(cellPack, targetReferenceID, position)
 
@@ -417,7 +417,7 @@ const useCalls = ({
 
         }
 
-        const result = await scrollerQueue.enqueue(async () => {
+        const result = await DOMManipulationQueue.enqueue(async () => {
 
             const result = await doRemove(targetReferenceID)
 
@@ -426,7 +426,7 @@ const useCalls = ({
                 await fillCradle()
 
                 setTimeout(()=>{
-                    !scrollerQueue.queue.length && intersectionsConnect()
+                    !DOMManipulationQueue.queue.length && intersectionsConnect()
                 },1)
 
                 updateCurrentAxisReferenceID()
@@ -775,7 +775,7 @@ const useCalls = ({
 
         }
 
-        const result = await scrollerQueue.enqueue(async () => {
+        const result = await DOMManipulationQueue.enqueue(async () => {
 
             const result = await doMove(sourceReferenceID, targetReferenceID, position)
 
@@ -784,7 +784,7 @@ const useCalls = ({
                 await fillCradle()
 
                 setTimeout(()=>{
-                    !scrollerQueue.queue.length && intersectionsConnect()
+                    !DOMManipulationQueue.queue.length && intersectionsConnect()
                 },1)
         
                 updateCurrentAxisReferenceID()
@@ -830,20 +830,20 @@ const useCalls = ({
 
         if (seedReferenceID != null) {
 
-            await scrollerQueue.enqueue(async () => {
+            await DOMManipulationQueue.enqueue(async () => {
                 await reset(seedReferenceID)
             })
 
         } else {
 
-            await scrollerQueue.enqueue(async () => {
+            await DOMManipulationQueue.enqueue(async () => {
 
                 intersectionsDisconnect()
 
                 await fillCradle()
 
                 setTimeout(()=>{
-                    !scrollerQueue.queue.length && intersectionsConnect()
+                    !DOMManipulationQueue.queue.length && intersectionsConnect()
                 },1)
             })
         }
@@ -991,7 +991,7 @@ const useCalls = ({
 
         }
 
-        const result = await scrollerQueue.enqueue(async () => {
+        const result = await DOMManipulationQueue.enqueue(async () => {
             
             const result = await doReplace(referenceID, cellPack)
 
