@@ -282,7 +282,7 @@ const useCalls = ({
             trimCradle()
 
             setTimeout(()=>{
-                !DOMManipulationQueue.queue.length && intersectionsConnect()
+                intersectionsConnect()
             },1)
 
             return true
@@ -295,6 +295,8 @@ const useCalls = ({
             const result = await doInsert(cellPack, targetReferenceID, position)
 
             updateCurrentAxisReferenceID()
+
+            intersectionsConnect()
 
             return result
 
@@ -426,13 +428,15 @@ const useCalls = ({
                 await fillCradle()
 
                 setTimeout(()=>{
-                    !DOMManipulationQueue.queue.length && intersectionsConnect()
+                    intersectionsConnect()
                 },1)
 
                 updateCurrentAxisReferenceID()
 
                 callbacks.removed && callbacks.removed([targetReferenceID])
             }
+
+            intersectionsConnect()
 
             return result
 
@@ -784,13 +788,15 @@ const useCalls = ({
                 await fillCradle()
 
                 setTimeout(()=>{
-                    !DOMManipulationQueue.queue.length && intersectionsConnect()
+                    intersectionsConnect()
                 },1)
-        
+
                 updateCurrentAxisReferenceID()
 
             }
 
+            intersectionsConnect()
+        
             return result
 
         })
@@ -843,10 +849,12 @@ const useCalls = ({
                 await fillCradle()
 
                 setTimeout(()=>{
-                    !DOMManipulationQueue.queue.length && intersectionsConnect()
+                    intersectionsConnect()
                 },1)
             })
         }
+
+        intersectionsConnect()
 
     }
 
@@ -859,7 +867,7 @@ const useCalls = ({
         viewportRef.current.scrollTo(scrollLeftRef.current, scrollTopRef.current)
 
         setTimeout(()=>{
-            !DOMManipulationQueue.queue.length && intersectionsConnect()
+            intersectionsConnect()
         },1)
 
         operationsRef.current.dispatchAttachedEvents && portalContainerMapRef.current.forEach((container) => {
@@ -996,6 +1004,8 @@ const useCalls = ({
             const result = await doReplace(referenceID, cellPack)
 
             updateCurrentAxisReferenceID()
+
+            intersectionsConnect()
 
             return result
 

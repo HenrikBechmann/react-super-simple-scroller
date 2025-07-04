@@ -136,7 +136,7 @@ const useIntersections = ({
 
             setTimeout(()=>{ // yield for DOM
 
-                !DOMManipulationQueue.queue.length && intersectionsConnect()
+                intersectionsConnect()
 
             },1)
 
@@ -200,7 +200,7 @@ const useIntersections = ({
 
                 setTimeout(()=>{ // yield for DOM
 
-                    !DOMManipulationQueue.queue.length && intersectionsConnect()
+                    intersectionsConnect()
 
                 },1)                
             }
@@ -244,7 +244,7 @@ const useIntersections = ({
 
                 setTimeout(()=>{ // yield for DOM
 
-                    !DOMManipulationQueue.queue.length && intersectionsConnect()
+                    intersectionsConnect()
 
                 },1)
 
@@ -313,7 +313,7 @@ const useIntersections = ({
                 
                 setTimeout(()=>{ // yield for DOM
 
-                    !DOMManipulationQueue.queue.length && intersectionsConnect()
+                    intersectionsConnect()
 
                 },1)
 
@@ -382,7 +382,7 @@ const useIntersections = ({
 
                 setTimeout(()=>{ // yield for DOM
 
-                    !DOMManipulationQueue.queue.length && intersectionsConnect()
+                    intersectionsConnect()
 
                 },1)
 

@@ -249,7 +249,7 @@ const useCradlePotential = ({
 
             setTimeout(()=>{ // yield for DOM
 
-                !DOMManipulationQueueRef.current.queue.length && intersectionsConnect()
+                intersectionsConnect()
 
             },1)
 
@@ -261,7 +261,7 @@ const useCradlePotential = ({
             cradleActual.totalCells = cradleActual.backwardCells + cradleActual.forwardCells
             setTimeout(()=>{
 
-                !DOMManipulationQueueRef.current.queue.length && intersectionsConnect()
+                intersectionsConnect()
 
             },1)
 

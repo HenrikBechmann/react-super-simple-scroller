@@ -95,7 +95,7 @@ const useReset = ({
 
             setTimeout(()=>{ // yield for DOM
 
-                !DOMManipulationQueueRef.current.queue.length && intersectionsConnect()
+                intersectionsConnect()
 
             },1)
 

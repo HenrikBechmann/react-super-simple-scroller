@@ -83,6 +83,7 @@ const Viewport = (props) =>{
         } = props,
 
         DOMManipulationQueueRef = useRef(new Queue),
+        intersectionsConnectedRef = useRef(false),
 
         // comparisons with the following lead to reset
         previousOrientationRef = useRef(orientation),
@@ -184,11 +185,19 @@ const Viewport = (props) =>{
 
     const intersectionsDisconnect = () => {
 
+        if (!intersectionsConnectedRef.current) return
+
         intersectionObserverRef.current.disconnect()
+
+        intersectionsConnectedRef.current = false
 
     }
 
     const intersectionsConnect = () => {
+
+        if (intersectionsConnectedRef.current) return
+
+        if (DOMManipulationQueueRef.current.queue.length) return
 
         intersectionsMapRef.current.clear()
 
@@ -200,6 +209,8 @@ const Viewport = (props) =>{
         leadTailblockBandStartTriggerRef.current && intersectionObserverRef.current.observe(leadTailblockBandStartTriggerRef.current)
         leadTailblockBandEndTriggerRef.current && intersectionObserverRef.current.observe(leadTailblockBandEndTriggerRef.current)
         tailblockOverflowTriggerRef.current && intersectionObserverRef.current.observe(tailblockOverflowTriggerRef.current)
+
+        intersectionsConnectedRef.current = true
 
     }
 
@@ -823,12 +834,14 @@ const Viewport = (props) =>{
 
             DOMManipulationQueueRef.current.enqueue(async () => {
                 await reset(currentAxisReferenceIDRef.current)
+                intersectionsConnect()
             })
 
         } else {
 
             DOMManipulationQueueRef.current.enqueue(async () => {
                 await applyNewCradlePotential(cradlePotential)
+                intersectionsConnect()
             })
 
         }
@@ -859,6 +872,7 @@ const Viewport = (props) =>{
 
         DOMManipulationQueueRef.current.enqueue(async () => {
             await reset(referenceIDSelection)
+            intersectionsConnect()
         })
 
     },[seedReferenceID, fetchCells])
