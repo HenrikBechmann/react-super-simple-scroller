@@ -23,7 +23,7 @@ import { createContainer, createBand, isValidID } from './utilities'
 
 const useCalls = ({
 
-    scrollerQueueRef,
+    DOMManipulationQueueRef,
 
     scrollerName,
 
@@ -66,7 +66,7 @@ const useCalls = ({
 
     const callbacks = callbacksRef.current ?? {}
 
-    const DOMManipulationQueue = scrollerQueueRef.current
+    const DOMManipulationQueue = DOMManipulationQueueRef.current
 
     const insert = async (cellPack: {id:any, component:FC }, targetReferenceID: any, position: 'before' | 'after' = 'before') => {
 
@@ -859,7 +859,7 @@ const useCalls = ({
         viewportRef.current.scrollTo(scrollLeftRef.current, scrollTopRef.current)
 
         setTimeout(()=>{
-            intersectionsConnect()
+            !DOMManipulationQueue.queue.length && intersectionsConnect()
         },1)
 
         operationsRef.current.dispatchAttachedEvents && portalContainerMapRef.current.forEach((container) => {

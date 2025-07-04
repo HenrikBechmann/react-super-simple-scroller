@@ -7,6 +7,8 @@ import { createBand } from './utilities'
 
 const useCradlePotential = ({
 
+    DOMManipulationQueueRef,
+
     orientationRef,
     layoutRef,
     spacingRef,
@@ -247,7 +249,7 @@ const useCradlePotential = ({
 
             setTimeout(()=>{ // yield for DOM
 
-                intersectionsConnect()
+                !DOMManipulationQueueRef.current.queue.length && intersectionsConnect()
 
             },1)
 
@@ -259,7 +261,7 @@ const useCradlePotential = ({
             cradleActual.totalCells = cradleActual.backwardCells + cradleActual.forwardCells
             setTimeout(()=>{
 
-                intersectionsConnect()
+                !DOMManipulationQueueRef.current.queue.length && intersectionsConnect()
 
             },1)
 

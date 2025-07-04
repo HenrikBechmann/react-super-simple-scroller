@@ -9,7 +9,7 @@ const useIntersections = ({
     STANDARD_SCROLL_MOMENTUM_FADE,
     AXIS_START_POSITION,
 
-    scrollerQueueRef,
+    DOMManipulationQueueRef,
 
     orientationRef,
 
@@ -49,7 +49,7 @@ const useIntersections = ({
 
 }) => {
 
-    const DOMManipulationQueue = scrollerQueueRef.current
+    const DOMManipulationQueue = DOMManipulationQueueRef.current
 
     // -------------------------[ intersection observations controller ]-------------------------
 
@@ -136,7 +136,7 @@ const useIntersections = ({
 
             setTimeout(()=>{ // yield for DOM
 
-                intersectionsConnect()
+                !DOMManipulationQueue.queue.length && intersectionsConnect()
 
             },1)
 

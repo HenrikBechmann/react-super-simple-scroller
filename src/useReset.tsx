@@ -9,6 +9,8 @@ import useCells from './useCells'
 
 const useReset = ({
 
+    DOMManipulationQueueRef,
+
     cradlePotentialRef,
     portalContainerMapRef,
     portalIDListRef,
@@ -93,7 +95,7 @@ const useReset = ({
 
             setTimeout(()=>{ // yield for DOM
 
-                intersectionsConnect()
+                !DOMManipulationQueueRef.current.queue.length && intersectionsConnect()
 
             },1)
 

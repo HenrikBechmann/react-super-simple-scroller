@@ -82,7 +82,7 @@ const Viewport = (props) =>{
             scrollerName = 'not named'
         } = props,
 
-        scrollerQueueRef = useRef(new Queue),
+        DOMManipulationQueueRef = useRef(new Queue),
 
         // comparisons with the following lead to reset
         previousOrientationRef = useRef(orientation),
@@ -363,7 +363,7 @@ const Viewport = (props) =>{
 
         evaluateIntersections = useIntersections({
 
-            scrollerQueueRef,
+            DOMManipulationQueueRef,
 
             orientationRef,
 
@@ -403,6 +403,8 @@ const Viewport = (props) =>{
 
         reset = useReset({
 
+            DOMManipulationQueueRef,
+
             cradlePotentialRef,
             portalContainerMapRef,
             portalIDListRef,
@@ -422,6 +424,8 @@ const Viewport = (props) =>{
         }),
 
         applyNewCradlePotential = useNewCradlePotential({
+
+            DOMManipulationQueueRef,
 
             orientationRef,
             layoutRef,
@@ -458,7 +462,7 @@ const Viewport = (props) =>{
 
         availableCalls = useCalls({
 
-            scrollerQueueRef,
+            DOMManipulationQueueRef,
 
             scrollerName,
 
@@ -817,13 +821,13 @@ const Viewport = (props) =>{
             previousSeedReferenceIDRef.current = seedReferenceIDRef.current
             previousFetchCellsRef.current = fetchCellsRef.current
 
-            scrollerQueueRef.current.enqueue(async () => {
+            DOMManipulationQueueRef.current.enqueue(async () => {
                 await reset(currentAxisReferenceIDRef.current)
             })
 
         } else {
 
-            scrollerQueueRef.current.enqueue(async () => {
+            DOMManipulationQueueRef.current.enqueue(async () => {
                 await applyNewCradlePotential(cradlePotential)
             })
 
@@ -853,7 +857,7 @@ const Viewport = (props) =>{
         previousSeedReferenceIDRef.current = seedReferenceIDRef.current
         previousFetchCellsRef.current = fetchCellsRef.current
 
-        scrollerQueueRef.current.enqueue(async () => {
+        DOMManipulationQueueRef.current.enqueue(async () => {
             await reset(referenceIDSelection)
         })
 
