@@ -205,11 +205,7 @@ const useIntersections = ({
                 },1)                
             }
 
-            if (scrollerQueue.pendingPromise) {
-                await scrollerQueue.enqueue(executeHeadOverflow)
-            } else {
-                await executeHeadOverflow()
-            }
+            await scrollerQueue.enqueue(executeHeadOverflow)
 
             return
 
@@ -254,11 +250,7 @@ const useIntersections = ({
 
             }
 
-            if (scrollerQueue.pendingPromise) {
-                await scrollerQueue.enqueue(executeTailOverflow)
-            } else {
-                await executeTailOverflow()
-            }
+            await scrollerQueue.enqueue(executeTailOverflow)
 
             return
 
@@ -327,11 +319,7 @@ const useIntersections = ({
 
             } 
 
-            if (scrollerQueue.pendingPromise) {
-                await scrollerQueue.enqueue(executeShiftBackward)
-            } else {
-                await executeShiftBackward()
-            }
+            await scrollerQueue.enqueue(executeShiftBackward)
 
             return
         }
@@ -400,11 +388,7 @@ const useIntersections = ({
 
             }
 
-            if (scrollerQueue.pendingPromis) {
-                await scrollerQueue.enqueue(executeShiftForward)
-            } else {
-                await executeShiftForward()
-            }
+            await scrollerQueue.enqueue(executeShiftForward)
 
             return
 

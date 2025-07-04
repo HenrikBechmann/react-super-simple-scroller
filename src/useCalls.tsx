@@ -285,17 +285,22 @@ const useCalls = ({
                 intersectionsConnect()
             },1)
 
+            return true
+
         }
 
-        await scrollerQueue.enqueu(async ()=>{
 
-            await doInsert(cellPack, targetReferenceID, position)
+        const result = await scrollerQueue.enqueue(async ()=>{
+
+            const result = await doInsert(cellPack, targetReferenceID, position)
 
             updateCurrentAxisReferenceID()
 
+            return result
+
         })
 
-        return true
+        return result
 
     }
 
@@ -408,10 +413,15 @@ const useCalls = ({
 
             setPortalRenderList([...cellPortalListRef.current])
 
-        }
-        await scrollerQueue.enqueue(async () => {
+            return true
 
-            if (await doRemove(targetReferenceID)) {
+        }
+
+        const result = await scrollerQueue.enqueue(async () => {
+
+            const result = await doRemove(targetReferenceID)
+
+            if (result) {
 
                 await fillCradle()
 
@@ -424,9 +434,11 @@ const useCalls = ({
                 callbacks.removed && callbacks.removed([targetReferenceID])
             }
 
+            return result
+
         })
 
-        return true
+        return result
 
     }
 
@@ -759,11 +771,15 @@ const useCalls = ({
 
             trimCradle()
 
+            return true
+
         }
 
-        await scrollerQueue.enqueue(async () => {
+        const result = await scrollerQueue.enqueue(async () => {
 
-            if (await doMove(sourceReferenceID, targetReferenceID, position)) {
+            const result = await doMove(sourceReferenceID, targetReferenceID, position)
+
+            if (result) {
 
                 await fillCradle()
 
@@ -775,9 +791,11 @@ const useCalls = ({
 
             }
 
+            return result
+
         })
 
-        return true
+        return result
 
     }
 
@@ -969,17 +987,21 @@ const useCalls = ({
 
             setPortalRenderList([...cellPortalList])
 
+            return true
+
         }
 
-        await scrollerQueue.enqueue(async () => {
+        const result = await scrollerQueue.enqueue(async () => {
             
-            await doReplace(referenceID, cellPack)
+            const result = await doReplace(referenceID, cellPack)
 
             updateCurrentAxisReferenceID()
 
+            return result
+
         })
 
-        return true
+        return result
 
     }
 
