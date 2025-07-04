@@ -58,8 +58,8 @@ const useCalls = ({
     fillCradle,
     reset,
     callbacksRef,
-    intersectionsDisconnect,
-    intersectionsConnect,
+    assertIntersectionsDisconnect,
+    assertIntersectionsConnect,
     bandMutationObserverRef,
 
 }) => {
@@ -147,7 +147,7 @@ const useCalls = ({
                 return false // no target for positioning
             }
 
-            intersectionsDisconnect()
+            assertIntersectionsDisconnect()
 
             const
                 cradleActual = cradleActualRef.current,
@@ -282,7 +282,7 @@ const useCalls = ({
             trimCradle()
 
             setTimeout(()=>{
-                intersectionsConnect()
+                assertIntersectionsConnect()
             },1)
 
             return true
@@ -296,7 +296,7 @@ const useCalls = ({
 
             updateCurrentAxisReferenceID()
 
-            intersectionsConnect()
+            assertIntersectionsConnect()
 
             return result
 
@@ -341,7 +341,7 @@ const useCalls = ({
                 return false // no remove target in cradle
             }
 
-            intersectionsDisconnect()
+            assertIntersectionsDisconnect()
 
             const
                 portalIDList = portalIDListRef.current,
@@ -428,7 +428,7 @@ const useCalls = ({
                 await fillCradle()
 
                 setTimeout(()=>{
-                    intersectionsConnect()
+                    assertIntersectionsConnect()
                 },1)
 
                 updateCurrentAxisReferenceID()
@@ -436,7 +436,7 @@ const useCalls = ({
                 callbacks.removed && callbacks.removed([targetReferenceID])
             }
 
-            intersectionsConnect()
+            assertIntersectionsConnect()
 
             return result
 
@@ -526,7 +526,7 @@ const useCalls = ({
                 return true
             }
 
-            intersectionsDisconnect()
+            assertIntersectionsDisconnect()
 
             // common data
 
@@ -788,14 +788,14 @@ const useCalls = ({
                 await fillCradle()
 
                 setTimeout(()=>{
-                    intersectionsConnect()
+                    assertIntersectionsConnect()
                 },1)
 
                 updateCurrentAxisReferenceID()
 
             }
 
-            intersectionsConnect()
+            assertIntersectionsConnect()
         
             return result
 
@@ -844,17 +844,17 @@ const useCalls = ({
 
             await DOMManipulationQueue.enqueue(async () => {
 
-                intersectionsDisconnect()
+                assertIntersectionsDisconnect()
 
                 await fillCradle()
 
                 setTimeout(()=>{
-                    intersectionsConnect()
+                    assertIntersectionsConnect()
                 },1)
             })
         }
 
-        intersectionsConnect()
+        assertIntersectionsConnect()
 
     }
 
@@ -862,12 +862,12 @@ const useCalls = ({
 
         const event = new Event('rs3attached')
 
-        intersectionsDisconnect()
+        assertIntersectionsDisconnect()
 
         viewportRef.current.scrollTo(scrollLeftRef.current, scrollTopRef.current)
 
         setTimeout(()=>{
-            intersectionsConnect()
+            assertIntersectionsConnect()
         },1)
 
         operationsRef.current.dispatchAttachedEvents && portalContainerMapRef.current.forEach((container) => {
@@ -1005,7 +1005,7 @@ const useCalls = ({
 
             updateCurrentAxisReferenceID()
 
-            intersectionsConnect()
+            assertIntersectionsConnect()
 
             return result
 

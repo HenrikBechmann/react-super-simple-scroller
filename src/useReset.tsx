@@ -21,8 +21,8 @@ const useReset = ({
     cradleActualRef,
 
     setPortalRenderList,
-    intersectionsDisconnect,
-    intersectionsConnect,
+    assertIntersectionsDisconnect,
+    assertIntersectionsConnect,
 
     getSeed,
     callbacksRef,
@@ -87,7 +87,7 @@ const useReset = ({
 
         if (!cellPortalListRef.current.length) {
             // restock cells
-            intersectionsDisconnect()
+            assertIntersectionsDisconnect()
 
             await getSeed(seedReferenceID)
 
@@ -95,7 +95,7 @@ const useReset = ({
 
             setTimeout(()=>{ // yield for DOM
 
-                intersectionsConnect()
+                assertIntersectionsConnect()
 
             },1)
 

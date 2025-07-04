@@ -41,8 +41,8 @@ const useIntersections = ({
     // methods
     // callbacksRef,
     setAxisPosition,
-    intersectionsDisconnect,
-    intersectionsConnect,
+    assertIntersectionsDisconnect,
+    assertIntersectionsConnect,
     fillCradle,
     updateCurrentAxisReferenceID,
     trimCradle,
@@ -103,7 +103,7 @@ const useIntersections = ({
 
             console.log('WARNING: POSITION RECOVERY', 'from all', allAreBefore?'before':'after')
 
-            intersectionsDisconnect()
+            assertIntersectionsDisconnect()
 
             if (immediateIsScrollingRef.current) {
 
@@ -136,7 +136,7 @@ const useIntersections = ({
 
             setTimeout(()=>{ // yield for DOM
 
-                intersectionsConnect()
+                assertIntersectionsConnect()
 
             },1)
 
@@ -173,7 +173,7 @@ const useIntersections = ({
 
             // console.log('HEAD OVERFLOW')
 
-            intersectionsDisconnect()
+            assertIntersectionsDisconnect()
 
             if (immediateIsScrollingRef.current) {
 
@@ -192,7 +192,7 @@ const useIntersections = ({
 
             const executeHeadOverflow = async () => {
     
-                intersectionsDisconnect()
+                assertIntersectionsDisconnect()
 
                 adjustForHeadOverflow()
 
@@ -200,7 +200,7 @@ const useIntersections = ({
 
                 setTimeout(()=>{ // yield for DOM
 
-                    intersectionsConnect()
+                    assertIntersectionsConnect()
 
                 },1)                
             }
@@ -217,7 +217,7 @@ const useIntersections = ({
 
             // console.log('TAIL OVERFLOW')
 
-            intersectionsDisconnect()
+            assertIntersectionsDisconnect()
 
             if (immediateIsScrollingRef.current) {
 
@@ -236,7 +236,7 @@ const useIntersections = ({
 
             const executeTailOverflow = async () => {
 
-                intersectionsDisconnect()
+                assertIntersectionsDisconnect()
 
                 adjustForTailOverflow()
 
@@ -244,7 +244,7 @@ const useIntersections = ({
 
                 setTimeout(()=>{ // yield for DOM
 
-                    intersectionsConnect()
+                    assertIntersectionsConnect()
 
                 },1)
 
@@ -260,7 +260,7 @@ const useIntersections = ({
 
         if ( leadHeadblockBandBackwardTrigger.rs3position == 'in' ) {
 
-            intersectionsDisconnect()
+            assertIntersectionsDisconnect()
 
             const headBandList = tailBandListRef.current
 
@@ -305,7 +305,7 @@ const useIntersections = ({
 
             const executeShiftBackward = async () => {
 
-                intersectionsDisconnect()
+                assertIntersectionsDisconnect()
 
                 shiftAxis('backward',count) // axis backward, bands forward
 
@@ -313,7 +313,7 @@ const useIntersections = ({
                 
                 setTimeout(()=>{ // yield for DOM
 
-                    intersectionsConnect()
+                    assertIntersectionsConnect()
 
                 },1)
 
@@ -328,7 +328,7 @@ const useIntersections = ({
 
         if ( leadTailblockBandForwardTrigger.rs3position == 'before' ) {
 
-            intersectionsDisconnect()
+            assertIntersectionsDisconnect()
 
             const tailBandList = tailBandListRef.current
 
@@ -374,7 +374,7 @@ const useIntersections = ({
 
             const executeShiftForward = async () => {
 
-                intersectionsDisconnect()
+                assertIntersectionsDisconnect()
 
                 shiftAxis('forward', axisshiftcount) // axis forward, bands backward
 
@@ -382,7 +382,7 @@ const useIntersections = ({
 
                 setTimeout(()=>{ // yield for DOM
 
-                    intersectionsConnect()
+                    assertIntersectionsConnect()
 
                 },1)
 

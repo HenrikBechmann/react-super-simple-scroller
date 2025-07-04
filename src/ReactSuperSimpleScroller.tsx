@@ -183,7 +183,7 @@ const Viewport = (props) =>{
 
     // --- component utility functions
 
-    const intersectionsDisconnect = () => {
+    const assertIntersectionsDisconnect = () => {
 
         if (!intersectionsConnectedRef.current) return
 
@@ -193,7 +193,7 @@ const Viewport = (props) =>{
 
     }
 
-    const intersectionsConnect = () => {
+    const assertIntersectionsConnect = () => {
 
         if (intersectionsConnectedRef.current) return
 
@@ -403,8 +403,8 @@ const Viewport = (props) =>{
 
             // callbacksRef,
             setAxisPosition,
-            intersectionsDisconnect,
-            intersectionsConnect,
+            assertIntersectionsDisconnect,
+            assertIntersectionsConnect,
 
             trimCradle,
             fillCradle,
@@ -426,8 +426,8 @@ const Viewport = (props) =>{
             cradleActualRef,
 
             setPortalRenderList,
-            intersectionsDisconnect,
-            intersectionsConnect,
+            assertIntersectionsDisconnect,
+            assertIntersectionsConnect,
             getSeed,
             callbacksRef,
             resetAxisPosition,
@@ -459,8 +459,8 @@ const Viewport = (props) =>{
             leadTailblockBandRef,
 
             // callbacksRef,
-            intersectionsDisconnect,
-            intersectionsConnect,
+            assertIntersectionsDisconnect,
+            assertIntersectionsConnect,
             setPortalRenderList,
             removeCells,
             getSeed,
@@ -509,8 +509,8 @@ const Viewport = (props) =>{
             fillCradle,
             reset,
             callbacksRef,
-            intersectionsDisconnect,
-            intersectionsConnect,
+            assertIntersectionsDisconnect,
+            assertIntersectionsConnect,
             bandMutationObserverRef,
         })
 
@@ -621,7 +621,7 @@ const Viewport = (props) =>{
             width = borderBox.inlineSize,
             height = borderBox.blockSize
 
-        intersectionsDisconnect()
+        assertIntersectionsDisconnect()
 
         const timeout = (scrollerState == 'setup')?SHORT_MOMENTUM_FADE:STANDARD_SCROLL_MOMENTUM_FADE
 
@@ -834,14 +834,14 @@ const Viewport = (props) =>{
 
             DOMManipulationQueueRef.current.enqueue(async () => {
                 await reset(currentAxisReferenceIDRef.current)
-                intersectionsConnect()
+                assertIntersectionsConnect()
             })
 
         } else {
 
             DOMManipulationQueueRef.current.enqueue(async () => {
                 await applyNewCradlePotential(cradlePotential)
-                intersectionsConnect()
+                assertIntersectionsConnect()
             })
 
         }
@@ -872,7 +872,7 @@ const Viewport = (props) =>{
 
         DOMManipulationQueueRef.current.enqueue(async () => {
             await reset(referenceIDSelection)
-            intersectionsConnect()
+            assertIntersectionsConnect()
         })
 
     },[seedReferenceID, fetchCells])

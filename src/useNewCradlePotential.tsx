@@ -30,8 +30,8 @@ const useCradlePotential = ({
     leadTailblockBandRef,
 
     // callbacksRef,
-    intersectionsDisconnect,
-    intersectionsConnect,
+    assertIntersectionsDisconnect,
+    assertIntersectionsConnect,
     setPortalRenderList,
     removeCells,
     getSeed,
@@ -47,7 +47,7 @@ const useCradlePotential = ({
 
         if (seedReferenceIDRef.current == null) return
 
-        intersectionsDisconnect()
+        assertIntersectionsDisconnect()
 
         const
             cradleActual = cradleActualRef.current,
@@ -249,7 +249,7 @@ const useCradlePotential = ({
 
             setTimeout(()=>{ // yield for DOM
 
-                intersectionsConnect()
+                assertIntersectionsConnect()
 
             },1)
 
@@ -261,7 +261,7 @@ const useCradlePotential = ({
             cradleActual.totalCells = cradleActual.backwardCells + cradleActual.forwardCells
             setTimeout(()=>{
 
-                intersectionsConnect()
+                assertIntersectionsConnect()
 
             },1)
 
