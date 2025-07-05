@@ -1,3 +1,7 @@
+### version 1.1.2 July 5, 2025
+
+- include brief demo video in README
+
 ### version 1.1.1 July 4, 2025
 
 - only the last mutation item in the DOMManipulationQueue reconnects the IntersectionObserver
