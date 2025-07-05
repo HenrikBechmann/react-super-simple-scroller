@@ -26,7 +26,7 @@ The compiled build is ~47KB.
 
 ## Demo
 
-https://github.com/user-attachments/assets/deb7b2e1-55fc-40b8-b87b-39562e85d55f
+[Demo video](https://github.com/user-attachments/assets/deb7b2e1-55fc-40b8-b87b-39562e85d55f)
 
 ## Usage
 Here is the simplest base case.
