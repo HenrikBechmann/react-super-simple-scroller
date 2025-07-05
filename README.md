@@ -8,6 +8,10 @@ This product is often referred to as the “scroller” in the documentation bel
 
 This product is in beta.
 
+## Demo
+
+https://github.com/user-attachments/assets/deb7b2e1-55fc-40b8-b87b-39562e85d55f
+
 ## Features
 
 - vertical or horizontal scrolling
