@@ -53,7 +53,6 @@ export const createContainer = (id, cellDimensions,cellsPerBand, orientation, la
     container.setAttribute('data-type','portal-container')
     container.setAttribute('data-id',id)
     container.style.position = 'relative'
-    container.style.overflow = 'hidden'
     container.style.boxSizing = 'border-box'
 
     if (orientation == 'vertical') {

@@ -736,6 +736,8 @@ const Viewport = (props) =>{
     useLayoutEffect(()=>{
         if (!viewportDimensions) return // setup
 
+        console.log('viewportDimensions', {...viewportDimensions})
+
         const 
             [cradleMarginStart, cradleMarginEnd] = cradleMarginsRef.current,
             cellGap = cellGapRef.current
@@ -753,7 +755,7 @@ const Viewport = (props) =>{
 
         if (orientation == 'vertical') {
 
-            cellsPerBand = Math.ceil((viewportDimensions.width - (cradleMarginStart + cradleMarginEnd) + cellGap)/(cellMaxWidth + cellGap))
+            cellsPerBand = Math.ceil((Math.round(viewportDimensions.width) - (cradleMarginStart + cradleMarginEnd) + cellGap)/(cellMaxWidth + (cellGap/2)))
 
             if (layout == 'uniform') {
 
