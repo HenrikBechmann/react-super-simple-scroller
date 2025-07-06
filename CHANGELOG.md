@@ -1,6 +1,11 @@
+### version 1.1.3 July 6, 2025
+
+- removed `overflow:hidden` from container styles to allow cell components to bleed content outside of the container.
+- tweaked the formula for `cellsPerBand`
+
 ### version 1.1.2 July 5, 2025
 
-- include brief demo video in README
+- included brief demo video in README
 
 ### version 1.1.1 July 4, 2025
 
