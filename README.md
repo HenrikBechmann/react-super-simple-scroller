@@ -233,14 +233,14 @@ Notes:
 **axis** refers to scrolling direction; **cross-axis** refers to the perpendicular.
 
 **cross-axis sizing** distributes cells evenly within the space available according to the formula:
-`cellsPerBand = Math.ceil((Math.round(viewportDimensions.width) - (cradleMarginStart + cradleMarginEnd) + cellGap)/(cellMaxWidth + (cellGap/2)))` 
+`cellsPerBand = Math.ceil((viewportDimensions.width - (cradleMarginStart + cradleMarginEnd) + cellGap)/(cellMaxWidth + cellGap))` 
 where 
 - `viewportDimensions` is measured by RS3
 - `cradleMarginStart`, `cradleMarginEnd` and `cellGap` are taken from the `spacing` property object (see below — but all default to 0)
 
 Thus for a single column (assuming cellGap = 0), the `maxWidth` should be slightly _greater than_ `viewportWidth - (cradleMarginStart + cradleMarginEnd)`. To avoid cross-axis overflow the `minWidth` should leave a bit of room to shrink to fit.
 
-Note that the even distribution inside the bounds of the `viewport` can be over-ridden with minWidth. If the minWidth is large enough, then the distribution is tied to the minWidth value, and may cause a cross-axis overflow (which may be desired). This can cause the cradle to scroll slightly left and right to accommodate the overflow. The host scroller container can be set to fixed dimensions to avoid this cross-axis scrolling if desired.
+Note that the even distribution inside the bounds of the `viewport` can be over-ridden with minWidth. If the minWidth is proportionately large enough, then the distribution is tied to the minWidth value, and may cause a cross-axis overflow (which may be desired). This can cause the cradle to scroll slightly left and right to accommodate the overflow. The host scroller container can be set to fixed dimensions to avoid this cross-axis scrolling if desired.
 
 Setting the minWidth and maxWidth to the same number creates a fixedWidth cell. Setting min to about half of max gives the most reliable distribution fit inside the `viewport` dimensions.
 

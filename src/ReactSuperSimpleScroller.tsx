@@ -755,7 +755,7 @@ const Viewport = (props) =>{
 
         if (orientation == 'vertical') {
 
-            cellsPerBand = Math.ceil((Math.round(viewportDimensions.width) - (cradleMarginStart + cradleMarginEnd) + cellGap)/(cellMaxWidth + (cellGap/2)))
+            cellsPerBand = Math.ceil((viewportDimensions.width - (cradleMarginStart + cradleMarginEnd) + cellGap)/(cellMaxWidth + cellGap))
 
             if (layout == 'uniform') {
 
