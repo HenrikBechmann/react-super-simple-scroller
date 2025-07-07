@@ -736,8 +736,6 @@ const Viewport = (props) =>{
     useLayoutEffect(()=>{
         if (!viewportDimensions) return // setup
 
-        console.log('viewportDimensions', {...viewportDimensions})
-
         const 
             [cradleMarginStart, cradleMarginEnd] = cradleMarginsRef.current,
             cellGap = cellGapRef.current

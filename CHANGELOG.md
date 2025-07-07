@@ -1,3 +1,7 @@
+### version 1.1.5 July 7, 2025
+
+- remove debug code
+
 ### version 1.1.4 July 6, 2025
 
 - tweaked the formula for `cellsPerBand`
