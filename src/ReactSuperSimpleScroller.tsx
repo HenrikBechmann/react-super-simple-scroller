@@ -1,11 +1,14 @@
 // ReactSuperSimpleScroller.tsx
 // copyright (c) 2025-present Henrik Bechmann, Toronto, Licence: MIT
 
+/*
+    backlog:
+    - return error when getCells is called more than once in same loop with same referenceID
+*/
 
 // ===============================[ resources ]========================
 
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, CSSProperties, FC } from 'react'
-// import { createPortal } from 'react-dom'
 
 import Queue from './Queue'
 
@@ -632,8 +635,6 @@ const Viewport = (props) =>{
                 setScrollerState('ready') // measurements available
             }
 
-            // console.log('setting viewportDimensions', scrollerName)
-            
             setViewportDimensions({width,height})
 
         }, timeout)

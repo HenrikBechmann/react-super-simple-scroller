@@ -1,3 +1,8 @@
+### version 1.1.6 July 7, 2025
+
+- fix bug in `move` call
+- tweak `assertIntersectionsConnect` calls
+
 ### version 1.1.5 July 7, 2025
 
 - remove debug code

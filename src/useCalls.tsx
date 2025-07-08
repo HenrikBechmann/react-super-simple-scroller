@@ -370,7 +370,7 @@ const useCalls = ({
 
                     workingBand.remove()
                     headBandList.unShift()
-                    cradleActual.headBands--
+                    cradleActual.backwardBands--
                     cradleActual.totalBands--
 
                 }
@@ -395,7 +395,7 @@ const useCalls = ({
 
                     lastTailBand.remove()
                     tailBandList.pop()
-                    cradleActual.tailBands--
+                    cradleActual.forwardBands--
                     cradleActual.totalBands--
 
                 }
@@ -434,9 +434,12 @@ const useCalls = ({
                 updateCurrentAxisReferenceID()
 
                 callbacks.removed && callbacks.removed([targetReferenceID])
-            }
+                
+            } else {
 
-            assertIntersectionsConnect()
+                assertIntersectionsConnect()
+
+            }
 
             return result
 
@@ -656,7 +659,7 @@ const useCalls = ({
                 if (workingHeadBand.childElementCount === 0) {
                     workingHeadBand.remove()
                     headBandList.shift()
-                    cradleActual.headBands--
+                    cradleActual.backwardBands--
                     cradleActual.totalBands--
                 }
 
@@ -673,7 +676,7 @@ const useCalls = ({
                     newBand.prepend(workingTailBand.lastChild)
                     tailblockRef.current.append(newBand)
                     tailBandList.push(newBand)
-                    cradleActual.tailBands++
+                    cradleActual.forwardBands++
                     cradleActual.totalBands++
                 }
 
@@ -692,8 +695,6 @@ const useCalls = ({
                     sourceTailPos = sourcePos - tailPos,
                     sourceBandIndex = Math.ceil((sourceTailPos + 1)/cellsPerBand) - 1
 
-                // console.log('sourceContainer, targetContainer',sourceContainer, targetContainer)
-
                 if (position == 'after') {
                     targetContainer.after(sourceContainer)
                 } else { // 'before'
@@ -710,7 +711,7 @@ const useCalls = ({
                 if (workingTailBand.childElementCount === 0) {
                     workingTailBand.remove()
                     tailBandList.pop()
-                    cradleActual.tailBands--
+                    cradleActual.forwardBands--
                     cradleActual.totalBands--
                 }
 
@@ -727,7 +728,7 @@ const useCalls = ({
                     newBand.append(workingHeadBand.firstChild)
                     headblockRef.current.prepend(newBand)
                     headBandList.unshift(newBand)
-                    cradleActual.headBands++
+                    cradleActual.backwardBands++
                     cradleActual.totalBands++
                 }
 
@@ -770,10 +771,10 @@ const useCalls = ({
 
             }
 
+            trimCradle()
+
             // update presentation
             setPortalRenderList([...cellPortalListRef.current])
-
-            trimCradle()
 
             return true
 
@@ -793,9 +794,11 @@ const useCalls = ({
 
                 updateCurrentAxisReferenceID()
 
-            }
+            } else {
 
-            assertIntersectionsConnect()
+                assertIntersectionsConnect()
+
+            }
         
             return result
 
@@ -854,7 +857,7 @@ const useCalls = ({
             })
         }
 
-        assertIntersectionsConnect()
+        // assertIntersectionsConnect()
 
     }
 

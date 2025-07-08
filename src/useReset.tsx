@@ -33,8 +33,6 @@ const useReset = ({
 
     const reset = useCallback(async (seedReferenceID) => {
 
-        // console.log('resetting with', seedReferenceID)
-
         const cradlePotential = cradlePotentialRef.current
 
         // clear out existing portals
