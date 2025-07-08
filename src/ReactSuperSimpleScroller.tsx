@@ -818,7 +818,7 @@ const Viewport = (props) =>{
         setCradlePotential(cradlePotential)
         if (hasJustResizedRef.current) {
             hasJustResizedRef.current = false
-            if (callbacksRef.current.resized) {
+            if (callbacksRef.current?.resized) {
                 callbacksRef.current.resized(
                 {
                     cellDimensions:{...cellDimensionsRef.current},

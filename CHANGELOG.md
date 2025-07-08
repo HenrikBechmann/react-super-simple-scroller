@@ -1,3 +1,7 @@
+### version 1.1.8 July 8, 2025
+
+- Bug fix -- added ‘?’: `if (callbacksRef.current?.resized)`
+
 ### version 1.1.7 July 8, 2025
 
 - added callback `resized`
