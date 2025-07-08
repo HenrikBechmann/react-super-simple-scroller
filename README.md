@@ -258,7 +258,7 @@ The following properties are optional, and are designed to support specific use 
 
 | property | details |
 |:----|:----|
-| callbacks:{<br> &nbsp;axisReferenceID,<br> &nbsp;removed,<br> &nbsp;failed,<br> &nbsp;error,<br> &nbsp;warning<br>} | host-provided functions to provide support for data synchronization, and feedback from the scroller |
+| callbacks:{<br> &nbsp;axisReferenceID,<br> &nbsp;removed,<br> &nbsp;resized,<br> &nbsp;failed,<br> &nbsp;error,<br> &nbsp;warning<br>} | host-provided functions to provide support for data synchronization, and feedback from the scroller |
 | calls:{<br> &nbsp;insert, <br> &nbsp;remove, <br> &nbsp;move <br> &nbsp;replace, <br> &nbsp;dispatchEvent, <br> &nbsp;fetchCradleCells, <br> &nbsp;has, <br> &nbsp;getCradleIDList <br> &nbsp;getCradleSpecs, <br>} | Pass an empty object which will be populated by RS3. RS3 provided functions: 6 operations on the cradle, and 3 ways to query the cradle |
 | spacing:{<br> &nbsp;cradleMargin:[start, end]<br> &nbsp;bandPadding:[start, end]<br> &nbsp;cellGap:number <br>} | all integers. cradleMargin is cross-axis spacing at the edges; bandPadding is axis spacing at the start and end of each band; cellGap is cross-axis spacing between cells  |
 | operations:{<br> &nbsp;dispatchAttachedEvents,<br> runway<br>} | when dispatchAttachedEvents is set to `true`, RS3 dispatches events to container components to alert them to the need to restore scroll positions. Default `false`. `runway` is the number of bands out of view, both start and end. Default 4 |
@@ -267,6 +267,8 @@ The following properties are optional, and are designed to support specific use 
 Notes about the callbacks (the returned values are found in the arguments of the functions): 
 
 The **axisReferenceID(axisReferenceID)** function returns the current referenceID situated in the first position of the tailblock (right next to the axis) whenever that changes, providing important context to the host.
+
+the **resized(cradlePotential)** function returns the current cradlePotential object, as modified as the result of a user resize operation. See the `getCradleSpecs` call for details of the cradlePotential contents.
 
 The **failed(failedPack)** function returns an object including an array of cellPacks that were trimmed by RS3 for being beyond the requested amount from `fetchCells`. The structure of the returned object is `{source, message, excessList, timestamp}`
 
@@ -317,10 +319,11 @@ The following three are queries of the state of the cradle.
   orientation
   layout
   cellDimensions // as passed to the scroller
+  viewDimensions
   spacing // as passed to the scroller
 }
 ```
-`cradleActual` holds the same properties (but with actual counts), plus the following:
+`cradleActual` holds almost the same properties (with actual counts, but without cellDimensions, viewportDimensions, and spacing), plus the following:
 
 ```
 {

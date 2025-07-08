@@ -110,6 +110,8 @@ const Viewport = (props) =>{
         [scrollerState,setScrollerState] = useState('setup'),
         scrollerStateRef = useRef(null),
         [viewportDimensions,setViewportDimensions] = useState(null),
+        viewportDimensionsRef = useRef(null),
+        hasJustResizedRef = useRef(false),
         [styles, setStyles] = useState(selectStyles(orientation)),
 
         // scroller structure
@@ -180,6 +182,7 @@ const Viewport = (props) =>{
     callbacksRef.current = callbacks
     callsRef.current = calls
     operationsRef.current = operations
+    viewportDimensionsRef.current = viewportDimensions
 
     cradlePotentialRef.current = cradlePotential
     scrollerStateRef.current = scrollerState
@@ -502,6 +505,7 @@ const Viewport = (props) =>{
             cradleActualRef,
             cradlePotentialRef,
             cellDimensionsRef,
+            viewportDimensionsRef,
             orientationRef,
             layoutRef,
             currentAxisReferenceIDRef,
@@ -635,6 +639,7 @@ const Viewport = (props) =>{
                 setScrollerState('ready') // measurements available
             }
 
+            hasJustResizedRef.current = true
             setViewportDimensions({width,height})
 
         }, timeout)
@@ -811,6 +816,18 @@ const Viewport = (props) =>{
 
         setStyles(selectStyles(orientation))
         setCradlePotential(cradlePotential)
+        if (hasJustResizedRef.current) {
+            hasJustResizedRef.current = false
+            if (callbacksRef.current.resized) {
+                callbacksRef.current.resized(
+                {
+                    cellDimensions:{...cellDimensionsRef.current},
+                    spacing:{...spacingRef.current},
+                    viewportDimensions: {...viewportDimensionsRef.current},
+                    ...cradlePotential
+                })
+            }
+        }
 
     },[orientation, layout, cellDimensions, spacing, viewportDimensions, RUNWAY_BANDS])
 
@@ -946,6 +963,7 @@ const ReactSuperSimpleScroller = (
             removed?: Function,
             error?: Function,
             warning?: Function,
+            resized?: Function,
         }
         calls?: {
             has?: null | Function,

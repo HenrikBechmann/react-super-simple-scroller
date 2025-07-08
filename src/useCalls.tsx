@@ -48,6 +48,7 @@ const useCalls = ({
     cradleActualRef,
     cradlePotentialRef,
     cellDimensionsRef,
+    viewportDimensionsRef,
     orientationRef,
     layoutRef,
     currentAxisReferenceIDRef,
@@ -827,6 +828,7 @@ const useCalls = ({
             cradlePotential: {
                 cellDimensions:{...cellDimensionsRef.current},
                 spacing:{...spacingRef.current},
+                viewportDimensions: {...viewportDimensionsRef.current},
                 ...cradlePotentialRef.current
             }
         }

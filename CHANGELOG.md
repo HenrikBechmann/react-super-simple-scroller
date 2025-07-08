@@ -1,3 +1,8 @@
+### version 1.1.7 July 8, 2025
+
+- added callback `resized`
+- added `viewportDimensions` to cradlePotential returned by the `getCradleSpecs` call and the `resized` callback
+
 ### version 1.1.6 July 7, 2025
 
 - fix bug in `move` call
