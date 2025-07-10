@@ -100,8 +100,8 @@ const ScrollerDemo = (props) => {
     <Scroller 
       // orientation = 'vertical' (the default)
       // layout = 'uniform' (the default)
-      cellDimensions = {cellDimensionsRef.current}
       seedReferenceID = {250}
+      cellDimensions = {cellDimensionsRef.current}
       fetchCells = {fetchCells}
     />
   </div>
