@@ -39,7 +39,7 @@ const useCells = ({
 
 }) => {
 
-    const callbacks = callbacksRef.current ?? {}
+    const callbacks = callbacksRef.current
     // call 'seed' or 'forward', never 'backward' (called by forward)
     const getCells = async (direction, seedReferenceID = null) => { // second parm for 'seed' option
 

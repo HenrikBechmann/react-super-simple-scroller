@@ -19,7 +19,7 @@ export const baseCradleActual = {
 
 export const getCradleMarginsFromSpacing = (spacing) => {
 
-    let cradleMargin = spacing?.cradleMargin
+    let cradleMargin = spacing.cradleMargin
     cradleMargin = cradleMargin ?? []
     let [cradleMarginStart, cradleMarginEnd] = cradleMargin
     cradleMarginStart  = cradleMarginStart ?? 0
@@ -31,7 +31,7 @@ export const getCradleMarginsFromSpacing = (spacing) => {
 
 export const getBandPaddingFromSpacing = (spacing) => {
 
-    let bandPadding = spacing?.bandPadding
+    let bandPadding = spacing.bandPadding
     bandPadding = bandPadding ?? []
     let [bandPaddingStart, bandPaddingEnd] = bandPadding
     bandPaddingStart  = bandPaddingStart ?? 0
@@ -42,7 +42,7 @@ export const getBandPaddingFromSpacing = (spacing) => {
 }
 
 export const getCellGapFromSpacing = (spacing) => {
-    let gap = spacing?.cellGap
+    let gap = spacing.cellGap
     gap = gap ?? 0
     return gap
 }

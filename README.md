@@ -222,8 +222,8 @@ The following properties are required.
 
 |property|details|
 |:-----|:-----|
-|orientation: ’vertical’ &vert; ‘horizontal’|the scrolling axis|
-|layout: ’uniform’ &vert; ‘variable’|’variable' allows expandability along the scrolling axis|
+|orientation: ’vertical’ &vert; ‘horizontal’|the scrolling axis (default ‘vertical')|
+|layout: ’uniform’ &vert; ‘variable’|’variable' allows expandability along the scrolling axis (default ‘uniform')|
 |cellDimensions: {<br>&nbsp; minWidth, maxWidth,<br>&nbsp; minHeight, maxHeight<br>}|integers, which can be combined to achieve various layout effects|
 |seedReferenceID: number &vert; string|the cell referenceID from which RS3 requests initial forward and backward cells|
 |fetchCells: Function|parameters: (direction, referenceID, count)|

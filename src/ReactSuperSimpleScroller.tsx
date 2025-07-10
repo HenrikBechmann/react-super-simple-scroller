@@ -73,14 +73,14 @@ const Viewport = (props) =>{
     const 
         // host data
         { 
-            orientation, 
-            layout, 
+            orientation = 'vertical', 
+            layout = 'uniform', 
             cellDimensions, 
             seedReferenceID, 
             fetchCells,
-            callbacks, 
+            callbacks = {}, 
             calls,
-            spacing,
+            spacing = {},
             operations = {},
             scrollerName = 'not named'
         } = props,
@@ -94,8 +94,8 @@ const Viewport = (props) =>{
         previousCellDimensionsRef = useRef(cellDimensions),
         previousSpacingRef = useRef(spacing),
         previousSeedReferenceIDRef = useRef(seedReferenceID),
-        previousFetchCellsRef = useRef(fetchCells),
         fetchCellsRef = useRef(fetchCells),
+        previousFetchCellsRef = useRef(fetchCells),
 
         orientationRef = useRef(null),
         layoutRef = useRef(null),
@@ -177,8 +177,8 @@ const Viewport = (props) =>{
     layoutRef.current = layout
     cellDimensionsRef.current = cellDimensions
     seedReferenceIDRef.current = seedReferenceID
-    // fetchCellsRef.current = fetchCells
-    // spacingRef.current = spacing
+    // fetchCellsRef.current set separately
+    // spacingRef.current = set separately
     callbacksRef.current = callbacks
     callsRef.current = calls
     operationsRef.current = operations
@@ -241,7 +241,7 @@ const Viewport = (props) =>{
 
             currentAxisReferenceIDRef.current = currentAxisReferenceID
 
-            callbacksRef.current?.axisReferenceID && callbacksRef.current.axisReferenceID(currentAxisReferenceID)
+            callbacksRef.current.axisReferenceID && callbacksRef.current.axisReferenceID(currentAxisReferenceID)
 
         }
     }
@@ -818,7 +818,7 @@ const Viewport = (props) =>{
         setCradlePotential(cradlePotential)
         if (hasJustResizedRef.current) {
             hasJustResizedRef.current = false
-            if (callbacksRef.current?.resized) {
+            if (callbacksRef.current.resized) {
                 callbacksRef.current.resized(
                 {
                     cellDimensions:{...cellDimensionsRef.current},

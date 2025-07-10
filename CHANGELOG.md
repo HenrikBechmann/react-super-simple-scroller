@@ -1,3 +1,10 @@
+### version 1.1.9 July 10, 2025
+
+provided defaults for 
+- orientation: ‘vertical'
+- layout: ‘uniform'
+- callbacks and spacing:{} (obviating the need for the optional chaining operator - '?') 
+
 ### version 1.1.8 July 8, 2025
 
 - Bug fix -- added ‘?’: `if (callbacksRef.current?.resized)`

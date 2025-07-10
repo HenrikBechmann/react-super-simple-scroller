@@ -70,7 +70,7 @@ const useReset = ({
         if (noSeedReferenceID) return
 
         const isInvalidID = !isValidID(seedReferenceID)
-        if (isInvalidID && callbacksRef.current?.error) {
+        if (isInvalidID && callbacksRef.current.error) {
             callbacksRef.current.error(
                 {
                     source: 'reset',

@@ -91,7 +91,7 @@ const useRemoveCells = ({
              band.parentElement.removeChild(band)
          })
 
-        if (callbacksRef.current?.removed) { 
+        if (callbacksRef.current.removed) { 
             const removedList = backwardCellIDsToRemove.concat(forwardCellIDsToRemove)
             if (removedList.length) {
                 callbacksRef.current.removed(removedList)

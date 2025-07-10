@@ -65,7 +65,7 @@ const useCalls = ({
 
 }) => {
 
-    const callbacks = callbacksRef.current ?? {}
+    const callbacks = callbacksRef.current
 
     const DOMManipulationQueue = DOMManipulationQueueRef.current
 

@@ -1,6 +1,6 @@
 {
   "name": "react-super-simple-scroller",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "Yet another react infinite scroller",
   "keywords": [
     "react",
@@ -26,19 +26,21 @@
     "react-dom": "^18.3.0"
   },
   "devDependencies": {
-    "babel-loader": "^10.0.0",
-    "ts-loader": "^9.5.2",
-    "webpack-cli": "^6.0.1",
     "@babel/core": "^7.27.7",
     "@babel/preset-react": "^7.27.1",
-    "save-dev": "^0.0.1-security"
+    "babel-loader": "^10.0.0",
+    "save-dev": "^0.0.1-security",
+    "ts-loader": "^9.5.2",
+    "webpack-cli": "^6.0.1"
   },
-  "presets": ["@babel/preset-react"],
+  "presets": [
+    "@babel/preset-react"
+  ],
   "rules": [
     {
-      "test": "/tsx?$/", 
+      "test": "/tsx?$/",
       "use": "ts-loader",
-      "exclude":"/node_modules/"
+      "exclude": "/node_modules/"
     }
-  ]  
+  ]
 }
