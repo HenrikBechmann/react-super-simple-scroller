@@ -98,8 +98,8 @@ const ScrollerDemo = (props) => {
 
   return <div style = {containerStyles}>
     <Scroller 
-      orientation = 'vertical'
-      layout = 'uniform'
+      // orientation = 'vertical' (the default)
+      // layout = 'uniform' (the default)
       cellDimensions = {cellDimensionsRef.current}
       seedReferenceID = {250}
       fetchCells = {fetchCells}
