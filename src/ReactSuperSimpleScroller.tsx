@@ -62,7 +62,6 @@ const virtualCradleStyles = {
 // note: remaining styles are in orientationStyles.tsx
 
 function fallbackRender({ error, resetErrorBoundary }) {
-  // Call resetErrorBoundary() to reset the error boundary and retry the render.
 
   return (
     <div role="alert">
@@ -235,7 +234,6 @@ const Viewport = (props) =>{
 
     }
 
-    // setAxisPosition has to be defined ahead of useIntersections paramater
     const setAxisPosition = useCallback((x,y, source = 'general') =>{
 
         const 
