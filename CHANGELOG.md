@@ -1,4 +1,4 @@
-### version 1.1.11 July ?, 2025
+### version 1.1.11 July 13, 2025
 
 - somewhat graceful exit from `cellsPerBand` == 0 error
 

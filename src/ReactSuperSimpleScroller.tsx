@@ -10,6 +10,8 @@
 
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, CSSProperties, FC } from 'react'
 
+import { ErrorBoundary } from "react-error-boundary"
+
 import Queue from './Queue'
 
 import { SCROLLBLOCK_SPAN } from './orientationStyles'
@@ -63,6 +65,17 @@ const virtualCradleStyles = {
 } as CSSProperties
 
 // note: remaining styles are in orientationStyles.tsx
+
+function fallbackRender({ error, resetErrorBoundary }) {
+  // Call resetErrorBoundary() to reset the error boundary and retry the render.
+
+  return (
+    <div role="alert">
+      <p>Something went wrong:</p>
+      <p style={{ color: "red" }}>{error.message}</p>
+    </div>
+  );
+}
 
 // ==========================[ component ]============================
 
@@ -800,7 +813,7 @@ const Viewport = (props) =>{
 
         if (cellsPerBand <= 0) {
             const msg = 'A scroller fatal error occured: cellsPerBand calculated to 0, resulting in an undefined state.\
-             Scroller container must always accommodate content.'
+             Scroller container width and height must always be able to accommodate content. Scroller operation halted.'
             console.log(msg)
             setErrorState({error:true, message: msg})
             return
@@ -933,7 +946,7 @@ const Viewport = (props) =>{
 
     // the data-type values cannot be changed - the literals are used in code (to save intersection entries)
     if (errorState.error) {
-        return <div>{errorState.message} Scroller operation halted.</div>
+        throw new Error(errorState.message)
     } else {
         return <>
             <div data-type = 'viewport' data-scrollername = {scrollerName} style = {viewportStyles} onScroll = {onViewportScroll} ref = {viewportRef}>
@@ -1033,15 +1046,10 @@ const ReactSuperSimpleScroller = (
 
     },[technical])
 
-    try {
+    return <ErrorBoundary fallbackRender={fallbackRender}>
+        <Viewport {...properties} />
+    </ErrorBoundary>
 
-        return <Viewport {...properties} />
-
-    } catch(error) {
-
-        return <div>An error occurred: {error.message} </div>
-
-    }
 }
 
 export default ReactSuperSimpleScroller
