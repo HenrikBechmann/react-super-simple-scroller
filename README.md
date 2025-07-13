@@ -35,11 +35,15 @@ import Scroller from 'react-super-simple-scroller'
 
 // create a container for the scroller with appropriate style context
 // the Scroller viewport (outer div) uses position:'absolute', inset:0
+// the viewport container cannot be 0 width or height (re: cellsPerBand calc)
+// - use minWidth and minHeight for the container if necessary.
 const containerStyles = {
   border: '1px solid gray',
   position:'relative',
   height: '100%',
   width: '100%',
+  minWidth: '200px', // protect against width 0
+  minHeight: '200px', // protect against height 0
 } as CSSProperties
 
 const cellStyles = {

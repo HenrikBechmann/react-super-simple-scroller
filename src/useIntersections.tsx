@@ -5,6 +5,8 @@ import React, { useCallback } from 'react'
 
 const useIntersections = ({
 
+    scrollerName,
+
     // constants
     STANDARD_SCROLL_MOMENTUM_FADE,
     AXIS_START_POSITION,

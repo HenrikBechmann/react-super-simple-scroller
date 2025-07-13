@@ -71,6 +71,10 @@ const Viewport = (props) =>{
     // ===============================[ data ]==========================
 
     const 
+        defaultCallbacksRef = useRef({}),
+        defaultSpacingRef = useRef({}),
+        defaultOperationsRef = useRef({}),
+
         // host data
         { 
             orientation = 'vertical', 
@@ -78,10 +82,10 @@ const Viewport = (props) =>{
             cellDimensions, 
             seedReferenceID, 
             fetchCells,
-            callbacks = {}, 
+            callbacks = defaultCallbacksRef.current, 
             calls,
-            spacing = {},
-            operations = {},
+            spacing = defaultSpacingRef.current,
+            operations = defaultOperationsRef.current,
             scrollerName = 'not named'
         } = props,
 
@@ -379,6 +383,8 @@ const Viewport = (props) =>{
         }),
 
         evaluateIntersections = useIntersections({
+
+            scrollerName,
 
             DOMManipulationQueueRef,
 
@@ -785,6 +791,12 @@ const Viewport = (props) =>{
 
             }
 
+        }
+
+        if (cellsPerBand <= 0) {
+            const msg = 'scroller fatal error: cellsPerBand calculates to 0. Scroller container must accommodate content'
+            console.error(msg)
+            throw Error(msg)
         }
 
         const runwayBands = RUNWAY_BANDS
