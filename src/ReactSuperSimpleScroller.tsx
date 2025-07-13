@@ -1,11 +1,6 @@
 // ReactSuperSimpleScroller.tsx
 // copyright (c) 2025-present Henrik Bechmann, Toronto, Licence: MIT
 
-/*
-    backlog:
-    - return error when getCells is called more than once in same loop with same referenceID
-*/
-
 // ===============================[ resources ]========================
 
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, CSSProperties, FC } from 'react'
@@ -898,7 +893,6 @@ const Viewport = (props) =>{
 
     },[cradlePotential])
 
-    // TODO test to make sure this is not run after previous change
     // reset based on new seedReferenceID or fetchCells
     useLayoutEffect(()=>{
 
@@ -981,8 +975,8 @@ const ReactSuperSimpleScroller = (
     :{ // simple parameter typing...
 
         // required
-        orientation:'vertical' | 'horizontal',
-        layout:'uniform' | 'variable',
+        orientation?:'vertical' | 'horizontal', // default 'vertical'
+        layout?:'uniform' | 'variable', // default 'uniform'
         cellDimensions: {
             maxHeight: number,
             maxWidth: number,
