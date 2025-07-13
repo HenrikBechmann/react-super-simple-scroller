@@ -79,8 +79,10 @@ const Viewport = (props) =>{
 
     const 
 
+        // generage throw new Error if necessary
         [errorState, setErrorState] = useState({error:false, message: null}),
 
+        // persist default identities
         defaultCallbacksRef = useRef({}),
         defaultSpacingRef = useRef({}),
         defaultOperationsRef = useRef({}),
@@ -249,7 +251,7 @@ const Viewport = (props) =>{
 
     },[])
 
-    const updateCurrentAxisReferenceID = () => {
+    const updateCurrentAxisReferenceID = useCallback(() => {
         const
             currentAxisReferenceID = portalIDListRef.current.at(-cradleActualRef.current.forwardCells)
 
@@ -260,9 +262,9 @@ const Viewport = (props) =>{
             callbacksRef.current.axisReferenceID && callbacksRef.current.axisReferenceID(currentAxisReferenceID)
 
         }
-    }
+    },[])
 
-    const trimCradle = () => {
+    const trimCradle = useCallback(() => {
 
         const
             cradleActual = cradleActualRef.current,
@@ -288,17 +290,19 @@ const Viewport = (props) =>{
             backwardBandsToRemoveCount,
         })
 
-    }
+    },[])
 
-    const fillCradle = async () => { // name to avoid collision with user call 'fillCradle'
+    const fillCradle = useCallback(async () => { // name to avoid collision with user call 'fillCradle'
 
         await getCells('forward') // returns promise
 
         return true
 
-    }
+    },[])
 
-    const getSeed = async (referenceID) => {
+    const getSeed = useCallback(async (referenceID) => {
+
+        const callbacks = callbacksRef.current
 
         if (!isValidID(referenceID)) {
             if (callbacks.error) {
@@ -318,9 +322,9 @@ const Viewport = (props) =>{
 
         return true
 
-    }
+    },[])
 
-    const resetAxisPosition = () => {
+    const resetAxisPosition = useCallback(() => {
 
         if (!viewportRef.current) return // error condition
 
@@ -341,7 +345,7 @@ const Viewport = (props) =>{
             setAxisPosition(AXIS_START_POSITION + axisOffset, 0)
 
         }
-    }
+    },[])
 
     // ===================[ breakout code to use* modules ]======================
 
