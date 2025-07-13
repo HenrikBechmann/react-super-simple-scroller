@@ -1,3 +1,7 @@
+### version 1.1.11 July ?, 2025
+
+- somewhat graceful exit from `cellsPerBand` == 0 error
+
 ### version 1.1.10 July 10, 2025
 
 - Bug fix: use default objects for object parms with persistent identities

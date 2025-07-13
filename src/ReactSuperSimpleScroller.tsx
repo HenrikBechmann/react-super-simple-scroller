@@ -71,6 +71,9 @@ const Viewport = (props) =>{
     // ===============================[ data ]==========================
 
     const 
+
+        [errorState, setErrorState] = useState({error:false, message: null}),
+
         defaultCallbacksRef = useRef({}),
         defaultSpacingRef = useRef({}),
         defaultOperationsRef = useRef({}),
@@ -309,6 +312,8 @@ const Viewport = (props) =>{
     }
 
     const resetAxisPosition = () => {
+
+        if (!viewportRef.current) return // error condition
 
         if (orientationRef.current == 'vertical') {
 
@@ -794,9 +799,11 @@ const Viewport = (props) =>{
         }
 
         if (cellsPerBand <= 0) {
-            const msg = 'scroller fatal error: cellsPerBand calculates to 0. Scroller container must accommodate content'
-            console.error(msg)
-            throw Error(msg)
+            const msg = 'A scroller fatal error occured: cellsPerBand calculated to 0, resulting in an undefined state.\
+             Scroller container must always accommodate content.'
+            console.log(msg)
+            setErrorState({error:true, message: msg})
+            return
         }
 
         const runwayBands = RUNWAY_BANDS
@@ -925,30 +932,34 @@ const Viewport = (props) =>{
     // =============================[ render ]=======================
 
     // the data-type values cannot be changed - the literals are used in code (to save intersection entries)
-    return <>
-        <div data-type = 'viewport' data-scrollername = {scrollerName} style = {viewportStyles} onScroll = {onViewportScroll} ref = {viewportRef}>
-            <div data-type = 'scrollblock' style = {styles.scrollblockStyles} ref = {scrollblockRef}>
-                <div data-type = 'axis' style = {styles.axisStyles} ref = {axisRef}>
-                    <div data-type = 'headblock' style = {styles.headblockStyles} ref = {headblockRef}>
-                        <div data-type = 'headblock-overflow-trigger' style = {styles.headblockOverflowTriggerStyles} ref = {headblockOverflowTriggerRef} />
-                        <div data-type = 'lead-headblock-band' style = {styles.leadHeadblockBandStyles} ref = {leadHeadblockBandRef}> 
-                            <div data-type = 'lead-headblock-band-backward-trigger' style = {styles.leadHeadblockBandBackwardTriggerStyles} ref = {leadHeadblockBandBackwardTriggerRef} />
+    if (errorState.error) {
+        return <div>{errorState.message} Scroller operation halted.</div>
+    } else {
+        return <>
+            <div data-type = 'viewport' data-scrollername = {scrollerName} style = {viewportStyles} onScroll = {onViewportScroll} ref = {viewportRef}>
+                <div data-type = 'scrollblock' style = {styles.scrollblockStyles} ref = {scrollblockRef}>
+                    <div data-type = 'axis' style = {styles.axisStyles} ref = {axisRef}>
+                        <div data-type = 'headblock' style = {styles.headblockStyles} ref = {headblockRef}>
+                            <div data-type = 'headblock-overflow-trigger' style = {styles.headblockOverflowTriggerStyles} ref = {headblockOverflowTriggerRef} />
+                            <div data-type = 'lead-headblock-band' style = {styles.leadHeadblockBandStyles} ref = {leadHeadblockBandRef}> 
+                                <div data-type = 'lead-headblock-band-backward-trigger' style = {styles.leadHeadblockBandBackwardTriggerStyles} ref = {leadHeadblockBandBackwardTriggerRef} />
+                            </div>
                         </div>
-                    </div>
-                    <div data-type = 'tailblock' style = {styles.tailblockStyles} ref = {tailblockRef}>
-                        <div data-type = 'lead-tailblock-band' style = {styles.leadTailblockBandStyles} ref = {leadTailblockBandRef}> 
-                            <div data-type = 'lead-tailblock-band-forward-trigger' style = {styles.leadTailblockBandForwardTriggerStyles} ref = {leadTailblockBandStartTriggerRef} />
-                            <div data-type = 'lead-tailblock-band-end-trigger' style = {styles.leadTailblockBandEndTriggerStyles} ref = {leadTailblockBandEndTriggerRef} />
+                        <div data-type = 'tailblock' style = {styles.tailblockStyles} ref = {tailblockRef}>
+                            <div data-type = 'lead-tailblock-band' style = {styles.leadTailblockBandStyles} ref = {leadTailblockBandRef}> 
+                                <div data-type = 'lead-tailblock-band-forward-trigger' style = {styles.leadTailblockBandForwardTriggerStyles} ref = {leadTailblockBandStartTriggerRef} />
+                                <div data-type = 'lead-tailblock-band-end-trigger' style = {styles.leadTailblockBandEndTriggerStyles} ref = {leadTailblockBandEndTriggerRef} />
+                            </div>
+                            <div data-type = 'tailblock-overflow-trigger' style = {styles.tailblockOverflowTriggerStyles} ref = {tailblockOverflowTriggerRef} />
                         </div>
-                        <div data-type = 'tailblock-overflow-trigger' style = {styles.tailblockOverflowTriggerStyles} ref = {tailblockOverflowTriggerRef} />
                     </div>
                 </div>
             </div>
-        </div>
-        <div data-type = 'virtual-cradle' style = {virtualCradleStyles}>
-            {portalRenderList}
-        </div>        
-    </>
+            <div data-type = 'virtual-cradle' style = {virtualCradleStyles}>
+                {portalRenderList}
+            </div>        
+        </>
+    }
 } // Viewport
 
 // the first five properties are required
@@ -1022,7 +1033,15 @@ const ReactSuperSimpleScroller = (
 
     },[technical])
 
-    return <Viewport {...properties} />
+    try {
+
+        return <Viewport {...properties} />
+
+    } catch(error) {
+
+        return <div>An error occurred: {error.message} </div>
+
+    }
 }
 
 export default ReactSuperSimpleScroller

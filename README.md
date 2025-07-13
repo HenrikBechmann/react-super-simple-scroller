@@ -109,7 +109,7 @@ const ScrollerDemo = (props) => {
   </div>
 }
 ```
-Note that the scroller requires a container which accommodates content (non-0 width or height), otherwise the scroller calculates `cellsPerBand` as 0, and goes crazy. So if cellsPerBand is calculated at 0, the scroller throws a fatal error.
+Note that the scroller requires a container which accommodates content (non-0 width and height), otherwise the scroller calculates `cellsPerBand` as 0, and goes into an undefined state. So if cellsPerBand is calculated at 0, the scroller displays an error, sends a `console.log` message, and halts operation.
 
 ## Technology
 
