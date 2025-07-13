@@ -677,7 +677,6 @@ const Viewport = (props) =>{
 
         const { target } = event
 
-        event.stopPropagation()
         clearTimeout(scrollMomentumTimeoutIDRef.current)
         if (immediateStopScrollingRef.current) {
 
