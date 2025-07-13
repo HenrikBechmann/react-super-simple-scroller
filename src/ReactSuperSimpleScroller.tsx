@@ -122,7 +122,7 @@ const Viewport = (props) =>{
         callsRef = useRef(null),
         operationsRef = useRef(null),
         viewportDimensionsRef = useRef(null),
-        cradlePotentialRef = useRef(null), // immediate access
+        cradlePotentialRef = useRef(null),
         scrollerStateRef = useRef(null),
 
         // set by state change
@@ -208,7 +208,7 @@ const Viewport = (props) =>{
 
     // --- component utility functions
 
-    const assertIntersectionsDisconnect = () => {
+    const assertIntersectionsDisconnect = useCallback(() => {
 
         if (!intersectionsConnectedRef.current) return
 
@@ -216,9 +216,9 @@ const Viewport = (props) =>{
 
         intersectionsConnectedRef.current = false
 
-    }
+    },[])
 
-    const assertIntersectionsConnect = () => {
+    const assertIntersectionsConnect = useCallback(() => {
 
         if (intersectionsConnectedRef.current) return
 
@@ -237,7 +237,7 @@ const Viewport = (props) =>{
 
         intersectionsConnectedRef.current = true
 
-    }
+    },[])
 
     const setAxisPosition = useCallback((x,y, source = 'general') =>{
 
