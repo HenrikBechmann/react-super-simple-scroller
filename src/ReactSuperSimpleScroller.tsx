@@ -99,6 +99,7 @@ const Viewport = (props) =>{
             scrollerName = 'not named'
         } = props,
 
+        // processing control
         DOMManipulationQueueRef = useRef(new Queue),
         intersectionsConnectedRef = useRef(false),
 
@@ -108,23 +109,27 @@ const Viewport = (props) =>{
         previousCellDimensionsRef = useRef(cellDimensions),
         previousSpacingRef = useRef(spacing),
         previousSeedReferenceIDRef = useRef(seedReferenceID),
-        fetchCellsRef = useRef(fetchCells),
         previousFetchCellsRef = useRef(fetchCells),
 
+        // set every cycle for immediate accessibility
         orientationRef = useRef(null),
         layoutRef = useRef(null),
         cellDimensionsRef = useRef(null),
         seedReferenceIDRef = useRef(null),
         callbacksRef = useRef(null),
         callsRef = useRef(null),
-        spacingRef = useRef(null),
         operationsRef = useRef(null),
+        viewportDimensionsRef = useRef(null),
+        cradlePotentialRef = useRef(null), // immediate access
+        scrollerStateRef = useRef(null),
+
+        // set by state change
+        spacingRef = useRef(null),
+        fetchCellsRef = useRef(fetchCells),
 
         // base states
         [scrollerState,setScrollerState] = useState('setup'),
-        scrollerStateRef = useRef(null),
         [viewportDimensions,setViewportDimensions] = useState(null),
-        viewportDimensionsRef = useRef(null),
         hasJustResizedRef = useRef(false),
         [styles, setStyles] = useState(selectStyles(orientation)),
 
@@ -146,7 +151,6 @@ const Viewport = (props) =>{
 
         // scroller configuration
         [cradlePotential, setCradlePotential] = useState(null), // maximal configuration
-        cradlePotentialRef = useRef(null), // immediate access
         cradleActualRef = useRef({orientation, layout, ...baseCradleActual}), // actual configuration
         axisPositionRef = useRef({x:0,y:AXIS_START_POSITION}),
         cradleMarginsRef = useRef(null),
@@ -186,7 +190,7 @@ const Viewport = (props) =>{
         restoreScrollingTimeoutIDRef = useRef(null),
         resizeTimeoutIDRef = useRef(null)
 
-    // persistent, modifiable access
+    // for immediately accessibility
     orientationRef.current = orientation
     layoutRef.current = layout
     cellDimensionsRef.current = cellDimensions
@@ -197,7 +201,6 @@ const Viewport = (props) =>{
     callsRef.current = calls
     operationsRef.current = operations
     viewportDimensionsRef.current = viewportDimensions
-
     cradlePotentialRef.current = cradlePotential
     scrollerStateRef.current = scrollerState
 
@@ -859,7 +862,7 @@ const Viewport = (props) =>{
     // reconfigure cradle on change of cradlePotential
     useLayoutEffect(()=>{
 
-        if (!cradlePotential) return
+        if (!cradlePotential) return // setup
 
         if (previousOrientationRef.current !== orientationRef.current ||
             previousLayoutRef.current !== layoutRef.current ||
