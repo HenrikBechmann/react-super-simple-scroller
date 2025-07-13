@@ -22,7 +22,7 @@ This product is in beta.
 
 Designed for modern browsers.
 
-The compiled build is ~48KB.
+The compiled build is ~52KB.
 
 ## Demo
 
