@@ -1,3 +1,8 @@
+### version 1.1.10 July 10, 2025
+
+- Bug fix: use default objects for object parms with persistent identities
+- throw error when cellsPerBand calculates to 0
+
 ### version 1.1.9 July 10, 2025
 
 provided defaults for 

@@ -35,8 +35,6 @@ import Scroller from 'react-super-simple-scroller'
 
 // create a container for the scroller with appropriate style context
 // the Scroller viewport (outer div) uses position:'absolute', inset:0
-// the viewport container cannot be 0 width or height (re: cellsPerBand calc)
-// - use minWidth and minHeight for the container if necessary.
 const containerStyles = {
   border: '1px solid gray',
   position:'relative',
@@ -111,6 +109,8 @@ const ScrollerDemo = (props) => {
   </div>
 }
 ```
+Note that the scroller requires a container which accommodates content (non-0 width or height), otherwise the scroller calculates `cellsPerBand` as 0, and goes crazy. So if cellsPerBand is calculated at 0, the scroller throws a fatal error.
+
 ## Technology
 
 React:
