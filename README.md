@@ -65,7 +65,7 @@ const ScrollerDemo = (props) => {
     maxWidth:300, minWidth:200, maxHeight:40, minHeight:30
   })
   
-  const fetchCells = useCallback((direction, referenceID, count)=>{
+  const fetchCells = useCallback( async (direction, referenceID, count)=>{
     const list = []
     if (referenceID >=0 && referenceID <=500) {
       if (direction == 'seed') {
@@ -230,7 +230,7 @@ The following properties are required.
 |layout: ’uniform’ &vert; ‘variable’|’variable' allows expandability along the scrolling axis (default ‘uniform')|
 |cellDimensions: {<br>&nbsp; minWidth, maxWidth,<br>&nbsp; minHeight, maxHeight<br>}|integers, which can be combined to achieve various layout effects|
 |seedReferenceID: number &vert; string|the cell referenceID from which RS3 requests initial forward and backward cells|
-|fetchCells: Function|parameters: (direction, referenceID, count)|
+|fetchCells: Function|host-provided callback function; parameters: (direction, referenceID, count)|
 
 Notes:
 

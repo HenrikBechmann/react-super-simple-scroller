@@ -1,12 +1,13 @@
-### version 1.1.12 July 13, 2025
+### version 1.1.12 July ?, 2025
 
 - some code maintenance
+- minor documentation updates
 
 ### version 1.1.11 July 13, 2025
 
-- somewhat graceful exit from `cellsPerBand` == 0 error
+- somewhat graceful exit from `cellsPerBand` == 0 error (ErrorBoundary)
 
-### version 1.1.10 July 10, 2025
+### version 1.1.10 July 13, 2025
 
 - Bug fix: use default objects for object parms with persistent identities
 - throw error when cellsPerBand calculates to 0
@@ -16,7 +17,7 @@
 provided defaults for 
 - orientation: ‘vertical'
 - layout: ‘uniform'
-- callbacks and spacing:{} (obviating the need for the optional chaining operator - '?') 
+- callbacks, spacing and operations:{} (obviating the need for the optional chaining operator - '?') 
 
 ### version 1.1.8 July 8, 2025
 
