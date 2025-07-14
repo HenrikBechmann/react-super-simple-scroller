@@ -2,6 +2,7 @@
 
 - some code maintenance
 - minor documentation updates
+- add runway property to the `cradleListener` object returned with the `getCradleSpecs` call and the `resized` callback
 
 ### version 1.1.11 July 13, 2025
 

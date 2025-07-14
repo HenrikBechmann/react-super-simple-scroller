@@ -23,6 +23,8 @@ import { createContainer, createBand, isValidID } from './utilities'
 
 const useCalls = ({
 
+    RUNWAY_BANDS,
+
     DOMManipulationQueueRef,
 
     scrollerName,
@@ -826,6 +828,7 @@ const useCalls = ({
                 ...cradleActualRef.current
             },
             cradlePotential: {
+                runway: RUNWAY_BANDS,
                 cellDimensions:{...cellDimensionsRef.current},
                 spacing:{...spacingRef.current},
                 viewportDimensions: {...viewportDimensionsRef.current},

@@ -503,6 +503,8 @@ const Viewport = (props) =>{
 
         availableCalls = useCalls({
 
+            RUNWAY_BANDS,
+
             DOMManipulationQueueRef,
 
             scrollerName,
@@ -839,6 +841,7 @@ const Viewport = (props) =>{
             forwardCells,
             backwardCells,
             totalCells,
+            runway:RUNWAY_BANDS,
         }
 
         if (cradleActualRef.current.cellsPerBand === null) {

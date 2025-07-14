@@ -325,6 +325,7 @@ The following three are queries of the state of the cradle.
   cellDimensions // as passed to the scroller
   viewDimensions
   spacing // as passed to the scroller
+  runway // default 4, or as passed to the scroller
 }
 ```
 `cradleActual` holds almost the same properties (with actual counts, but without cellDimensions, viewportDimensions, and spacing), plus the following:
