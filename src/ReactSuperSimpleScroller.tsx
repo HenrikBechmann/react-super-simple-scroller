@@ -551,6 +551,9 @@ const Viewport = (props) =>{
 
     useEffect(()=>{
 
+        // report initial axisReferencerID (seedReferencerID)
+        callbacksRef.current.axisReferenceID && callbacksRef.current.axisReferenceID(currentAxisReferenceIDRef.current)
+
         return () => {
             viewportRef.current && viewportRef.current.remove() // abundance of caution
         }
