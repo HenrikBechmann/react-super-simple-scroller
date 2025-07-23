@@ -1,6 +1,12 @@
 // ReactSuperSimpleScroller.tsx
 // copyright (c) 2025-present Henrik Bechmann, Toronto, Licence: MIT
 
+/*
+    TODO
+    - report null axisReferenceID, including...
+        - for failure of seedReferenceID
+*/
+
 // ===============================[ resources ]========================
 
 import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, CSSProperties, FC } from 'react'
