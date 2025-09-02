@@ -4,7 +4,8 @@
 // ============================[ utilities ]============================
 
 export const isValidID = (referenceID) => {
-    return ((typeof referenceID == 'number') && !Number.isNaN(referenceID)) || (typeof referenceID == 'string')
+    return ((typeof referenceID == 'number') && !Number.isNaN(referenceID) || 
+        ((typeof referenceID == 'string')  && (referenceID !== '')) )
 }
 
 export const baseCradleActual = {

@@ -1,9 +1,11 @@
-### version 1.1.12 July ?, 2025
+### version 1.1.12 Sept ?, 2025
 
 - some code maintenance
 - minor documentation updates
 - add runway property to the `cradleListener` object returned with the `getCradleSpecs` call and the `resized` callback
 - report initial axisReferenceID (the seedReferenceID) with axisReferenceID callback
+- valid seedReferenceID cannot be an empty string
+- pass an empty string for referenceID to `fetchCradleCells` call to clear the scroller 
 
 ### version 1.1.11 July 13, 2025
 

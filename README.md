@@ -180,7 +180,7 @@ Most commonly, when scrolling, `band` elements are attached with child `containe
 
 ### Self-configuration
 
-Very few setup parameters are required from the host to get the scroller started. These include: `orientation` (‘vertical’ | ‘horizontal’), `layout` (‘uniform’ | 'variable'), `cellDimensions` (`minWidth`, `maxWidth`, `minHeight`, `maxHeight`), `seedReferenceID` (a string or number), and `fetchCells` (a host-provided function called by the scroller to fetch content for the cradle as needed).
+Very few setup parameters are required from the host to get the scroller started. These include: `orientation` (‘vertical’ | ‘horizontal’), `layout` (‘uniform’ | 'variable'), `cellDimensions` (`minWidth`, `maxWidth`, `minHeight`, `maxHeight`), `seedReferenceID` (a non-empty string, or number), and `fetchCells` (a host-provided function called by the scroller to fetch content for the cradle as needed).
 
 With this information the scroller is able to configure and populate the cradle (and modify the configuration with resizing or parameter updates).
 
@@ -298,7 +298,7 @@ The following three are specialized operations.
 
 **dispatchEvent(referenceID, event)** returns `true` or `false`. The dispatched event must be synthetic (`event = new Event(‘myevent')`).
 
-**fetchCradleCells(referenceID?)** no return value. This re-runs the fetching of cradle cells. Useful to initiate fetch after a change in the underlying data. If no referenceID is passed, uses the current axisReferenceID, and just tries to add cells to the existing cradle. When a referenceID is passed, the cradle is emptied and reset, which can be useful to reposition the cradle after, say, the end user has selected a cell (that may be out of scope) to view, or if the cell sort order has changed.
+**fetchCradleCells(referenceID?)** no return value. This re-runs the fetching of cradle cells. Useful to initiate fetch after a change in the underlying data. If no referenceID is passed, uses the current axisReferenceID, and just tries to add cells to the existing cradle. To clear the scroller, pass an empty string as the referenceID. When a referenceID is passed, the cradle is emptied and reset, which can be useful to reposition the cradle after, say, the end user has selected a cell (that may be out of scope) to view, or if the cell sort order has changed.
 
 The following three are queries of the state of the cradle.
 
