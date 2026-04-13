@@ -525,6 +525,25 @@ const useIntersections = ({
 
             }
 
+            // Edge case: if the newly arrived leading head band is partial, align its cells to the end
+            // (closest to axis) so the gap appears at the far edge — natural ragged start.
+            // If full, clear any end-alignment left over from a previous tail position.
+            const newLeadingHeadBand = backwardBandList.at(-1)
+            if (newLeadingHeadBand) {
+                const prop = orientationRef.current === 'horizontal' ? 'gridRow' : 'gridColumn'
+                const count = newLeadingHeadBand.childElementCount
+                const n = cradleActual.cellsPerBand
+                if (count > 0 && count < n) {
+                    Array.from(newLeadingHeadBand.children).forEach((child, i) => {
+                        (child as HTMLElement).style[prop] = String(n - count + i + 1)
+                    })
+                } else {
+                    Array.from(newLeadingHeadBand.children).forEach((child) => {
+                        (child as HTMLElement).style[prop] = ''
+                    })
+                }
+            }
+
         } else { // 'backward'
 
             if (!backwardBandList.length) { // beginning of available cradle bands
@@ -539,11 +558,26 @@ const useIntersections = ({
             }
 
             for (let count = axisShiftCount; count >=1; count--) {
-                const 
+                const
                     backwardFirstBand = backwardBandList.pop(), // get the first band to move
                     backwardNextBand = backwardBandList.at(-1), // next in line, for shift to replace first
                     forwardFirstBand = forwardBandList[0] // for insert moved band after
 
+                // Apply end-alignment while band is still in head (out of view) to avoid visible shuffle
+                {
+                    const cellCount = backwardFirstBand.childElementCount
+                    const n = cradleActual.cellsPerBand
+                    const prop = orientationRef.current === 'horizontal' ? 'gridRow' : 'gridColumn'
+                    if (cellCount > 0 && cellCount < n) {
+                        Array.from(backwardFirstBand.children).forEach((child, i) => {
+                            (child as HTMLElement).style[prop] = String(n - cellCount + i + 1)
+                        })
+                    } else {
+                        Array.from(backwardFirstBand.children).forEach((child) => {
+                            (child as HTMLElement).style[prop] = ''
+                        })
+                    }
+                }
 
                 // move forward band out of the way of the incoming backward band
                 forwardFirstBand && leadTailblockBand.after(forwardFirstBand)
@@ -579,6 +613,20 @@ const useIntersections = ({
 
                 }
 
+            }
+
+            // Edge case: if the newly arrived first tail band is partial, align its cells to the end
+            // so the gap appears at the leading edge (natural ragged start) not between filled slots.
+            const leadingTailBand = forwardBandList[0]
+            if (leadingTailBand) {
+                const count = leadingTailBand.childElementCount
+                const n = cradleActual.cellsPerBand
+                if (count > 0 && count < n) {
+                    const prop = orientationRef.current === 'horizontal' ? 'gridRow' : 'gridColumn'
+                    Array.from(leadingTailBand.children).forEach((child, i) => {
+                        (child as HTMLElement).style[prop] = String(n - count + i + 1)
+                    })
+                }
             }
 
         }

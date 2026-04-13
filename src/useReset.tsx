@@ -91,7 +91,7 @@ const useReset = ({
 
             await getSeed(seedReferenceID)
 
-            resetAxisPosition()
+            resetAxisPosition(true) // freshReset: place axis 1px inside viewport to avoid spurious forward shift
 
             setTimeout(()=>{ // yield for DOM
 

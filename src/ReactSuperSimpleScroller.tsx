@@ -330,24 +330,26 @@ const Viewport = (props) =>{
 
     },[])
 
-    const resetAxisPosition = useCallback(() => {
+    const resetAxisPosition = useCallback((freshReset = false) => {
 
         if (!viewportRef.current) return // error condition
 
         if (orientationRef.current == 'vertical') {
 
-            const axisOffset = axisPositionRef.current.y - viewportRef.current.scrollTop
+            // freshReset: use offset of 1 to place axis 1px inside the viewport, preventing the
+            // intersection observer from seeing the forward trigger as 'before' at the exact boundary.
+            const axisOffset = freshReset ? 1 : (axisPositionRef.current.y - viewportRef.current.scrollTop)
 
             scrollTopRef.current = AXIS_START_POSITION
-            viewportRef.current.scrollTo(scrollLeftRef.current,AXIS_START_POSITION)
-            setAxisPosition(0,AXIS_START_POSITION + axisOffset, 'stop scrolling') 
+            viewportRef.current.scrollTo(0, AXIS_START_POSITION)
+            setAxisPosition(0, AXIS_START_POSITION + axisOffset, 'stop scrolling')
 
         } else { // 'horizontal'
 
-            const axisOffset = axisPositionRef.current.x - viewportRef.current.scrollLeft
-                
+            const axisOffset = freshReset ? 1 : (axisPositionRef.current.x - viewportRef.current.scrollLeft)
+
             scrollLeftRef.current = AXIS_START_POSITION
-            viewportRef.current.scrollTo(AXIS_START_POSITION,scrollTopRef.current)
+            viewportRef.current.scrollTo(AXIS_START_POSITION, 0)
             setAxisPosition(AXIS_START_POSITION + axisOffset, 0)
 
         }

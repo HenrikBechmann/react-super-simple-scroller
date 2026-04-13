@@ -76,12 +76,10 @@ const useCells = ({
 
             if (newCells.length) {
 
-                const 
+                const
                     newPortalList = setSeedCell(newCells)
 
                 cellPortalListRef.current = newPortalList
-
-                setPortalRenderList(newPortalList)
 
                 updateCurrentAxisReferenceID()
 

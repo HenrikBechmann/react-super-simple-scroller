@@ -92,7 +92,7 @@ const verticalLeadTailblockBandForwardTriggerStyles = { // observed for shift fo
     position: 'absolute',
     top:'5px',
     right:0,
-    height: '1px',
+    height: '3px',
     width: '100%',
 } as CSSProperties
 
@@ -190,7 +190,7 @@ const horizontalLeadTailblockBandForwardTriggerStyles = { // observed for forwar
     top: 0,
     left:0,
     height: '100%',
-    width: '1px',
+    width: '3px',
 } as CSSProperties
 
 const horizontalLeadTailblockBandEndTriggerStyles = { // observed as mirror of leadHeadblockBandBackwardTrigger
