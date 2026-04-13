@@ -585,19 +585,24 @@ const Viewport = (props) =>{
     // set up IntersectionObserver, ResizeObserver and MutationObserver
     useEffect(()=>{
 
-        const iObserver = intersectionObserverRef.current = 
+        const iObserver = intersectionObserverRef.current =
             new IntersectionObserver(intersectionObserverCallback,{
                 root:viewportRef.current,
             })
 
-        const rObserver = resizeObserverRef.current = 
+        const rObserver = resizeObserverRef.current =
             new ResizeObserver(resizeObserverCallback)
 
         rObserver.observe(viewportRef.current)
 
+        // allow ancestor components to trigger scroll-position restoration via DOM event
+        const handleRs3Restore = () => availableCalls.restoreScrollPositions()
+        viewportRef.current.addEventListener('rs3restore', handleRs3Restore)
+
         return () => {
             intersectionObserverRef.current.disconnect()
             resizeObserverRef.current.disconnect()
+            viewportRef.current?.removeEventListener('rs3restore', handleRs3Restore)
         }
 
     },[])

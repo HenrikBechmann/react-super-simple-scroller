@@ -43,7 +43,7 @@ const useCells = ({
     // call 'seed' or 'forward', never 'backward' (called by forward)
     const getCells = async (direction, seedReferenceID = null) => { // second parm for 'seed' option
 
-        if (!tailblockRef.current || !headblockRef.current) return
+        if (!tailblockRef.current || !headblockRef.current || !leadTailblockBandRef.current) return
 
         const 
             cradlePotential = cradlePotentialRef.current,
