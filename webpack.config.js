@@ -4,7 +4,7 @@ var path = require('path');
 const TerserPlugin = require("terser-webpack-plugin");
 
 module.exports = {
-  // devtool: 'source-map',
+  devtool: 'source-map',
   entry: {
     main:'./src/ReactSuperSimpleScroller.tsx'
   },
@@ -13,6 +13,7 @@ module.exports = {
     path: path.resolve('dist'),
     library:'react-super-simple-scroller',
     libraryTarget:'umd',
+    globalObject: 'this',
     clean:true
   },
   resolve: {
@@ -23,7 +24,7 @@ module.exports = {
     rules: [
       { 
           test: /\.tsx?$/, 
-          use:['babel-loader','ts-loader']
+          use:['ts-loader']
       }
       ]
   },
