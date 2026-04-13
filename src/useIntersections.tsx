@@ -281,7 +281,7 @@ const useIntersections = ({
                     if (bandIndex < 0) break
                     nextHeight = headBandList[bandIndex].offsetHeight
                 }
-                bandCount = headBandList.length - bandIndex
+                bandCount = headBandList.length - Math.max(0, bandIndex)
 
             } else { // 'horizontal'
 
@@ -298,7 +298,7 @@ const useIntersections = ({
                     if (bandIndex < 0) break
                     nextWidth = headBandList[bandIndex].offsetHeight
                 }
-                bandCount = headBandList.length - bandIndex
+                bandCount = headBandList.length - Math.max(0, bandIndex)
             }
 
             const count = bandCount
@@ -350,13 +350,13 @@ const useIntersections = ({
                     if (bandIndex < 0) break
                     nextHeight = tailBandList[bandIndex].offsetHeight
                 }
-                bandCount = tailBandList.length - bandIndex
+                bandCount = tailBandList.length - Math.max(0, bandIndex)
 
             } else { // 'horizontal'
 
-                const axisGap = leadHeadblockBandBackwardTrigger.rootBounds.left - 
+                const axisGap = leadHeadblockBandBackwardTrigger.rootBounds.left -
                     leadHeadblockBandBackwardTrigger.boundingClientRect.right
-                    
+
                 let bandIndex = tailBandList.length - 1
                 let bandWidthSpan = tailBandList[bandIndex].offsetWidth
                 let nextWidth = 0
@@ -367,7 +367,7 @@ const useIntersections = ({
                     if (bandIndex < 0) break
                     nextWidth = tailBandList[bandIndex].offsetHeight
                 }
-                bandCount = tailBandList.length - bandIndex
+                bandCount = tailBandList.length - Math.max(0, bandIndex)
             }
 
             const axisshiftcount = bandCount
