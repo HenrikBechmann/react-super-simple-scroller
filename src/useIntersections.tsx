@@ -1,7 +1,7 @@
 // useIntersections.tsx
 // copyright (c) 2025-present Henrik Bechmann, Toronto, Licence: MIT
 
-import React, { useCallback } from 'react'
+import React, { useCallback, useRef } from 'react'
 
 const useIntersections = ({
 
@@ -53,6 +53,8 @@ const useIntersections = ({
 
     const DOMManipulationQueue = DOMManipulationQueueRef.current
 
+    const lastPositionRecoveryRef = useRef(0)
+
     // -------------------------[ intersection observations controller ]-------------------------
 
     const evaluateIntersections = useCallback( async (source) => {
@@ -103,6 +105,10 @@ const useIntersections = ({
 
         if (allAreBefore || allAreAfter) {
 
+            const now = Date.now()
+            if (now - lastPositionRecoveryRef.current < 200) return
+            lastPositionRecoveryRef.current = now
+
             console.log('WARNING: POSITION RECOVERY', 'from all', allAreBefore?'before':'after')
 
             assertIntersectionsDisconnect()
@@ -112,7 +118,7 @@ const useIntersections = ({
                 viewportRef.current.style.overflow = 'hidden'
                 immediateStopScrollingRef.current = true
                 scrollTopRef.current = viewportRef.current.scrollTop
-                scrollLeftRef.current - viewportRef.current.scrollLeft
+                scrollLeftRef.current = viewportRef.current.scrollLeft
 
                 clearTimeout(restoreScrollingTimeoutIDRef.current)
                 restoreScrollingTimeoutIDRef.current = setTimeout(()=>{
@@ -120,19 +126,21 @@ const useIntersections = ({
                     viewportRef.current && (viewportRef.current.style.overflow = 'auto')
                 },STANDARD_SCROLL_MOMENTUM_FADE)
 
-            } 
+            }
 
             if (orientationRef.current == 'vertical') {
 
                 immediateStopScrollingRef.current = false
-                setAxisPosition(0,AXIS_START_POSITION - 1, 'outside')
-                viewportRef.current.scrollTo(scrollLeftRef.current,AXIS_START_POSITION)
+                scrollTopRef.current = AXIS_START_POSITION
+                setAxisPosition(0, AXIS_START_POSITION + 1, 'outside')
+                viewportRef.current.scrollTo(0, AXIS_START_POSITION)
 
             } else { // 'horizontal'
 
                 immediateStopScrollingRef.current = false
-                setAxisPosition(AXIS_START_POSITION - 1, 0,'outside')
-                viewportRef.current.scrollTo(AXIS_START_POSITION, scrollTopRef.current,)
+                scrollLeftRef.current = AXIS_START_POSITION
+                setAxisPosition(AXIS_START_POSITION + 1, 0, 'outside')
+                viewportRef.current.scrollTo(AXIS_START_POSITION, 0)
 
             }
 
