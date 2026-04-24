@@ -33,6 +33,9 @@ const useReset = ({
 
     const reset = useCallback(async (seedReferenceID) => {
 
+        // console.log('[RESET] reset called, seedReferenceID:', seedReferenceID,
+        //     'current cellPortalList.length:', cellPortalListRef.current.length)
+
         const cradlePotential = cradlePotentialRef.current
 
         // clear out existing portals
@@ -90,6 +93,8 @@ const useReset = ({
             assertIntersectionsDisconnect()
 
             await getSeed(seedReferenceID)
+
+            // console.log('[RESET] reset complete after getSeed, cellPortalList.length:', cellPortalListRef.current.length)
 
             resetAxisPosition(true) // freshReset: place axis 1px inside viewport to avoid spurious forward shift
 

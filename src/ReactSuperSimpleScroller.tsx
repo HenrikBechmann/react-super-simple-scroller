@@ -664,11 +664,13 @@ const Viewport = (props) =>{
 
     const resizeObserverCallback = useCallback((entries) => {
 
-        const 
+        const
             viewportEntry = entries[0],
             borderBox = viewportEntry.borderBoxSize[0],
             width = borderBox.inlineSize,
             height = borderBox.blockSize
+
+        if (width === 0 || height === 0) return // skip transient zero-dimension state
 
         assertIntersectionsDisconnect()
 
@@ -828,13 +830,7 @@ const Viewport = (props) =>{
 
         }
 
-        if (cellsPerBand <= 0) {
-            const msg = 'A scroller fatal error occured: cellsPerBand calculated to 0, resulting in an undefined state.\
-             Scroller container width and height must always be able to accommodate content. Scroller operation halted.'
-            console.log(msg)
-            setErrorState({error:true, message: msg})
-            return
-        }
+        if (cellsPerBand <= 0) return // skip transient state; next ResizeObserver reading will supply valid dimensions
 
         const runwayBands = RUNWAY_BANDS
 

@@ -372,7 +372,7 @@ const useCalls = ({
                 if (workingBand.childElementCount === 0) {
 
                     workingBand.remove()
-                    headBandList.unShift()
+                    headBandList.shift()
                     cradleActual.backwardBands--
                     cradleActual.totalBands--
 

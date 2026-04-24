@@ -55,9 +55,12 @@ const useCells = ({
 
         if (direction == 'seed') {
 
-            const 
+            const
                 count = 1,
                 newCells = await fetchCells(direction, seedReferenceID, count)
+
+            // Re-check: scroller may have been reset/unmounted while fetchCells was in-flight
+            if (!leadTailblockBandRef.current) return
 
             if (newCells.length > count) {
                 const excess = newCells.splice(count)
@@ -81,11 +84,19 @@ const useCells = ({
 
                 cellPortalListRef.current = newPortalList
 
+                setPortalRenderList(cellPortalListRef.current)
+
                 updateCurrentAxisReferenceID()
 
             }
 
             await getCells('forward')
+
+            // Safety flush: if getSeed returned no cells, neither forward nor backward
+            // will have called setPortalRenderList, so nothing would render without this.
+            if (cellPortalListRef.current.length) {
+                setPortalRenderList(cellPortalListRef.current)
+            }
 
         } else if (direction == 'forward') {
 

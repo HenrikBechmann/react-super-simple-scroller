@@ -272,33 +272,36 @@ const useIntersections = ({
                 const axisGap = leadHeadblockBandBackwardTrigger.boundingClientRect.bottom -
                     leadHeadblockBandBackwardTrigger.rootBounds.top
 
-                let bandIndex = headBandList.length - 1
-                let bandHeightSpan = headBandList[bandIndex].offsetHeight
-                let nextHeight = 0
-                while ((bandHeightSpan + nextHeight) < axisGap) {
-                    bandHeightSpan += nextHeight
-                    bandIndex--
-                    if (bandIndex < 0) break
-                    nextHeight = headBandList[bandIndex].offsetHeight
+                if (headBandList.length > 0) {
+                    let bandIndex = headBandList.length - 1
+                    let bandHeightSpan = headBandList[bandIndex].offsetHeight
+                    let nextHeight = 0
+                    while ((bandHeightSpan + nextHeight) < axisGap) {
+                        bandHeightSpan += nextHeight
+                        bandIndex--
+                        if (bandIndex < 0) break
+                        nextHeight = headBandList[bandIndex].offsetHeight
+                    }
+                    bandCount = headBandList.length - Math.max(0, bandIndex)
                 }
-                bandCount = headBandList.length - Math.max(0, bandIndex)
 
             } else { // 'horizontal'
 
                 const axisGap = leadHeadblockBandBackwardTrigger.boundingClientRect.right -
                     leadHeadblockBandBackwardTrigger.rootBounds.left
 
-                let bandIndex = headBandList.length - 1
-                let bandWidthSpan = headBandList[bandIndex].offsetWidth
-                let nextWidth = 0
-
-                while ((bandWidthSpan + nextWidth) < axisGap) {
-                    bandWidthSpan += nextWidth
-                    bandIndex--
-                    if (bandIndex < 0) break
-                    nextWidth = headBandList[bandIndex].offsetHeight
+                if (headBandList.length > 0) {
+                    let bandIndex = headBandList.length - 1
+                    let bandWidthSpan = headBandList[bandIndex].offsetWidth
+                    let nextWidth = 0
+                    while ((bandWidthSpan + nextWidth) < axisGap) {
+                        bandWidthSpan += nextWidth
+                        bandIndex--
+                        if (bandIndex < 0) break
+                        nextWidth = headBandList[bandIndex].offsetWidth
+                    }
+                    bandCount = headBandList.length - Math.max(0, bandIndex)
                 }
-                bandCount = headBandList.length - Math.max(0, bandIndex)
             }
 
             const count = bandCount
@@ -354,8 +357,8 @@ const useIntersections = ({
 
             } else { // 'horizontal'
 
-                const axisGap = leadHeadblockBandBackwardTrigger.rootBounds.left -
-                    leadHeadblockBandBackwardTrigger.boundingClientRect.right
+                const axisGap = leadTailblockBandForwardTrigger.rootBounds.left -
+                    leadTailblockBandForwardTrigger.boundingClientRect.right
 
                 let bandIndex = tailBandList.length - 1
                 let bandWidthSpan = tailBandList[bandIndex].offsetWidth
@@ -365,7 +368,7 @@ const useIntersections = ({
                     bandWidthSpan += nextWidth
                     bandIndex--
                     if (bandIndex < 0) break
-                    nextWidth = tailBandList[bandIndex].offsetHeight
+                    nextWidth = tailBandList[bandIndex].offsetWidth
                 }
                 bandCount = tailBandList.length - Math.max(0, bandIndex)
             }
