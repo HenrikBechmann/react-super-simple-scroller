@@ -248,9 +248,9 @@ const useIntersections = ({
 
                 assertIntersectionsDisconnect()
 
-                adjustForTailOverflow()
+                await adjustForTailOverflow() // now async; fillCradle moved inside
 
-                await fillCradle()
+                // await fillCradle() // moved into adjustForTailOverflow
 
                 setTimeout(()=>{ // yield for DOM
 
@@ -445,36 +445,73 @@ const useIntersections = ({
 
     }
 
-    const adjustForTailOverflow = () => {
+    const adjustForTailOverflow = async () => {
 
-        const 
-            tailTriggerRect = tailblockOverflowTriggerRef.current.getBoundingClientRect(),
-            viewportRect = viewportRef.current.getBoundingClientRect()
+        // Original approach: nudge axis down to make room, then fillCradle added cells into
+        // the newly created scrollable space. Replaced by the approach below.
+        //
+        // const tailTriggerRect = tailblockOverflowTriggerRef.current.getBoundingClientRect()
+        // const viewportRect = viewportRef.current.getBoundingClientRect()
+        // if (orientationRef.current == 'vertical') {
+        //     const
+        //         gap = viewportRect.bottom - tailTriggerRect.top,
+        //         viewportHeight = viewportRect.height,
+        //         cradleHeight = headblockRef.current.offsetHeight + tailblockRef.current.offsetHeight + 2,
+        //         available = cradleHeight - (viewportHeight - gap),
+        //         adjustment = Math.min(gap, available) + 3,
+        //         currentAxisY = axisPositionRef.current.y
+        //     adjustment && setAxisPosition(0, currentAxisY + adjustment, 'tail overflow')
+        // } else {
+        //     const
+        //         gap = viewportRect.right - tailTriggerRect.left,
+        //         viewportWidth = viewportRect.width,
+        //         cradleWidth = headblockRef.current.offsetWidth + tailblockRef.current.offsetWidth + 2,
+        //         available = cradleWidth - (viewportWidth - gap),
+        //         adjustment = Math.min(gap, available) + 3,
+        //         currentAxisX = axisPositionRef.current.x
+        //     adjustment && setAxisPosition(currentAxisX + adjustment, 0)
+        // }
 
-        if (orientationRef.current == 'vertical') {
+        // New approach: fill first. If new cells arrive, the tailblock grows naturally and
+        // the trigger returns to 'after' on its own — no axis nudge needed. If no cells
+        // arrive (end of available data), snap scroll to the true boundary so the last item
+        // sits cleanly at the viewport bottom, and stop momentum. When the user scrolls
+        // forward again, fillCradle retries; if new data has arrived it resumes normally.
 
-            const
-                gap = viewportRect.bottom - tailTriggerRect.top,
-                viewportHeight = viewportRect.height,
-                cradleHeight = headblockRef.current.offsetHeight + tailblockRef.current.offsetHeight + 2, // 2 for triggers
-                available = cradleHeight - (viewportHeight - gap),
-                adjustment = Math.min(gap, available) + 3, // PIXEL
-                currentAxisY = axisPositionRef.current.y
+        const forwardCellsBefore = cradleActualRef.current.forwardCells
 
-            adjustment && setAxisPosition(0,currentAxisY + adjustment, 'tail overflow')
+        await fillCradle()
 
-        } else { // 'horizontal'
+        if (cradleActualRef.current.forwardCells > forwardCellsBefore) {
 
-            const
-                gap = viewportRect.right - tailTriggerRect.left,
-                viewportWidth = viewportRect.width,
-                cradleWidth = headblockRef.current.offsetWidth + tailblockRef.current.offsetWidth + 2, // 2 for triggers
-                available = cradleWidth - (viewportWidth - gap),
-                adjustment = Math.min(gap, available) + 3,
-                currentAxisX = axisPositionRef.current.x
+            // New cells arrived — tailblock grew, trigger returns to 'after' naturally.
+            return
 
-            adjustment && setAxisPosition(currentAxisX + adjustment, 0)
         }
+
+        // No new cells: snap to boundary (last item bottom = viewport bottom).
+        // axis + tailHeight - vpDim is invariant under axis shifts, so this is always correct.
+        const isH = orientationRef.current === 'horizontal'
+        const axis = isH ? axisPositionRef.current.x : axisPositionRef.current.y
+        const tailDim = isH ? tailblockRef.current.offsetWidth : tailblockRef.current.offsetHeight
+        const vpDim = isH ? viewportRef.current.clientWidth : viewportRef.current.clientHeight
+        const boundary = axis + tailDim - vpDim
+
+        if (isH) {
+            scrollLeftRef.current = boundary
+            viewportRef.current.scrollTo(boundary, viewportRef.current.scrollTop)
+        } else {
+            scrollTopRef.current = boundary
+            viewportRef.current.scrollTo(viewportRef.current.scrollLeft, boundary)
+        }
+
+        viewportRef.current.style.overflow = 'hidden'
+        immediateStopScrollingRef.current = true
+        clearTimeout(restoreScrollingTimeoutIDRef.current)
+        restoreScrollingTimeoutIDRef.current = setTimeout(() => {
+            immediateStopScrollingRef.current = false
+            viewportRef.current && (viewportRef.current.style.overflow = 'auto')
+        }, STANDARD_SCROLL_MOMENTUM_FADE)
 
     }
 
