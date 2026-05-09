@@ -140,6 +140,7 @@ const Viewport = (props) =>{
         [viewportDimensions,setViewportDimensions] = useState(null),
         hasJustResizedRef = useRef(false),
         [styles, setStyles] = useState(selectStyles(orientation)),
+        [scrollblockCrossSize, setScrollblockCrossSize] = useState(null),
 
         // scroller structure
         viewportRef = useRef(null),
@@ -339,17 +340,19 @@ const Viewport = (props) =>{
             // freshReset: use offset of 1 to place axis 1px inside the viewport, preventing the
             // intersection observer from seeing the forward trigger as 'before' at the exact boundary.
             const axisOffset = freshReset ? 1 : (axisPositionRef.current.y - viewportRef.current.scrollTop)
+            const crossAxis = freshReset ? 0 : viewportRef.current.scrollLeft
 
             scrollTopRef.current = AXIS_START_POSITION
-            viewportRef.current.scrollTo(0, AXIS_START_POSITION)
+            viewportRef.current.scrollTo(crossAxis, AXIS_START_POSITION)
             setAxisPosition(0, AXIS_START_POSITION + axisOffset, 'stop scrolling')
 
         } else { // 'horizontal'
 
             const axisOffset = freshReset ? 1 : (axisPositionRef.current.x - viewportRef.current.scrollLeft)
+            const crossAxis = freshReset ? 0 : viewportRef.current.scrollTop
 
             scrollLeftRef.current = AXIS_START_POSITION
-            viewportRef.current.scrollTo(AXIS_START_POSITION, 0)
+            viewportRef.current.scrollTo(AXIS_START_POSITION, crossAxis)
             setAxisPosition(AXIS_START_POSITION + axisOffset, 0)
 
         }
@@ -860,6 +863,15 @@ const Viewport = (props) =>{
             cradleActualRef.current.cellsPerBand = cellsPerBand
         }
 
+        // scrollblock cross-axis must accommodate the tallest/widest possible band
+        if (orientation == 'horizontal') {
+            const crossAxisNeeded = cellsPerBand * cellMaxHeight + Math.max(0, cellsPerBand - 1) * cellGap + cradleMarginStart + cradleMarginEnd
+            setScrollblockCrossSize(Math.max(viewportDimensions.height, crossAxisNeeded) + 'px')
+        } else {
+            const crossAxisNeeded = cellsPerBand * cellMaxWidth + Math.max(0, cellsPerBand - 1) * cellGap + cradleMarginStart + cradleMarginEnd
+            setScrollblockCrossSize(Math.max(viewportDimensions.width, crossAxisNeeded) + 'px')
+        }
+
         setStyles(selectStyles(orientation))
         setCradlePotential(cradlePotential)
         if (hasJustResizedRef.current) {
@@ -957,13 +969,17 @@ const Viewport = (props) =>{
 
     // =============================[ render ]=======================
 
+    const scrollblockStyle = scrollblockCrossSize
+        ? {...styles.scrollblockStyles, ...(orientation === 'horizontal' ? {height: scrollblockCrossSize} : {width: scrollblockCrossSize})}
+        : styles.scrollblockStyles
+
     // the data-type values cannot be changed - the literals are used in code (to save intersection entries)
     if (errorState.error) {
         throw new Error(errorState.message)
     } else {
         return <>
             <div data-type = 'viewport' data-scrollername = {scrollerName} style = {viewportStyles} onScroll = {onViewportScroll} ref = {viewportRef}>
-                <div data-type = 'scrollblock' style = {styles.scrollblockStyles} ref = {scrollblockRef}>
+                <div data-type = 'scrollblock' style = {scrollblockStyle} ref = {scrollblockRef}>
                     <div data-type = 'axis' style = {styles.axisStyles} ref = {axisRef}>
                         <div data-type = 'headblock' style = {styles.headblockStyles} ref = {headblockRef}>
                             <div data-type = 'headblock-overflow-trigger' style = {styles.headblockOverflowTriggerStyles} ref = {headblockOverflowTriggerRef} />

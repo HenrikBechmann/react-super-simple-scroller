@@ -133,14 +133,14 @@ const useIntersections = ({
                 immediateStopScrollingRef.current = false
                 scrollTopRef.current = AXIS_START_POSITION
                 setAxisPosition(0, AXIS_START_POSITION + 1, 'outside')
-                viewportRef.current.scrollTo(0, AXIS_START_POSITION)
+                viewportRef.current.scrollTo(viewportRef.current.scrollLeft, AXIS_START_POSITION)
 
             } else { // 'horizontal'
 
                 immediateStopScrollingRef.current = false
                 scrollLeftRef.current = AXIS_START_POSITION
                 setAxisPosition(AXIS_START_POSITION + 1, 0, 'outside')
-                viewportRef.current.scrollTo(AXIS_START_POSITION, 0)
+                viewportRef.current.scrollTo(AXIS_START_POSITION, viewportRef.current.scrollTop)
 
             }
 
