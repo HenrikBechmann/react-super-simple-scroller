@@ -807,7 +807,7 @@ const Viewport = (props) =>{
 
         if (orientation == 'vertical') {
 
-            cellsPerBand = Math.ceil((viewportDimensions.width - (cradleMarginStart + cradleMarginEnd) + cellGap)/(cellMaxWidth + cellGap))
+            cellsPerBand = Math.max(1, Math.floor((viewportDimensions.width - (cradleMarginStart + cradleMarginEnd) + cellGap)/(cellMinWidth + cellGap)))
 
             if (layout == 'uniform') {
 
@@ -821,7 +821,7 @@ const Viewport = (props) =>{
 
         } else { // 'horizontal'
 
-            cellsPerBand = Math.ceil((viewportDimensions.height - (cradleMarginStart + cradleMarginEnd) + cellGap)/(cellMaxHeight + cellGap))
+            cellsPerBand = Math.max(1, Math.floor((viewportDimensions.height - (cradleMarginStart + cradleMarginEnd) + cellGap)/(cellMinHeight + cellGap)))
 
             if (layout == 'uniform') {
 
