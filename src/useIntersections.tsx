@@ -132,6 +132,7 @@ const useIntersections = ({
 
                 immediateStopScrollingRef.current = false
                 scrollTopRef.current = AXIS_START_POSITION
+                scrollLeftRef.current = viewportRef.current.scrollLeft
                 setAxisPosition(0, AXIS_START_POSITION + 1, 'outside')
                 viewportRef.current.scrollTo(viewportRef.current.scrollLeft, AXIS_START_POSITION)
 
@@ -139,6 +140,7 @@ const useIntersections = ({
 
                 immediateStopScrollingRef.current = false
                 scrollLeftRef.current = AXIS_START_POSITION
+                scrollTopRef.current = viewportRef.current.scrollTop
                 setAxisPosition(AXIS_START_POSITION + 1, 0, 'outside')
                 viewportRef.current.scrollTo(AXIS_START_POSITION, viewportRef.current.scrollTop)
 

@@ -343,6 +343,7 @@ const Viewport = (props) =>{
             const crossAxis = freshReset ? 0 : viewportRef.current.scrollLeft
 
             scrollTopRef.current = AXIS_START_POSITION
+            scrollLeftRef.current = crossAxis
             viewportRef.current.scrollTo(crossAxis, AXIS_START_POSITION)
             setAxisPosition(0, AXIS_START_POSITION + axisOffset, 'stop scrolling')
 
@@ -352,6 +353,7 @@ const Viewport = (props) =>{
             const crossAxis = freshReset ? 0 : viewportRef.current.scrollTop
 
             scrollLeftRef.current = AXIS_START_POSITION
+            scrollTopRef.current = crossAxis
             viewportRef.current.scrollTo(AXIS_START_POSITION, crossAxis)
             setAxisPosition(AXIS_START_POSITION + axisOffset, 0)
 
@@ -863,13 +865,17 @@ const Viewport = (props) =>{
             cradleActualRef.current.cellsPerBand = cellsPerBand
         }
 
-        // scrollblock cross-axis must accommodate the tallest/widest possible band
+        // scrollblock cross-axis sizing — symmetric for both orientations:
+        // expand only when minimum-size cells (cellsPerBand × cellMin + gaps + margins)
+        // overflow the viewport cross-axis; otherwise leave at 100% so 1fr fills naturally.
         if (orientation == 'horizontal') {
-            const crossAxisNeeded = cellsPerBand * cellMaxHeight + Math.max(0, cellsPerBand - 1) * cellGap + cradleMarginStart + cradleMarginEnd
-            setScrollblockCrossSize(Math.max(viewportDimensions.height, crossAxisNeeded) + 'px')
+            const crossAxisNeeded = cellsPerBand * cellMinHeight + Math.max(0, cellsPerBand - 1) * cellGap + cradleMarginStart + cradleMarginEnd
+            const crossAxisSize = Math.max(viewportDimensions.height, crossAxisNeeded)
+            setScrollblockCrossSize(crossAxisSize > viewportDimensions.height ? crossAxisSize + 'px' : null)
         } else {
-            const crossAxisNeeded = cellsPerBand * cellMaxWidth + Math.max(0, cellsPerBand - 1) * cellGap + cradleMarginStart + cradleMarginEnd
-            setScrollblockCrossSize(Math.max(viewportDimensions.width, crossAxisNeeded) + 'px')
+            const crossAxisNeeded = cellsPerBand * cellMinWidth + Math.max(0, cellsPerBand - 1) * cellGap + cradleMarginStart + cradleMarginEnd
+            const crossAxisSize = Math.max(viewportDimensions.width, crossAxisNeeded)
+            setScrollblockCrossSize(crossAxisSize > viewportDimensions.width ? crossAxisSize + 'px' : null)
         }
 
         setStyles(selectStyles(orientation))
