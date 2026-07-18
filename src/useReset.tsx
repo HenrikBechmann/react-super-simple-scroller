@@ -60,6 +60,16 @@ const useReset = ({
         })
         headBandListRef.current.length = 0 // leave lead-head-band
 
+        // SUSPICIOUS — provenance unknown; found uncommitted in the working tree 2026-07-18, already
+        // live in dist. Guards the cradleActual assignment below, which would otherwise throw on
+        // cradlePotential.orientation before it is computed; the throw lands inside a
+        // DOMManipulationQueue slot and surfaces only as a rejected promise. The retry is assumed to
+        // come from the cradlePotential effect (ReactSuperSimpleScroller ~917). Suspect it may be
+        // compensating for an ordering defect rather than fixing one: this is the third silent
+        // early-return in reset that empties the cradle and seeds nothing, with no error callback
+        // and no host notification. Do not treat as settled.
+        if (!cradlePotential) return
+
         let noSeedReferenceID = seedReferenceID ?? true
         if (!(noSeedReferenceID === true)) noSeedReferenceID = false
 
