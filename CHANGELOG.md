@@ -6,6 +6,8 @@
 - report initial axisReferenceID (the seedReferenceID) with axisReferenceID callback
 - valid seedReferenceID cannot be an empty string
 - pass an empty string for referenceID to `fetchCradleCells` call to clear the scroller 
+- Bug fix: Safari multiplies IntersectionObserver `rootBounds` by the page zoom when the root is an element, so at any zoom other than 100% the scroller lost its position or snapped back; the viewport's `getBoundingClientRect()` is read instead
+- Bug fix: a fast fling can carry a trigger across the whole viewport without an intersection report, stranding the cradle out of view (all browsers); triggers are now reconciled from live geometry in the observer callback, once a frame while scrolling, and at scroll end
 
 ### version 1.1.11 July 13, 2025
 

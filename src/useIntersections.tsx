@@ -109,7 +109,7 @@ const useIntersections = ({
             if (now - lastPositionRecoveryRef.current < 200) return
             lastPositionRecoveryRef.current = now
 
-            console.log('WARNING: POSITION RECOVERY', 'from all', allAreBefore?'before':'after')
+            console.log('WARNING: POSITION RECOVERY', 'from all', allAreBefore?'before':'after', 'on', source)
 
             assertIntersectionsDisconnect()
 
@@ -280,7 +280,7 @@ const useIntersections = ({
             if (orientationRef.current == 'vertical') {
 
                 const axisGap = leadHeadblockBandBackwardTrigger.boundingClientRect.bottom -
-                    leadHeadblockBandBackwardTrigger.rootBounds.top
+                    leadHeadblockBandBackwardTrigger.rs3rootBounds.top
 
                 if (headBandList.length > 0) {
                     let bandIndex = headBandList.length - 1
@@ -298,7 +298,7 @@ const useIntersections = ({
             } else { // 'horizontal'
 
                 const axisGap = leadHeadblockBandBackwardTrigger.boundingClientRect.right -
-                    leadHeadblockBandBackwardTrigger.rootBounds.left
+                    leadHeadblockBandBackwardTrigger.rs3rootBounds.left
 
                 if (headBandList.length > 0) {
                     let bandIndex = headBandList.length - 1
@@ -351,7 +351,7 @@ const useIntersections = ({
             if (!tailBandList.length) return
 
             if (orientationRef.current == 'vertical') {
-                const axisGap = leadTailblockBandForwardTrigger.rootBounds.top - 
+                const axisGap = leadTailblockBandForwardTrigger.rs3rootBounds.top - 
                     leadTailblockBandForwardTrigger.boundingClientRect.bottom
                     
                 let bandIndex = tailBandList.length - 1
@@ -367,7 +367,7 @@ const useIntersections = ({
 
             } else { // 'horizontal'
 
-                const axisGap = leadTailblockBandForwardTrigger.rootBounds.left -
+                const axisGap = leadTailblockBandForwardTrigger.rs3rootBounds.left -
                     leadTailblockBandForwardTrigger.boundingClientRect.right
 
                 let bandIndex = tailBandList.length - 1

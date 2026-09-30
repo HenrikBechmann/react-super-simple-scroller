@@ -197,7 +197,8 @@ const Viewport = (props) =>{
         // timeout id's
         scrollMomentumTimeoutIDRef = useRef(null),
         restoreScrollingTimeoutIDRef = useRef(null),
-        resizeTimeoutIDRef = useRef(null)
+        resizeTimeoutIDRef = useRef(null),
+        reconcileFrameIDRef = useRef(null)
 
     // for immediately accessibility
     orientationRef.current = orientation
@@ -605,6 +606,7 @@ const Viewport = (props) =>{
         viewportRef.current.addEventListener('rs3restore', handleRs3Restore)
 
         return () => {
+            cancelAnimationFrame(reconcileFrameIDRef.current)
             intersectionObserverRef.current.disconnect()
             resizeObserverRef.current.disconnect()
             viewportRef.current?.removeEventListener('rs3restore', handleRs3Restore)
@@ -638,30 +640,75 @@ const Viewport = (props) =>{
 
     // ===========================[ callbacks ]=========================
 
+    // An IntersectionObserver reports only changes of intersection, so a trigger that crosses the
+    // whole viewport between two rendering updates (a fast fling) is never reported and keeps its
+    // old side. That blocks the all-before/all-after recovery and strands the cradle out of view.
+    // Correct only that case, from live geometry: an entry not in the current batch, not 'in', and
+    // now wholly beyond the opposite edge. Anything touching the viewport is left to the observer
+    const reconcileUnreportedCrossings = useCallback((viewportBounds, freshTypes = null) => {
+
+        let changed = false
+
+        intersectionsMapRef.current.forEach((record, type) => {
+
+            if (freshTypes?.has(type) || record.rs3position == 'in') return
+
+            const rect = record.target.getBoundingClientRect()
+
+            const position = (orientationRef.current == 'vertical')
+                ? (rect.bottom < viewportBounds.top ? 'before' : rect.top > viewportBounds.bottom ? 'after' : null)
+                : (rect.right < viewportBounds.left ? 'before' : rect.left > viewportBounds.right ? 'after' : null)
+
+            if (!position || position == record.rs3position) return
+
+            intersectionsMapRef.current.set(type, {
+                target: record.target,
+                boundingClientRect: rect,
+                rs3rootBounds: viewportBounds,
+                rs3position: position,
+            })
+            changed = true
+
+        })
+
+        return changed
+
+    },[])
+
     const intersectionObserverCallback = useCallback((entries, observer)=> {
 
         entries.sort((a,b)=>{
             return a.time - b.time // ascending
         })
 
+        // Safari multiplies rootBounds by the page zoom when the root is an element (0.75x at 75%)
+        // while boundingClientRect stays in CSS px, so the two disagree; a direct reading of the
+        // viewport keeps both in CSS px. Consumers read rs3rootBounds, never rootBounds
+        const viewportBounds = viewportRef.current.getBoundingClientRect()
+        const freshTypes = new Set()
+
         entries.forEach((entry)=>{
+            entry.rs3rootBounds = viewportBounds
             if (orientationRef.current == 'vertical') {
-                entry.rs3position = 
+                entry.rs3position =
                     entry.isIntersecting
                         ?'in'
-                        :entry.rootBounds.top > entry.boundingClientRect.bottom
+                        :viewportBounds.top > entry.boundingClientRect.bottom
                             ?'before'
                             :'after'
             } else { // 'horizontal'
-                entry.rs3position = 
+                entry.rs3position =
                     entry.isIntersecting
                         ?'in'
-                        :entry.rootBounds.left > entry.boundingClientRect.right
+                        :viewportBounds.left > entry.boundingClientRect.right
                             ?'before'
                             :'after'
             }
             intersectionsMapRef.current.set(entry.target.dataset.type, entry)
+            freshTypes.add(entry.target.dataset.type)
         })
+
+        reconcileUnreportedCrossings(viewportBounds, freshTypes)
 
         evaluateIntersections('observer')
 
@@ -712,6 +759,23 @@ const Viewport = (props) =>{
             scrollTopRef.current = target.scrollTop
             scrollLeftRef.current = target.scrollLeft
 
+        }
+
+        // scroll end arrives only after the momentum tail and its fade (seconds on a long fling), so
+        // a cradle stranded mid-fling would sit blank until then; check once a frame while scrolling
+        if (!reconcileFrameIDRef.current) {
+            reconcileFrameIDRef.current = requestAnimationFrame(()=>{
+
+                reconcileFrameIDRef.current = null
+
+                if (viewportRef.current && intersectionsConnectedRef.current &&
+                    reconcileUnreportedCrossings(viewportRef.current.getBoundingClientRect())) {
+
+                    evaluateIntersections('scroll')
+
+                }
+
+            })
         }
 
         if (!isScrollingMode) {
@@ -969,6 +1033,15 @@ const Viewport = (props) =>{
             resetAxisPosition()
             // reset scrolling control
             immediateIsScrollingRef.current = false
+
+            // a crossing that happened after the last observer callback has no callback left to
+            // catch it, and a stranded cradle produces none
+            if (intersectionsConnectedRef.current &&
+                reconcileUnreportedCrossings(viewportRef.current.getBoundingClientRect())) {
+
+                evaluateIntersections('scroll end')
+
+            }
 
         }
     },[isScrollingMode])
