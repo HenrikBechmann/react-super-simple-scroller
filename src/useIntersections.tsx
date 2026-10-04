@@ -189,6 +189,9 @@ const useIntersections = ({
 
             if (immediateIsScrollingRef.current) {
 
+                // overflow:hidden is what stops the browser's own momentum. A browser scrolls on its
+                // compositor first, so a list held by scrollTo alone is painted displaced, then put back,
+                // on every momentum event (Safari shakes and can lose its place)
                 viewportRef.current.style.overflow = 'hidden'
                 immediateStopScrollingRef.current = true
                 scrollTopRef.current = viewportRef.current.scrollTop

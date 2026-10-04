@@ -683,7 +683,7 @@ const Viewport = (props) =>{
 
         // Safari multiplies rootBounds by the page zoom when the root is an element (0.75x at 75%)
         // while boundingClientRect stays in CSS px, so the two disagree; a direct reading of the
-        // viewport keeps both in CSS px. Consumers read rs3rootBounds, never rootBounds
+        // viewport keeps both in CSS px. Consumers read rs3rootBounds, never rootBounds — WebKit bug 325821
         const viewportBounds = viewportRef.current.getBoundingClientRect()
         const freshTypes = new Set()
 
