@@ -26,7 +26,7 @@ import useIntersections from './useIntersections'
 import useReset from './useReset'
 import useCalls from './useCalls'
 
-import { selectStyles } from './orientationStyles'
+import { selectStyles, selectViewportStyles } from './orientationStyles'
 import { 
     baseCradleActual, 
     getCradleMarginsFromSpacing, 
@@ -50,16 +50,6 @@ let // can be set by parameter
 // ===============================[ styles ]==========================
 
 // common styles
-
-const viewportStyles = {
-    position:'absolute',
-    inset:0,
-    // backgroundColor:'cyan',
-    overflow:'auto',
-    scrollbarWidth:'none',
-    overscrollBehavior:'none',
-    overflowAnchor:'none',
-} as CSSProperties
 
 const virtualCradleStyles = {
     display: 'none',
@@ -1052,6 +1042,8 @@ const Viewport = (props) =>{
         ? {...styles.scrollblockStyles, ...(orientation === 'horizontal' ? {height: scrollblockCrossSize} : {width: scrollblockCrossSize})}
         : styles.scrollblockStyles
 
+    const viewportStyles = selectViewportStyles(orientation, operations.crossAxisChaining)
+
     // the data-type values cannot be changed - the literals are used in code (to save intersection entries)
     if (errorState.error) {
         throw new Error(errorState.message)
@@ -1130,7 +1122,8 @@ const ReactSuperSimpleScroller = (
         },
         operations?: {
             dispatchAttachedEvents?:boolean,
-            runway?: number
+            runway?: number,
+            crossAxisChaining?: 'none' | 'auto', // default 'auto'
         },
         scrollerName? : string
     }) => {
