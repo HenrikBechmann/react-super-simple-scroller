@@ -1,3 +1,9 @@
+### version 2.0.0 (unreleased)
+
+- Bug fix: a trackpad fling into an end of the data put the list back two or three times, because the hold on scrolling was released while the fling's wheel events were still arriving; the hold at an end of the data now lasts until the wheel has been quiet for 300 ms (and never less than `STANDARD_SCROLL_MOMENTUM_FADE`), and a wheel away from that end releases it at once. The wait for quiet also ends once the host's `fetchCradleCells` has reset the list or brought cells to that end. A hold anywhere else in the data, and one that follows a position recovery, is released after `STANDARD_SCROLL_MOMENTUM_FADE` as before
+- Bug fix: Safari passes the wheel over a held (`overflow:hidden`) list to a scrollable ancestor in spite of `overscroll-behavior`, so a fling into an end of the data scrolled what is behind the list; a wheel along the list's axis is now cancelled while the list is held, wherever the browser allows it (a wheel mostly across the list, and a pinch zoom, are left alone). The `wheel` listener is non-passive and is attached only for the life of a hold
+- Bug fix: a scroll back out of an end of the data, begun while the list was held, moved the ancestor instead of the list in Safari and waited more than a second in Firefox, and in Safari what was left of a fling when any hold let go moved the ancestor too; in every hold the list is now made scrollable again as soon as a wheel has been cancelled, and the cancelled wheel is what holds it. Where the wheel cannot be cancelled (a fling in Chrome and Edge) or none arrives (touch, keyboard, scrollbar) the list stays hidden for the hold, as before. Known limit: a wheel that Safari will not let be cancelled can still go to the ancestor while the list is hidden (WebKit bug 243452); measured in Safari 27, that moved the ancestor in 2 of 72 holds
+
 ### version 1.1.12 Sept ?, 2025
 
 - some code maintenance
