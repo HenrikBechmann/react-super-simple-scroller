@@ -4,7 +4,7 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 
-import { createBand, createContainer, isValidID } from './utilities'
+import { createBand, createContainer, isValidID, reportError, errorMessage } from './utilities'
 
 const useCells = ({
 
@@ -40,6 +40,39 @@ const useCells = ({
 }) => {
 
     const callbacks = callbacksRef.current
+
+    // A host fetch that rejects, or answers with anything but an array, is reported and read as an empty
+    // batch: the pass ends there and the next scroll asks again. An empty array is the end of the data.
+    const fetchBatch = async (fetchCells, direction, referenceID, count) => {
+
+        let cells
+
+        try {
+
+            cells = await fetchCells(direction, referenceID, count)
+
+        } catch (error) {
+
+            leadTailblockBandRef.current && reportError(callbacksRef, `fetchCells, ${direction}`, 
+                `fetchCells rejected: ${errorMessage(error)}`, [direction, referenceID, count])
+
+            return []
+
+        }
+
+        if (!Array.isArray(cells)) {
+
+            leadTailblockBandRef.current && reportError(callbacksRef, `fetchCells, ${direction}`, 
+                'fetchCells must return an array of cellPacks', [direction, referenceID, count], {return: cells})
+
+            return []
+
+        }
+
+        return cells
+
+    }
+
     // call 'seed' or 'forward', never 'backward' (called by forward)
     const getCells = async (direction, seedReferenceID = null) => { // second parm for 'seed' option
 
@@ -57,10 +90,10 @@ const useCells = ({
 
             const
                 count = 1,
-                newCells = await fetchCells(direction, seedReferenceID, count)
+                newCells = await fetchBatch(fetchCells, direction, seedReferenceID, count)
 
             // Re-check: scroller may have been reset/unmounted while fetchCells was in-flight
-            if (!leadTailblockBandRef.current) return
+            if (!leadTailblockBandRef.current || cradleActualRef.current !== cradleActual) return
 
             if (newCells.length > count) {
                 const excess = newCells.splice(count)
@@ -90,6 +123,9 @@ const useCells = ({
 
             }
 
+            // no seed in the cradle: there is no row to fetch forward or backward from
+            if (!cellPortalListRef.current.length) return
+
             await getCells('forward')
 
             // Safety flush: if getSeed returned no cells, neither forward nor backward
@@ -115,8 +151,10 @@ const useCells = ({
 
                 let newCells = []
                 if (count > 0) {
-                    newCells = await fetchCells(direction, portalIDListRef.current.at(-1), count)
+                    newCells = await fetchBatch(fetchCells, direction, portalIDListRef.current.at(-1), count)
                 }
+
+                if (!leadTailblockBandRef.current || cradleActualRef.current !== cradleActual) return
 
                 if (newCells.length > count) {
                     const excess = newCells.splice(count)
@@ -175,8 +213,10 @@ const useCells = ({
 
                 let newCells = []
                 if (count > 0) {
-                    newCells = await fetchCells(direction, portalIDListRef.current[0], count)
+                    newCells = await fetchBatch(fetchCells, direction, portalIDListRef.current[0], count)
                 }
+
+                if (!leadTailblockBandRef.current || cradleActualRef.current !== cradleActual) return
 
                 if (newCells.length > count) {
                     const excess = newCells.splice(count)
@@ -435,7 +475,7 @@ const useCells = ({
 
             if (!latestband) {
                 const firstband = tailBandListRef.current[0] // there may be room in the tail firstband
-                if (firstband.childElementCount < cradleActual.cellsPerBand) {
+                if (firstband && firstband.childElementCount < cradleActual.cellsPerBand) {
                     band = firstband
                     band.prepend(container)
                     cradleActual.forwardCells++

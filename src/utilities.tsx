@@ -8,6 +8,31 @@ export const isValidID = (referenceID) => {
         ((typeof referenceID == 'string')  && (referenceID !== '')) )
 }
 
+export const errorMessage = (error) => {
+    return (error instanceof Error)?error.message:String(error)
+}
+
+// The host's callback is read at call time. One that throws must not take the scroller down with it.
+export const reportError = (callbacksRef, source, message, args = [], extra = {}) => {
+
+    const error = callbacksRef.current?.error
+
+    if (!error) return
+
+    try {
+        error({
+            source,
+            message,
+            arguments: args,
+            ...extra,
+            timestamp: Date.now()
+        })
+    } catch (e) {
+        console.error(e)
+    }
+
+}
+
 export const baseCradleActual = {
     cellsPerBand:null,
     totalBands:0,

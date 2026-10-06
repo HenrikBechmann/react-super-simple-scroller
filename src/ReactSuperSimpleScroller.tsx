@@ -18,7 +18,7 @@ import Queue from './Queue'
 import { SCROLLBLOCK_SPAN } from './orientationStyles'
 
 // sub-modules
-import { isValidID } from './utilities'
+import { isValidID, reportError, errorMessage } from './utilities'
 import useCells from './useCells'
 import useNewCradlePotential from './useNewCradlePotential'
 import useRemoveCells from './useRemoveCells'
@@ -124,6 +124,9 @@ const Viewport = (props) =>{
 
         // the mount-time seed; the prop is inert after mount
         seedReferenceIDRef = useRef(seedReferenceID),
+
+        // a seed the host asked for before layout, kept for the first reset that can honour it
+        heldSeedReferenceIDRef = useRef(undefined),
 
         // base states
         [scrollerState,setScrollerState] = useState('setup'),
@@ -434,7 +437,7 @@ const Viewport = (props) =>{
 
             portalIDListRef,
 
-            // callbacksRef,
+            callbacksRef,
             setAxisPosition,
             assertIntersectionsDisconnect,
             assertIntersectionsConnect,
@@ -463,6 +466,7 @@ const Viewport = (props) =>{
             assertIntersectionsConnect,
             getSeed,
             callbacksRef,
+            heldSeedReferenceIDRef,
             resetAxisPosition,
 
         }),
@@ -953,29 +957,55 @@ const Viewport = (props) =>{
 
         if (!cradlePotential) return // setup
 
-        if (previousOrientationRef.current !== orientationRef.current ||
+        const isReconfigured = 
+            previousOrientationRef.current !== orientationRef.current ||
             previousLayoutRef.current !== layoutRef.current ||
             previousCellDimensionsRef.current !== cellDimensionsRef.current ||
-            previousSpacingRef.current !== spacingRef.current) {
+            previousSpacingRef.current !== spacingRef.current
+
+        if (isReconfigured) {
 
             previousOrientationRef.current = orientationRef.current
             previousLayoutRef.current = layoutRef.current
             previousCellDimensionsRef.current = cellDimensionsRef.current
             previousSpacingRef.current = spacingRef.current
 
-            DOMManipulationQueueRef.current.enqueue(async () => {
-                await reset(currentAxisReferenceIDRef.current)
-                assertIntersectionsConnect()
-            })
-
-        } else {
-
-            DOMManipulationQueueRef.current.enqueue(async () => {
-                await applyNewCradlePotential(cradlePotential)
-                assertIntersectionsConnect()
-            })
-
         }
+
+        DOMManipulationQueueRef.current.enqueue(async () => {
+
+            try {
+
+                const heldSeedReferenceID = heldSeedReferenceIDRef.current
+
+                if (heldSeedReferenceID !== undefined) {
+
+                    // asked for by the host before layout: it takes the mount-time seed's place
+                    heldSeedReferenceIDRef.current = undefined
+                    seedReferenceIDRef.current = null
+                    await reset(heldSeedReferenceID)
+
+                } else if (isReconfigured) {
+
+                    await reset(currentAxisReferenceIDRef.current)
+
+                } else {
+
+                    await applyNewCradlePotential(cradlePotential)
+
+                }
+
+            } finally {
+
+                assertIntersectionsConnect()
+
+            }
+
+        }).catch((error) => {
+
+            viewportRef.current && reportError(callbacksRef, 'cradlePotential', errorMessage(error), [])
+
+        })
 
     },[cradlePotential])
 

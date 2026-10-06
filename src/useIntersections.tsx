@@ -3,6 +3,8 @@
 
 import React, { useCallback, useRef } from 'react'
 
+import { reportError, errorMessage } from './utilities'
+
 // A trackpad fling keeps sending wheel events for seconds after the fingers lift. A hold at an end of
 // the data that is released inside that stream lets the rest of it push the list out again, and the
 // list is put back a second and a third time, so that hold also waits for the wheel to go quiet
@@ -46,7 +48,7 @@ const useIntersections = ({
     restoreScrollingTimeoutIDRef,
 
     // methods
-    // callbacksRef,
+    callbacksRef,
     setAxisPosition,
     assertIntersectionsDisconnect,
     assertIntersectionsConnect,
@@ -64,7 +66,7 @@ const useIntersections = ({
 
     // -------------------------[ intersection observations controller ]-------------------------
 
-    const evaluateIntersections = useCallback( async (source) => {
+    const evaluate = useCallback( async (source) => {
 
         if (!viewportRef.current) return
 
@@ -201,24 +203,30 @@ const useIntersections = ({
     
                 assertIntersectionsDisconnect()
 
-                adjustForHeadOverflow()
+                try {
 
-                await fillCradle()
+                    adjustForHeadOverflow()
 
-                // asked for cells before the first one and none came: the hold begun above, if it is
-                // still the one in force, is at the head of the data
-                if (headHold && holdRef.current.viewport && (holdRef.current.count == headHold) && !holdRef.current.isRecovery &&
-                    isCradleShortAt('head')) {
+                    await fillCradle()
 
-                    markEndOfData('head')
+                    // asked for cells before the first one and none came: the hold begun above, if it is
+                    // still the one in force, is at the head of the data
+                    if (headHold && holdRef.current.viewport && (holdRef.current.count == headHold) && !holdRef.current.isRecovery &&
+                        isCradleShortAt('head')) {
+
+                        markEndOfData('head')
+
+                    }
+
+                } finally {
+
+                    setTimeout(()=>{ // yield for DOM
+
+                        assertIntersectionsConnect()
+
+                    },1)
 
                 }
-
-                setTimeout(()=>{ // yield for DOM
-
-                    assertIntersectionsConnect()
-
-                },1)                
             }
 
             await DOMManipulationQueue.enqueue(executeHeadOverflow)
@@ -247,15 +255,21 @@ const useIntersections = ({
 
                 assertIntersectionsDisconnect()
 
-                await adjustForTailOverflow() // now async; fillCradle moved inside
+                try {
 
-                // await fillCradle() // moved into adjustForTailOverflow
+                    await adjustForTailOverflow() // now async; fillCradle moved inside
 
-                setTimeout(()=>{ // yield for DOM
+                    // await fillCradle() // moved into adjustForTailOverflow
 
-                    assertIntersectionsConnect()
+                } finally {
 
-                },1)
+                    setTimeout(()=>{ // yield for DOM
+
+                        assertIntersectionsConnect()
+
+                    },1)
+
+                }
 
             }
 
@@ -319,15 +333,21 @@ const useIntersections = ({
 
                 assertIntersectionsDisconnect()
 
-                shiftAxis('backward',count) // axis backward, bands forward
+                try {
 
-                await fillCradle()
-                
-                setTimeout(()=>{ // yield for DOM
+                    shiftAxis('backward',count) // axis backward, bands forward
 
-                    assertIntersectionsConnect()
+                    await fillCradle()
 
-                },1)
+                } finally {
+
+                    setTimeout(()=>{ // yield for DOM
+
+                        assertIntersectionsConnect()
+
+                    },1)
+
+                }
 
             } 
 
@@ -340,12 +360,12 @@ const useIntersections = ({
 
         if ( leadTailblockBandForwardTrigger.rs3position == 'before' ) {
 
-            assertIntersectionsDisconnect()
-
             const tailBandList = tailBandListRef.current
 
             let bandCount = 0
             if (!tailBandList.length) return
+
+            assertIntersectionsDisconnect()
 
             if (orientationRef.current == 'vertical') {
                 const axisGap = leadTailblockBandForwardTrigger.rs3rootBounds.top - 
@@ -388,15 +408,21 @@ const useIntersections = ({
 
                 assertIntersectionsDisconnect()
 
-                shiftAxis('forward', axisshiftcount) // axis forward, bands backward
+                try {
 
-                await fillCradle()
+                    shiftAxis('forward', axisshiftcount) // axis forward, bands backward
 
-                setTimeout(()=>{ // yield for DOM
+                    await fillCradle()
 
-                    assertIntersectionsConnect()
+                } finally {
 
-                },1)
+                    setTimeout(()=>{ // yield for DOM
+
+                        assertIntersectionsConnect()
+
+                    },1)
+
+                }
 
             }
 
@@ -405,6 +431,26 @@ const useIntersections = ({
             return
 
         }
+
+    },[])
+
+    // The callers do not wait for an evaluation, so a failure inside one is reported, and the observers
+    // are reconnected, here.
+    const evaluateIntersections = useCallback((source) => {
+
+        return evaluate(source).catch((error) => {
+
+            if (!viewportRef.current) return
+
+            reportError(callbacksRef, 'evaluateIntersections', errorMessage(error), [source])
+
+            setTimeout(()=>{
+
+                assertIntersectionsConnect()
+
+            },1)
+
+        })
 
     },[])
 

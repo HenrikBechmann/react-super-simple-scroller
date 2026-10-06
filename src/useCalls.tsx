@@ -295,13 +295,19 @@ const useCalls = ({
 
         const result = await DOMManipulationQueue.enqueue(async ()=>{
 
-            const result = await doInsert(cellPack, targetReferenceID, position)
+            try {
 
-            updateCurrentAxisReferenceID()
+                const result = await doInsert(cellPack, targetReferenceID, position)
 
-            assertIntersectionsConnect()
+                updateCurrentAxisReferenceID()
 
-            return result
+                return result
+
+            } finally {
+
+                assertIntersectionsConnect()
+
+            }
 
         })
 
@@ -424,24 +430,36 @@ const useCalls = ({
 
         const result = await DOMManipulationQueue.enqueue(async () => {
 
-            const result = await doRemove(targetReferenceID)
+            let result
+
+            try {
+
+                result = await doRemove(targetReferenceID)
+
+                if (result) await fillCradle()
+
+            } finally {
+
+                if (result) {
+
+                    setTimeout(()=>{
+                        assertIntersectionsConnect()
+                    },1)
+
+                } else {
+
+                    assertIntersectionsConnect()
+
+                }
+
+            }
 
             if (result) {
-
-                await fillCradle()
-
-                setTimeout(()=>{
-                    assertIntersectionsConnect()
-                },1)
 
                 updateCurrentAxisReferenceID()
 
                 callbacks.removed && callbacks.removed([targetReferenceID])
                 
-            } else {
-
-                assertIntersectionsConnect()
-
             }
 
             return result
@@ -785,23 +803,31 @@ const useCalls = ({
 
         const result = await DOMManipulationQueue.enqueue(async () => {
 
-            const result = await doMove(sourceReferenceID, targetReferenceID, position)
+            let result
 
-            if (result) {
+            try {
 
-                await fillCradle()
+                result = await doMove(sourceReferenceID, targetReferenceID, position)
 
-                setTimeout(()=>{
+                if (result) await fillCradle()
+
+            } finally {
+
+                if (result) {
+
+                    setTimeout(()=>{
+                        assertIntersectionsConnect()
+                    },1)
+
+                } else {
+
                     assertIntersectionsConnect()
-                },1)
 
-                updateCurrentAxisReferenceID()
-
-            } else {
-
-                assertIntersectionsConnect()
+                }
 
             }
+
+            if (result) updateCurrentAxisReferenceID()
         
             return result
 
@@ -840,29 +866,36 @@ const useCalls = ({
 
     }
 
+    // Resolves false for a reset that returned early; the reason goes to callbacks.error.
     const fetchCradleCells = async (seedReferenceID?:any) => {
 
         if (seedReferenceID != null) {
 
-            await DOMManipulationQueue.enqueue(async () => {
-                await reset(seedReferenceID)
+            return await DOMManipulationQueue.enqueue(async () => {
+                return await reset(seedReferenceID)
             })
 
-        } else {
+        }
 
-            await DOMManipulationQueue.enqueue(async () => {
+        return await DOMManipulationQueue.enqueue(async () => {
 
-                assertIntersectionsDisconnect()
+            assertIntersectionsDisconnect()
+
+            try {
 
                 await fillCradle()
+
+            } finally {
 
                 setTimeout(()=>{
                     assertIntersectionsConnect()
                 },1)
-            })
-        }
 
-        // assertIntersectionsConnect()
+            }
+
+            return true
+
+        })
 
     }
 
@@ -1008,14 +1041,20 @@ const useCalls = ({
         }
 
         const result = await DOMManipulationQueue.enqueue(async () => {
+
+            try {
             
-            const result = await doReplace(referenceID, cellPack)
+                const result = await doReplace(referenceID, cellPack)
 
-            updateCurrentAxisReferenceID()
+                updateCurrentAxisReferenceID()
 
-            assertIntersectionsConnect()
+                return result
 
-            return result
+            } finally {
+
+                assertIntersectionsConnect()
+
+            }
 
         })
 
