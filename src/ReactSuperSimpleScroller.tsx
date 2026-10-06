@@ -1123,7 +1123,7 @@ const ReactSuperSimpleScroller = (
         operations?: {
             dispatchAttachedEvents?:boolean,
             runway?: number,
-            crossAxisChaining?: 'none' | 'auto', // default 'auto'
+            crossAxisChaining?: boolean, // default true
         },
         scrollerName? : string
     }) => {

@@ -13,7 +13,7 @@ export { SCROLLBLOCK_SPAN }
 // overscroll is contained on the axis the scroller scrolls along: a scroll that reaches the end of the list
 // stops there, and that containment is what holds the list at an end of its data (see useIntersections).
 // on the other axis a gesture goes through to whatever scrolls behind the list, unless the host sets
-// operations.crossAxisChaining to 'none'. overflow stays 'auto' in every variant: a hold writes
+// operations.crossAxisChaining to false. overflow stays 'auto' in every variant: a hold writes
 // viewport.style.overflow directly, and React leaves a property alone when a style object swap does not change it
 const baseViewportStyles = {
     position:'absolute',
@@ -43,7 +43,7 @@ const containedViewportStyles = {
 
 export const selectViewportStyles = (orientation, crossAxisChaining) => {
 
-    if (crossAxisChaining == 'none') return containedViewportStyles
+    if (crossAxisChaining === false) return containedViewportStyles
 
     return (orientation == 'vertical')
         ? verticalViewportStyles
