@@ -1,7 +1,7 @@
 // useCradlePotential.tsx
 // copyright (c) 2025-present Henrik Bechmann, Toronto, Licence: MIT
 
-import React, { useCallback } from 'react'
+import React, { useCallback, useRef } from 'react'
 
 import { createBand } from './utilities'
 
@@ -41,11 +41,15 @@ const useCradlePotential = ({
 
 }) => {
 
+    const mountSeedSpentRef = useRef(false)
+
     const applyNewCradlePotential = useCallback(async (cradlePotential) => {
 
         // console.log('applyNewCradlePotential to actual')
 
-        if (seedReferenceIDRef.current == null) return
+        // the mount-time seed is spent once; an empty cradle with none to spend is the host's to fill
+        if (!cellPortalListRef.current.length && 
+            (mountSeedSpentRef.current || seedReferenceIDRef.current == null)) return
 
         assertIntersectionsDisconnect()
 
@@ -242,6 +246,7 @@ const useCradlePotential = ({
 
             // restock cells
 
+            mountSeedSpentRef.current = true
             await getSeed(seedReferenceIDRef.current)
 
             cradleActual.totalBands = cradleActual.backwardBands + cradleActual.forwardBands

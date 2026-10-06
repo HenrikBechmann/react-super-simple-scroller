@@ -106,14 +106,11 @@ const Viewport = (props) =>{
         previousLayoutRef = useRef(layout),
         previousCellDimensionsRef = useRef(cellDimensions),
         previousSpacingRef = useRef(spacing),
-        previousSeedReferenceIDRef = useRef(seedReferenceID),
-        previousFetchCellsRef = useRef(fetchCells),
 
         // set every cycle for immediate accessibility
         orientationRef = useRef(null),
         layoutRef = useRef(null),
         cellDimensionsRef = useRef(null),
-        seedReferenceIDRef = useRef(null),
         callbacksRef = useRef(null),
         callsRef = useRef(null),
         operationsRef = useRef(null),
@@ -124,6 +121,9 @@ const Viewport = (props) =>{
         // set by state change
         spacingRef = useRef(null),
         fetchCellsRef = useRef(fetchCells),
+
+        // the mount-time seed; the prop is inert after mount
+        seedReferenceIDRef = useRef(seedReferenceID),
 
         // base states
         [scrollerState,setScrollerState] = useState('setup'),
@@ -194,7 +194,6 @@ const Viewport = (props) =>{
     orientationRef.current = orientation
     layoutRef.current = layout
     cellDimensionsRef.current = cellDimensions
-    seedReferenceIDRef.current = seedReferenceID
     // fetchCellsRef.current set separately
     // spacingRef.current = set separately
     callbacksRef.current = callbacks
@@ -964,10 +963,6 @@ const Viewport = (props) =>{
             previousCellDimensionsRef.current = cellDimensionsRef.current
             previousSpacingRef.current = spacingRef.current
 
-            // prevent duplicate call from useEffect for seedRferenceID or fetchCells below
-            previousSeedReferenceIDRef.current = seedReferenceIDRef.current
-            previousFetchCellsRef.current = fetchCellsRef.current
-
             DOMManipulationQueueRef.current.enqueue(async () => {
                 await reset(currentAxisReferenceIDRef.current)
                 assertIntersectionsConnect()
@@ -984,33 +979,12 @@ const Viewport = (props) =>{
 
     },[cradlePotential])
 
-    // reset based on new seedReferenceID or fetchCells
+    // the latest fetchCells, read by getCells at each call; a new identity does not reset
     useLayoutEffect(()=>{
-
-        if (scrollerStateRef.current == 'setup') return
 
         fetchCellsRef.current = fetchCells
 
-        if ((previousSeedReferenceIDRef.current === seedReferenceIDRef.current) &&
-            (previousFetchCellsRef.current === fetchCells)) {
-
-            return
-        }
-
-        const referenceIDSelection = 
-            (previousSeedReferenceIDRef.current !== seedReferenceID)
-                ? seedReferenceID
-                : currentAxisReferenceIDRef.current
-
-        previousSeedReferenceIDRef.current = seedReferenceIDRef.current
-        previousFetchCellsRef.current = fetchCellsRef.current
-
-        DOMManipulationQueueRef.current.enqueue(async () => {
-            await reset(referenceIDSelection)
-            assertIntersectionsConnect()
-        })
-
-    },[seedReferenceID, fetchCells])
+    },[fetchCells])
 
     // ==============================[ scrolling adjustments ]===============================
 
