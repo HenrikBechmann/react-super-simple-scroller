@@ -285,7 +285,7 @@ const useIntersections = ({
 
             assertIntersectionsDisconnect()
 
-            const headBandList = tailBandListRef.current
+            const headBandList = headBandListRef.current
 
             let bandCount = 0
             if (orientationRef.current == 'vertical') {
@@ -294,16 +294,17 @@ const useIntersections = ({
                     leadHeadblockBandBackwardTrigger.rs3rootBounds.top
 
                 if (headBandList.length > 0) {
+                    // the trigger sits at the top of the lead head band, so the gap is what the bands beyond that band
+                    // must cover: the lead band always moves, and each band after it moves until the band that would
+                    // lead has its top above the viewport
                     let bandIndex = headBandList.length - 1
-                    let bandHeightSpan = headBandList[bandIndex].offsetHeight
-                    let nextHeight = 0
-                    while ((bandHeightSpan + nextHeight) < axisGap) {
-                        bandHeightSpan += nextHeight
+                    let bandHeightSpan = 0
+                    while (bandIndex > 0) {
+                        bandHeightSpan += headBandList[bandIndex - 1].offsetHeight
+                        if (bandHeightSpan >= axisGap) break
                         bandIndex--
-                        if (bandIndex < 0) break
-                        nextHeight = headBandList[bandIndex].offsetHeight
                     }
-                    bandCount = headBandList.length - Math.max(0, bandIndex)
+                    bandCount = headBandList.length - bandIndex
                 }
 
             } else { // 'horizontal'
@@ -313,15 +314,13 @@ const useIntersections = ({
 
                 if (headBandList.length > 0) {
                     let bandIndex = headBandList.length - 1
-                    let bandWidthSpan = headBandList[bandIndex].offsetWidth
-                    let nextWidth = 0
-                    while ((bandWidthSpan + nextWidth) < axisGap) {
-                        bandWidthSpan += nextWidth
+                    let bandWidthSpan = 0
+                    while (bandIndex > 0) {
+                        bandWidthSpan += headBandList[bandIndex - 1].offsetWidth
+                        if (bandWidthSpan >= axisGap) break
                         bandIndex--
-                        if (bandIndex < 0) break
-                        nextWidth = headBandList[bandIndex].offsetWidth
                     }
-                    bandCount = headBandList.length - Math.max(0, bandIndex)
+                    bandCount = headBandList.length - bandIndex
                 }
             }
 
@@ -371,33 +370,34 @@ const useIntersections = ({
                 const axisGap = leadTailblockBandForwardTrigger.rs3rootBounds.top - 
                     leadTailblockBandForwardTrigger.boundingClientRect.bottom
                     
-                let bandIndex = tailBandList.length - 1
+                // shiftAxis('forward') takes bands off the front of the tail list, so the span is measured from the front
+                let bandIndex = 0
                 let bandHeightSpan = tailBandList[bandIndex].offsetHeight
                 let nextHeight = 0
                 while ((bandHeightSpan + nextHeight) < axisGap) {
                     bandHeightSpan += nextHeight
-                    bandIndex--
-                    if (bandIndex < 0) break
+                    bandIndex++
+                    if (bandIndex >= tailBandList.length) break
                     nextHeight = tailBandList[bandIndex].offsetHeight
                 }
-                bandCount = tailBandList.length - Math.max(0, bandIndex)
+                bandCount = Math.min(tailBandList.length, bandIndex + 1)
 
             } else { // 'horizontal'
 
                 const axisGap = leadTailblockBandForwardTrigger.rs3rootBounds.left -
                     leadTailblockBandForwardTrigger.boundingClientRect.right
 
-                let bandIndex = tailBandList.length - 1
+                let bandIndex = 0
                 let bandWidthSpan = tailBandList[bandIndex].offsetWidth
                 let nextWidth = 0
 
                 while ((bandWidthSpan + nextWidth) < axisGap) {
                     bandWidthSpan += nextWidth
-                    bandIndex--
-                    if (bandIndex < 0) break
+                    bandIndex++
+                    if (bandIndex >= tailBandList.length) break
                     nextWidth = tailBandList[bandIndex].offsetWidth
                 }
-                bandCount = tailBandList.length - Math.max(0, bandIndex)
+                bandCount = Math.min(tailBandList.length, bandIndex + 1)
             }
 
             const axisshiftcount = bandCount
