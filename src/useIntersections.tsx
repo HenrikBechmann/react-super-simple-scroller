@@ -247,7 +247,7 @@ const useIntersections = ({
 
                 holdScrolling()
                 scrollTopRef.current = viewportRef.current.scrollTop
-                scrollLeftRef.current - viewportRef.current.scrollLeft
+                scrollLeftRef.current = viewportRef.current.scrollLeft
 
             } 
 
