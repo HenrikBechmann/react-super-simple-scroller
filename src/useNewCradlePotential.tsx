@@ -133,9 +133,9 @@ const useCradlePotential = ({
                     bandindex-- ) {
 
                     const
-                        offset = Math.min(backwardCellIndex - (newCellsPerBand -1),0), // ragged edge
-                        start = backwardCellIndex - (newCellsPerBand -1) + offset,
-                        count = newCellsPerBand + offset,
+                        // ragged edge: the outermost band takes what is left at the head, so start is clamped and count follows
+                        start = Math.max(backwardCellIndex - (newCellsPerBand -1), 0),
+                        count = backwardCellIndex - start + 1,
                         end = start + count,
                         cellIDsToReplace = portalIDList.slice(start, end),
                         containersForReplace = []
