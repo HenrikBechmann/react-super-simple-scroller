@@ -218,7 +218,7 @@ Note that the object and function properties are tested by RS3 for object identi
 
 Most of the time you will want to avoid this by using `useRef`, `useState` and `useCallback` to store your parameters. On the other hand, if you want to change parameters, make sure that you pass an object with a new identity for the new parameter.
 
-RS3 is responsive to all parameter changes other than `calls`, `callbacks`, and `technical`.
+RS3 is responsive to all parameter changes other than `calls` and `callbacks`. A change to `technical` is read the next time each of its timers is set.
 
 ### Required
 

@@ -23,7 +23,7 @@ import { createContainer, createBand, isValidID } from './utilities'
 
 const useCalls = ({
 
-    RUNWAY_BANDS,
+    runwayBandsRef,
 
     DOMManipulationQueueRef,
 
@@ -854,7 +854,7 @@ const useCalls = ({
                 ...cradleActualRef.current
             },
             cradlePotential: {
-                runway: RUNWAY_BANDS,
+                runway: runwayBandsRef.current,
                 cellDimensions:{...cellDimensionsRef.current},
                 spacing:{...spacingRef.current},
                 viewportDimensions: {...viewportDimensionsRef.current},

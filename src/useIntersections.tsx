@@ -15,7 +15,7 @@ const useIntersections = ({
     scrollerName,
 
     // constants
-    STANDARD_SCROLL_MOMENTUM_FADE,
+    standardMomentumFadeRef,
     AXIS_START_POSITION,
 
     DOMManipulationQueueRef,
@@ -499,7 +499,7 @@ const useIntersections = ({
         }
 
         clearTimeout(restoreScrollingTimeoutIDRef.current)
-        restoreScrollingTimeoutIDRef.current = setTimeout(releaseHoldWhenQuiet,STANDARD_SCROLL_MOMENTUM_FADE)
+        restoreScrollingTimeoutIDRef.current = setTimeout(releaseHoldWhenQuiet,standardMomentumFadeRef.current)
 
         return hold.count
 

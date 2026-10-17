@@ -37,15 +37,10 @@ import {
 const
     AXIS_START_POSITION = SCROLLBLOCK_SPAN/2,
 
-    // defaults for below
+    // defaults for technical and operations.runway, which each scroller reads from its own props
     DEFAULT_STANDARD_SCROLL_MOMENTUM_FADE = 700,
     DEFAULT_SHORT_MOMENTUM_FADE = 200,
     DEFAULT_RUNWAY_BANDS = 4
-
-let // can be set by parameter
-    STANDARD_SCROLL_MOMENTUM_FADE = DEFAULT_STANDARD_SCROLL_MOMENTUM_FADE,
-    SHORT_MOMENTUM_FADE = DEFAULT_SHORT_MOMENTUM_FADE, // only first time for resize callback
-    RUNWAY_BANDS = DEFAULT_RUNWAY_BANDS
 
 // ===============================[ styles ]==========================
 
@@ -94,6 +89,7 @@ const Viewport = (props) =>{
             calls,
             spacing = defaultSpacingRef.current,
             operations = defaultOperationsRef.current,
+            technical,
             scrollerName = 'not named'
         } = props,
 
@@ -191,7 +187,15 @@ const Viewport = (props) =>{
         scrollMomentumTimeoutIDRef = useRef(null),
         restoreScrollingTimeoutIDRef = useRef(null),
         resizeTimeoutIDRef = useRef(null),
-        reconcileFrameIDRef = useRef(null)
+        reconcileFrameIDRef = useRef(null),
+
+        // this scroller's own settings, read where they are used: two scrollers on one page never share them
+        standardMomentumFadeRef = useRef(DEFAULT_STANDARD_SCROLL_MOMENTUM_FADE),
+        shortMomentumFadeRef = useRef(DEFAULT_SHORT_MOMENTUM_FADE), // the resize callback's, during setup
+        runwayBandsRef = useRef(DEFAULT_RUNWAY_BANDS)
+
+    // a number, so the cradlePotential effect runs on a change of runway and not on each new operations object
+    const runwayBands = operations.runway ?? DEFAULT_RUNWAY_BANDS
 
     // for immediately accessibility
     orientationRef.current = orientation
@@ -205,6 +209,9 @@ const Viewport = (props) =>{
     viewportDimensionsRef.current = viewportDimensions
     cradlePotentialRef.current = cradlePotential
     scrollerStateRef.current = scrollerState
+    standardMomentumFadeRef.current = technical?.STANDARD_SCROLL_MOMENTUM_FADE ?? DEFAULT_STANDARD_SCROLL_MOMENTUM_FADE
+    shortMomentumFadeRef.current = technical?.SHORT_MOMENTUM_FADE ?? DEFAULT_SHORT_MOMENTUM_FADE
+    runwayBandsRef.current = runwayBands
 
     // --- component utility functions
 
@@ -421,7 +428,7 @@ const Viewport = (props) =>{
             scrollTopRef,
             scrollLeftRef,
             restoreScrollingTimeoutIDRef,
-            STANDARD_SCROLL_MOMENTUM_FADE,
+            standardMomentumFadeRef,
             AXIS_START_POSITION,
             axisPositionRef,
             cradleActualRef,
@@ -510,7 +517,7 @@ const Viewport = (props) =>{
 
         availableCalls = useCalls({
 
-            RUNWAY_BANDS,
+            runwayBandsRef,
 
             DOMManipulationQueueRef,
 
@@ -719,7 +726,7 @@ const Viewport = (props) =>{
 
         assertIntersectionsDisconnect()
 
-        const timeout = (scrollerState == 'setup')?SHORT_MOMENTUM_FADE:STANDARD_SCROLL_MOMENTUM_FADE
+        const timeout = (scrollerState == 'setup')?shortMomentumFadeRef.current:standardMomentumFadeRef.current
 
         clearTimeout(resizeTimeoutIDRef.current)
         resizeTimeoutIDRef.current = setTimeout(()=>{
@@ -777,7 +784,7 @@ const Viewport = (props) =>{
         }
         scrollMomentumTimeoutIDRef.current = setTimeout(()=>{
             setIsScrollingMode(false)
-        },STANDARD_SCROLL_MOMENTUM_FADE)
+        },standardMomentumFadeRef.current)
     }
 
     // =========================[ reconfiguration effects ]=====================
@@ -843,7 +850,7 @@ const Viewport = (props) =>{
 
     },[operations.dispatchAttachedEvents])
 
-    // configure cradlePotential on change of cellDimensions, viewportDimensions, orientation, layout or RUNWAY_BANDS
+    // configure cradlePotential on change of cellDimensions, viewportDimensions, orientation, layout or runway
     useLayoutEffect(()=>{
         if (!viewportDimensions) return // setup
 
@@ -894,8 +901,6 @@ const Viewport = (props) =>{
 
         if (cellsPerBand <= 0) return // skip transient state; next ResizeObserver reading will supply valid dimensions
 
-        const runwayBands = RUNWAY_BANDS
-
         const
             totalBands = visibleBands + (runwayBands * 2),
             backwardBands = runwayBands,
@@ -915,7 +920,7 @@ const Viewport = (props) =>{
             forwardCells,
             backwardCells,
             totalCells,
-            runway:RUNWAY_BANDS,
+            runway:runwayBands,
         }
 
         if (cradleActualRef.current.cellsPerBand === null) {
@@ -950,7 +955,7 @@ const Viewport = (props) =>{
             }
         }
 
-    },[orientation, layout, cellDimensions, spacing, viewportDimensions, RUNWAY_BANDS])
+    },[orientation, layout, cellDimensions, spacing, viewportDimensions, runwayBands])
 
     // reconfigure cradle on change of cradlePotential
     useLayoutEffect(()=>{
@@ -1133,23 +1138,11 @@ const ReactSuperSimpleScroller = (
     }) => {
 
     const 
-        {callbacks, calls, spacing, operations, scrollerName} = moreProperties,
+        {callbacks, calls, spacing, operations, technical, scrollerName} = moreProperties,
         properties = {
             orientation, layout, cellDimensions, seedReferenceID, fetchCells,
-            callbacks, calls, spacing, operations, scrollerName
-        },
-        { technical } = moreProperties // technical for internal constants
-
-    useEffect(()=>{
-        const 
-            techvalues = technical ?? {},
-            operationsvalues = operations ?? {}
-
-        STANDARD_SCROLL_MOMENTUM_FADE = techvalues.STANDARD_SCROLL_MOMENTUM_FADE ?? DEFAULT_STANDARD_SCROLL_MOMENTUM_FADE
-        SHORT_MOMENTUM_FADE = techvalues.SHORT_MOMENTUM_FADE ?? DEFAULT_SHORT_MOMENTUM_FADE
-        RUNWAY_BANDS = operations?.runway ?? DEFAULT_RUNWAY_BANDS
-
-    },[technical])
+            callbacks, calls, spacing, operations, technical, scrollerName
+        }
 
     return <ErrorBoundary fallbackRender={fallbackRender}>
         <Viewport {...properties} />
