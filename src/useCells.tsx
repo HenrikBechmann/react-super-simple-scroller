@@ -318,7 +318,35 @@ const useCells = ({
         return newPortalList
     }
 
+    // The checks in setForwardCells and setBackwardCells catch an id the cradle already holds, not one the
+    // batch itself repeats. A repeat is reported and skipped, and the rest of the batch loads.
+    const dropRepeats = (newCells, direction) => {
+
+        const seen = new Set()
+
+        return newCells.filter((cellPack) => {
+
+            const id = cellPack?.id
+
+            if (!isValidID(id)) return true // reported by the checks that follow
+
+            if (!seen.has(id)) {
+                seen.add(id)
+                return true
+            }
+
+            reportError(callbacksRef, `fetchCells, ${direction}`,
+                'duplicate id within the batch; the repeat is skipped', [cellPack], {return: newCells})
+
+            return false
+
+        })
+
+    }
+
     const setForwardCells = (newCells) => {
+
+        newCells = dropRepeats(newCells, 'forward')
 
         const 
             incomingPortalList = [],
@@ -415,6 +443,8 @@ const useCells = ({
     }
 
     const setBackwardCells = (newCells) => {
+
+        newCells = dropRepeats(newCells, 'backward')
 
         const 
             incomingPortalList = [],

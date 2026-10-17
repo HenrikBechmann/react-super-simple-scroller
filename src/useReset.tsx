@@ -27,6 +27,7 @@ const useReset = ({
     getSeed,
     callbacksRef,
     heldSeedReferenceIDRef,
+    currentAxisReferenceIDRef,
 
     resetAxisPosition,
 
@@ -99,7 +100,17 @@ const useReset = ({
 
         if (noSeedReferenceID) return false
 
-        if (seedReferenceID === '') return true // the cradle is cleared, as asked
+        // '' is the host's clear. The seedReferenceID prop is the mount-time seed only, so after mount a host
+        // empties the list with fetchCradleCells(''). It stays empty until the host seeds it again: a resize
+        // leaves it empty, and so does a change of orientation, layout, cell dimensions or spacing, because
+        // that change resets to the axis and the axis is dropped here with the rows.
+        if (seedReferenceID === '') {
+
+            currentAxisReferenceIDRef.current = null
+
+            return true
+
+        }
 
         const isInvalidID = !isValidID(seedReferenceID)
         if (isInvalidID && callbacksRef.current.error) {
@@ -115,27 +126,35 @@ const useReset = ({
 
         if (isInvalidID) return false
 
-        if (!cellPortalListRef.current.length) {
-            // restock cells
-            assertIntersectionsDisconnect()
+        // the cradle was emptied above, with no await since, so this is a guard against a future edit
+        if (cellPortalListRef.current.length) {
 
-            try {
+            reportError(callbacksRef, 'reset',
+                'the cradle was not empty when the seed was to be fetched; nothing was fetched',
+                [seedReferenceID])
 
-                await getSeed(seedReferenceID)
+            return false
 
-                // console.log('[RESET] reset complete after getSeed, cellPortalList.length:', cellPortalListRef.current.length)
+        }
 
-                resetAxisPosition(true) // freshReset: place axis 1px inside viewport to avoid spurious forward shift
+        // restock cells
+        assertIntersectionsDisconnect()
 
-            } finally {
+        try {
 
-                setTimeout(()=>{ // yield for DOM
+            await getSeed(seedReferenceID)
 
-                    assertIntersectionsConnect()
+            // console.log('[RESET] reset complete after getSeed, cellPortalList.length:', cellPortalListRef.current.length)
 
-                },1)
+            resetAxisPosition(true) // freshReset: place axis 1px inside viewport to avoid spurious forward shift
 
-            }
+        } finally {
+
+            setTimeout(()=>{ // yield for DOM
+
+                assertIntersectionsConnect()
+
+            },1)
 
         }
 

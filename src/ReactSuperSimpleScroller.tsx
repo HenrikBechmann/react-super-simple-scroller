@@ -9,7 +9,7 @@
 
 // ===============================[ resources ]========================
 
-import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, CSSProperties, FC } from 'react'
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, CSSProperties, FC } from 'react'
 
 import { ErrorBoundary } from "react-error-boundary"
 
@@ -29,9 +29,9 @@ import useCalls from './useCalls'
 import { selectStyles, selectViewportStyles } from './orientationStyles'
 import { 
     baseCradleActual, 
-    getCradleMarginsFromSpacing, 
-    getBandPaddingFromSpacing, 
-    getCellGapFromSpacing,
+    DEFAULT_SPACING,
+    validateSpacing,
+    validateCellDimensions,
 } from './utilities'
 
 const
@@ -82,7 +82,7 @@ const Viewport = (props) =>{
         { 
             orientation = 'vertical', 
             layout = 'uniform', 
-            cellDimensions, 
+            cellDimensions: hostCellDimensions, 
             seedReferenceID, 
             fetchCells,
             callbacks = defaultCallbacksRef.current, 
@@ -100,13 +100,14 @@ const Viewport = (props) =>{
         // comparisons with the following lead to reset
         previousOrientationRef = useRef(orientation),
         previousLayoutRef = useRef(layout),
-        previousCellDimensionsRef = useRef(cellDimensions),
+        previousCellDimensionsRef = useRef(hostCellDimensions),
         previousSpacingRef = useRef(spacing),
 
         // set every cycle for immediate accessibility
         orientationRef = useRef(null),
         layoutRef = useRef(null),
         cellDimensionsRef = useRef(null),
+        lastGoodCellDimensionsRef = useRef(null),
         callbacksRef = useRef(null),
         callsRef = useRef(null),
         operationsRef = useRef(null),
@@ -196,6 +197,16 @@ const Viewport = (props) =>{
 
     // a number, so the cradlePotential effect runs on a change of runway and not on each new operations object
     const runwayBands = operations.runway ?? DEFAULT_RUNWAY_BANDS
+
+    // a field that is not a size is replaced by its last good value here, and reported by an effect below
+    const 
+        cellDimensionsCheck = useMemo(()=>{
+
+            return validateCellDimensions(hostCellDimensions, lastGoodCellDimensionsRef.current)
+
+        },[hostCellDimensions]),
+
+        cellDimensions = cellDimensionsCheck.value
 
     // for immediately accessibility
     orientationRef.current = orientation
@@ -474,6 +485,7 @@ const Viewport = (props) =>{
             getSeed,
             callbacksRef,
             heldSeedReferenceIDRef,
+            currentAxisReferenceIDRef,
             resetAxisPosition,
 
         }),
@@ -574,17 +586,38 @@ const Viewport = (props) =>{
 
     },[])
 
+    const reportProblems = (source, problems) => {
+
+        problems.forEach(({property, value, used, message}) => {
+
+            reportError(callbacksRef, source, `${property} ${message}`, [value], {property, used})
+
+        })
+
+    }
+
+    useEffect(()=>{
+
+        reportProblems('cellDimensions', cellDimensionsCheck.problems)
+
+        lastGoodCellDimensionsRef.current = cellDimensionsCheck.value
+
+    },[cellDimensionsCheck])
+
     // set spacing values
     useEffect(()=>{
 
-        cradleMarginsRef.current = getCradleMarginsFromSpacing(spacing)
-        bandPaddingRef.current = getBandPaddingFromSpacing(spacing)
-        cellGapRef.current = getCellGapFromSpacing(spacing)
-        spacingRef.current = {
-            cradleMargin: cradleMarginsRef.current,
-            bandPadding: bandPaddingRef.current,
-            cellGap: cellGapRef.current
-        }
+        const {value, problems} = validateSpacing(spacing, spacingRef.current ?? DEFAULT_SPACING)
+
+        reportProblems('spacing', problems)
+
+        // a rejected change that leaves every value as it was changes nothing downstream
+        if (problems.length && spacingRef.current && (JSON.stringify(value) == JSON.stringify(spacingRef.current))) return
+
+        cradleMarginsRef.current = value.cradleMargin
+        bandPaddingRef.current = value.bandPadding
+        cellGapRef.current = value.cellGap
+        spacingRef.current = value
 
     },[spacing])
 
@@ -899,7 +932,9 @@ const Viewport = (props) =>{
 
         }
 
-        if (cellsPerBand <= 0) return // skip transient state; next ResizeObserver reading will supply valid dimensions
+        // skip a transient state (the next ResizeObserver reading will supply valid dimensions), or a cell
+        // dimension with no good value yet
+        if (!(cellsPerBand > 0) || Number.isNaN(visibleBands)) return
 
         const
             totalBands = visibleBands + (runwayBands * 2),

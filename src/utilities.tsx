@@ -43,34 +43,122 @@ export const baseCradleActual = {
     totalCells:0,    
 }
 
-export const getCradleMarginsFromSpacing = (spacing) => {
+// a length the scroller can lay out with
+export const isSize = (value) => (typeof value == 'number') && Number.isFinite(value) && (value >= 0)
 
-    let cradleMargin = spacing.cradleMargin
-    cradleMargin = cradleMargin ?? []
-    let [cradleMarginStart, cradleMarginEnd] = cradleMargin
-    cradleMarginStart  = cradleMarginStart ?? 0
-    cradleMarginEnd = cradleMarginEnd ?? 0
+const SIZE_MESSAGE = 'must be a finite number, not below zero'
 
-    return [cradleMarginStart, cradleMarginEnd]
+export const DEFAULT_SPACING = {cradleMargin: [0, 0], bandPadding: [0, 0], cellGap: 0}
+
+// Every spacing value is optional: an absent one is 0 and reports nothing. A present value that is not a
+// size is a problem, and the last good value stands in for it.
+export const validateSpacing = (spacing, lastGood = DEFAULT_SPACING) => {
+
+    const problems = []
+
+    if (spacing == null) spacing = {}
+
+    if (typeof spacing != 'object') {
+
+        problems.push({property: 'spacing', value: spacing, used: lastGood,
+            message: 'must be an object; the last good values are used'})
+
+        return {value: lastGood, problems}
+
+    }
+
+    const size = (property, value, used) => {
+
+        if (value == null) return 0
+
+        if (isSize(value)) return value
+
+        problems.push({property, value, used, message: `${SIZE_MESSAGE}; the last good value is used`})
+
+        return used
+
+    }
+
+    const pair = (property) => {
+
+        const 
+            value = spacing[property],
+            used = lastGood[property]
+
+        if (value == null) return [0, 0]
+
+        if (!Array.isArray(value)) {
+
+            problems.push({property, value, used, message: 'must be an array of two numbers; the last good values are used'})
+
+            return used
+
+        }
+
+        return [size(`${property}[0]`, value[0], used[0]), size(`${property}[1]`, value[1], used[1])]
+
+    }
+
+    return {
+        value: {
+            cradleMargin: pair('cradleMargin'),
+            bandPadding: pair('bandPadding'),
+            cellGap: size('cellGap', spacing.cellGap, lastGood.cellGap),
+        },
+        problems,
+    }
 
 }
 
-export const getBandPaddingFromSpacing = (spacing) => {
+const CELL_DIMENSIONS = ['minWidth', 'maxWidth', 'minHeight', 'maxHeight']
 
-    let bandPadding = spacing.bandPadding
-    bandPadding = bandPadding ?? []
-    let [bandPaddingStart, bandPaddingEnd] = bandPadding
-    bandPaddingStart  = bandPaddingStart ?? 0
-    bandPaddingEnd = bandPaddingEnd ?? 0
+// cellDimensions is required, but a layout does not read every field (a uniform vertical list never reads
+// minHeight), so an absent field passes through and reports nothing. A present field that is not a size
+// is a problem, and the last good value stands in for it. There is no default: with no good value yet the
+// field is left out, and the scroller lays out nothing until one arrives. A valid value is returned as
+// given, and one whose good fields all match the last good value returns that value, so a rejected change
+// changes nothing downstream.
+export const validateCellDimensions = (cellDimensions, lastGood = null) => {
 
-    return [bandPaddingStart, bandPaddingEnd]
+    const problems = []
 
-}
+    if ((cellDimensions == null) || (typeof cellDimensions != 'object')) {
 
-export const getCellGapFromSpacing = (spacing) => {
-    let gap = spacing.cellGap
-    gap = gap ?? 0
-    return gap
+        problems.push({property: 'cellDimensions', value: cellDimensions, used: lastGood,
+            message: 'is required: an object of minWidth, maxWidth, minHeight and maxHeight'})
+
+        return {value: lastGood ?? {}, problems}
+
+    }
+
+    let value = cellDimensions
+
+    CELL_DIMENSIONS.forEach((property) => {
+
+        const field = cellDimensions[property]
+
+        if ((field == null) || isSize(field)) return
+
+        const used = lastGood?.[property]
+
+        problems.push({property, value: field, used, message: (used === undefined)
+            ? `${SIZE_MESSAGE}; there is no good value to use yet`
+            : `${SIZE_MESSAGE}; the last good value is used`})
+
+        if (value === cellDimensions) value = {...cellDimensions}
+
+        value[property] = used
+
+    })
+
+    if (problems.length && lastGood && CELL_DIMENSIONS.every((property) => value[property] === lastGood[property])) {
+
+        value = lastGood
+
+    }
+
+    return {value, problems}
+
 }
 
 export const createContainer = (id, cellDimensions,cellsPerBand, orientation, layout) => {
