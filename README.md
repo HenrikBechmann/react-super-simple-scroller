@@ -339,6 +339,8 @@ The following three are queries of the state of the cradle.
 ```
 In a nutshell, RS3 tries to make the actual look like the potential, anchored by the axis.
 
+A call made after the scroller is unmounted does nothing and answers with the empty value of its kind: `insert`, `remove`, `move`, `replace` and `fetchCradleCells` resolve `false`, `getCradleIDList` answers `[]`, `getCradleSpecs` `null`, and every other call `false`. The first such call is reported once through the `warning` callback (`source` is the call's name), or to `console.warn` when no `warning` callback is given; later ones on the same instance are silent. The scroller mounts under `React.StrictMode`.
+
 ### Technical
 
 The `technical` object property is really only there for experimentation. It contains the following properties:
@@ -349,9 +351,9 @@ The `technical` object property is really only there for experimentation. It con
   SHORT_MOMENTUM_FADE // ms, default 200
 }
 ```
-The STANDARD_SCROLL_MOMENTUM_FADE is used to suppress scroll momentum when the start or end of data is reached. Also used for resizing debouncing.
+The STANDARD_SCROLL_MOMENTUM_FADE is the scroll-end debounce (a scroll counts as over once this long has passed since its last scroll event) and the least time the scroller holds the viewport still when the start or end of the data is reached (that hold ends once the wheel has gone quiet, and never sooner than this).
 
-The SHORT_MOMENTUM_FADE is used for the first bootstrapping resizeObserver callback.
+The SHORT_MOMENTUM_FADE is the resize debounce: the viewport's new size is read this long after the last resize, from the first bootstrapping resizeObserver callback on.
 
 ## Restoring scroll positions
 

@@ -40,7 +40,19 @@ const
     // defaults for technical and operations.runway, which each scroller reads from its own props
     DEFAULT_STANDARD_SCROLL_MOMENTUM_FADE = 700,
     DEFAULT_SHORT_MOMENTUM_FADE = 200,
-    DEFAULT_RUNWAY_BANDS = 4
+    DEFAULT_RUNWAY_BANDS = 4,
+
+    // what a call made after unmount answers: the promise-returning calls resolve false, the readers their empty
+    // shape, and every other call false
+    UNMOUNTED_ANSWERS = {
+        insert: Promise.resolve(false),
+        remove: Promise.resolve(false),
+        move: Promise.resolve(false),
+        replace: Promise.resolve(false),
+        fetchCradleCells: Promise.resolve(false),
+        getCradleIDList: [],
+        getCradleSpecs: null,
+    }
 
 // ===============================[ styles ]==========================
 
@@ -96,18 +108,25 @@ const Viewport = (props) =>{
         // processing control
         DOMManipulationQueueRef = useRef(new Queue),
         intersectionsConnectedRef = useRef(false),
+        // true from the lifecycle effect's run to its cleanup; a call made outside that span is refused
+        isMountedRef = useRef(false),
+        unmountedCallWarnedRef = useRef(false),
 
-        // comparisons with the following lead to reset
+        // comparisons with the following lead to reset; the validated values are written on their first validation,
+        // so the first layout compares equal and is a mount, not a reconfiguration
         previousOrientationRef = useRef(orientation),
         previousLayoutRef = useRef(layout),
-        previousCellDimensionsRef = useRef(hostCellDimensions),
-        previousSpacingRef = useRef(spacing),
+        previousCellDimensionsRef = useRef(null),
+        previousSpacingRef = useRef(null),
 
         // set every cycle for immediate accessibility
         orientationRef = useRef(null),
         layoutRef = useRef(null),
         cellDimensionsRef = useRef(null),
         lastGoodCellDimensionsRef = useRef(null),
+        // what the validation effects last saw: StrictMode runs an effect twice at mount, and a bad value is reported once
+        lastCellDimensionsCheckRef = useRef(null),
+        lastSpacingPropRef = useRef(undefined),
         callbacksRef = useRef(null),
         callsRef = useRef(null),
         operationsRef = useRef(null),
@@ -192,7 +211,7 @@ const Viewport = (props) =>{
 
         // this scroller's own settings, read where they are used: two scrollers on one page never share them
         standardMomentumFadeRef = useRef(DEFAULT_STANDARD_SCROLL_MOMENTUM_FADE),
-        shortMomentumFadeRef = useRef(DEFAULT_SHORT_MOMENTUM_FADE), // the resize callback's, during setup
+        shortMomentumFadeRef = useRef(DEFAULT_SHORT_MOMENTUM_FADE), // the resize debounce's
         runwayBandsRef = useRef(DEFAULT_RUNWAY_BANDS)
 
     // a number, so the cradlePotential effect runs on a change of runway and not on each new operations object
@@ -238,6 +257,7 @@ const Viewport = (props) =>{
 
     const assertIntersectionsConnect = useCallback(() => {
 
+        if (!isMountedRef.current) return
         if (intersectionsConnectedRef.current) return
 
         if (DOMManipulationQueueRef.current.queue.length) return
@@ -580,10 +600,6 @@ const Viewport = (props) =>{
         // report initial axisReferencerID (seedReferencerID)
         callbacksRef.current.axisReferenceID && callbacksRef.current.axisReferenceID(currentAxisReferenceIDRef.current)
 
-        return () => {
-            viewportRef.current && viewportRef.current.remove() // abundance of caution
-        }
-
     },[])
 
     const reportProblems = (source, problems) => {
@@ -596,33 +612,44 @@ const Viewport = (props) =>{
 
     }
 
-    useEffect(()=>{
+    useLayoutEffect(()=>{
+
+        if (lastCellDimensionsCheckRef.current === cellDimensionsCheck) return
+        lastCellDimensionsCheckRef.current = cellDimensionsCheck
 
         reportProblems('cellDimensions', cellDimensionsCheck.problems)
 
+        if (lastGoodCellDimensionsRef.current === null) previousCellDimensionsRef.current = cellDimensionsCheck.value
         lastGoodCellDimensionsRef.current = cellDimensionsCheck.value
 
     },[cellDimensionsCheck])
 
     // set spacing values
-    useEffect(()=>{
+    // a layout effect, declared ahead of the one that reads the spacing refs, so a change lands in the same commit
+    useLayoutEffect(()=>{
+
+        if (lastSpacingPropRef.current === spacing) return
+        lastSpacingPropRef.current = spacing
 
         const {value, problems} = validateSpacing(spacing, spacingRef.current ?? DEFAULT_SPACING)
 
         reportProblems('spacing', problems)
 
-        // a rejected change that leaves every value as it was changes nothing downstream
-        if (problems.length && spacingRef.current && (JSON.stringify(value) == JSON.stringify(spacingRef.current))) return
+        // a change that leaves every value as it was changes nothing downstream
+        if (spacingRef.current && (JSON.stringify(value) == JSON.stringify(spacingRef.current))) return
 
         cradleMarginsRef.current = value.cradleMargin
         bandPaddingRef.current = value.bandPadding
         cellGapRef.current = value.cellGap
+        if (spacingRef.current === null) previousSpacingRef.current = value
         spacingRef.current = value
 
     },[spacing])
 
     // set up IntersectionObserver, ResizeObserver and MutationObserver
     useEffect(()=>{
+
+        isMountedRef.current = true
 
         const iObserver = intersectionObserverRef.current =
             new IntersectionObserver(intersectionObserverCallback,{
@@ -639,8 +666,13 @@ const Viewport = (props) =>{
         viewportRef.current.addEventListener('rs3restore', handleRs3Restore)
 
         return () => {
+            isMountedRef.current = false
             cancelAnimationFrame(reconcileFrameIDRef.current)
+            clearTimeout(scrollMomentumTimeoutIDRef.current)
+            clearTimeout(restoreScrollingTimeoutIDRef.current)
+            clearTimeout(resizeTimeoutIDRef.current)
             intersectionObserverRef.current.disconnect()
+            intersectionsConnectedRef.current = false
             resizeObserverRef.current.disconnect()
             viewportRef.current?.removeEventListener('rs3restore', handleRs3Restore)
         }
@@ -667,7 +699,23 @@ const Viewport = (props) =>{
 
         if (!calls) return
 
-        Object.assign(calls, availableCalls)
+        // a call made after unmount does nothing, answers with the empty value of its kind, and the host hears once
+        const guarded = {}
+        for (const name of Object.keys(availableCalls)) {
+            const call = availableCalls[name]
+            guarded[name] = (...args) => {
+                if (isMountedRef.current) return call(...args)
+                if (!unmountedCallWarnedRef.current) {
+                    unmountedCallWarnedRef.current = true
+                    const detail = {source: name, message: 'called after the scroller was unmounted; nothing was done', arguments: args, timestamp: Date.now()}
+                    callbacksRef.current.warning
+                        ? callbacksRef.current.warning(detail)
+                        : console.warn(`react-super-simple-scroller${scrollerName ? ` (${scrollerName})` : ''}: ${name} ${detail.message}`)
+                }
+                return (name in UNMOUNTED_ANSWERS) ? UNMOUNTED_ANSWERS[name] : false
+            }
+        }
+        Object.assign(calls, guarded)
 
     },[calls])
 
@@ -759,12 +807,12 @@ const Viewport = (props) =>{
 
         assertIntersectionsDisconnect()
 
-        const timeout = (scrollerState == 'setup')?shortMomentumFadeRef.current:standardMomentumFadeRef.current
+        const timeout = shortMomentumFadeRef.current
 
         clearTimeout(resizeTimeoutIDRef.current)
         resizeTimeoutIDRef.current = setTimeout(()=>{
 
-            if (scrollerState == 'setup') {
+            if (scrollerStateRef.current == 'setup') {
                 setScrollerState('ready') // measurements available
             }
 
@@ -773,7 +821,7 @@ const Viewport = (props) =>{
 
         }, timeout)
 
-    },[scrollerState])
+    },[])
 
     // ======================[ events ]============================
 
