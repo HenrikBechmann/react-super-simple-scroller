@@ -209,9 +209,6 @@ const useCalls = ({
 
                 const
                     headBandList = headBandListRef.current,
-                    firstHeadbandOffset = cellsPerBand - headBandList[0].childElementCount,
-                    targetHeadPos = targetPos, // to be consistent with tail procesing
-                    targetBandIndex = Math.ceil(((targetHeadPos + firstHeadbandOffset) + 1)/cellsPerBand) - 1,
                     firstBand = headBandList[0]
 
                 // create a first band if necessary to receive the outer displacement
@@ -228,6 +225,12 @@ const useCalls = ({
                     cradleActual.totalBands++
 
                 }
+
+                // read after the unshift above, which moves every head band's index up by one
+                const
+                    firstHeadbandOffset = cellsPerBand - headBandList[0].childElementCount,
+                    targetHeadPos = targetPos, // to be consistent with tail procesing
+                    targetBandIndex = Math.ceil(((targetHeadPos + firstHeadbandOffset) + 1)/cellsPerBand) - 1
 
                 if (position == 'before') {
                     targetContainer.before(newContainer)                
@@ -370,6 +373,9 @@ const useCalls = ({
                     targetBandIndex = Math.ceil((targetHeadPos + firstHeadBandOffset + 1)/cellsPerBand) - 1,
                     targetBand = headBandList[targetBandIndex]
 
+                // the target leaves before the outermost band is tested below, so a band it was the only cell of goes too
+                targetContainer.remove()
+
                 for (let bandIndex = targetBandIndex; bandIndex > 0; bandIndex--) {
                     headBandList[bandIndex].prepend(headBandList[bandIndex - 1].lastChild)
                 }
@@ -395,6 +401,8 @@ const useCalls = ({
                     targetTailPos = targetPos - tailPos,
                     targetBandIndex = Math.ceil((targetTailPos + firstTailBandOffset + 1)/cellsPerBand) - 1
 
+                targetContainer.remove()
+
                 for (let bandIndex = targetBandIndex; bandIndex < tailBandList.length - 1; bandIndex++) {
                     tailBandList[bandIndex].append(tailBandList[bandIndex + 1].firstChild)
                 }
@@ -412,8 +420,6 @@ const useCalls = ({
                 cradleActual.forwardCells--
 
             }
-
-            targetContainer.remove()
 
             portalContainerMap.delete(targetReferenceID)
             portalIDList.splice(targetPos, 1)
@@ -661,8 +667,9 @@ const useCalls = ({
                     sourceBandIndex = Math.ceil((sourceHeadPos + firstHeadBandOffset + 1)/cellsPerBand) - 1,
 
                     tailBandList = tailBandListRef.current,
+                    firstTailBandOffset = cellsPerBand - tailBandList[0].childElementCount,
                     targetTailPos = targetPos - tailPos,
-                    targetBandIndex = Math.ceil((targetTailPos + 1)/cellsPerBand) - 1
+                    targetBandIndex = Math.ceil((targetTailPos + firstTailBandOffset + 1)/cellsPerBand) - 1
 
                 if (position == 'after') {
                     targetContainer.after(sourceContainer)
@@ -713,8 +720,9 @@ const useCalls = ({
                     targetBandIndex = Math.ceil((targetHeadPos + firstHeadBandOffset + 1)/cellsPerBand) - 1,
 
                     tailBandList = tailBandListRef.current,
+                    firstTailBandOffset = cellsPerBand - tailBandList[0].childElementCount,
                     sourceTailPos = sourcePos - tailPos,
-                    sourceBandIndex = Math.ceil((sourceTailPos + 1)/cellsPerBand) - 1
+                    sourceBandIndex = Math.ceil((sourceTailPos + firstTailBandOffset + 1)/cellsPerBand) - 1
 
                 if (position == 'after') {
                     targetContainer.after(sourceContainer)
@@ -738,7 +746,7 @@ const useCalls = ({
 
                 // process head band for addition of a container
                 for (let bandIndex = targetBandIndex; bandIndex > 0; bandIndex--) {
-                    headBandList[bandIndex - 1].prepend(headBandList[bandIndex].lastChild)
+                    headBandList[bandIndex - 1].append(headBandList[bandIndex].firstChild)
                 }
 
                 // add new band if necessary
