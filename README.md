@@ -302,6 +302,8 @@ The following three are specialized operations.
 
 **restoreScrollPositions()** returns a promise of `true` once the viewport has been scrolled to the position the scroller last recorded and, with `operations.dispatchAttachedEvents`, the `rs3attached` events have been dispatched to the cradle's cells. It runs as a queued cradle operation, after whatever operation is in flight, so it never lands in the middle of a band shift or a fill. The same restore runs when an `rs3restore` event is dispatched on the scroller's viewport.
 
+A call must not be awaited from inside `fetchCells`. Every fetch runs inside a queued cradle operation, and the calls are queued operations too, so a `fetchCells` that awaits `insert`, `remove`, `move`, `replace`, `fetchCradleCells` or `restoreScrollPositions` before it returns waits on an operation that is waiting on it, and the list stops. The scroller reports the stall once through the `warning` callback (`source` is `queue`) after 5 s, or to `console.warn` without one. Return the batch first, and make the call afterwards.
+
 The following three are queries of the state of the cradle.
 
 **has(referenceID)** Returns `true` or `false`.

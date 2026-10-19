@@ -107,7 +107,17 @@ const Viewport = (props) =>{
         } = props,
 
         // processing control
-        DOMManipulationQueueRef = useRef(new Queue),
+        // a task that has waited behind one running task for the queue's stall time is reported: a nested
+        // enqueue (a fetchCells that awaits one of the calls) never finishes, and this is how it shows
+        DOMManipulationQueueRef = useRef(new Queue({
+            onStall: ({ waitedMs, waiting }) => {
+                const message = `a cradle operation has waited ${waitedMs} ms behind one that has not finished (${waiting} waiting). ` +
+                    'A task that enqueues another task on the same queue and awaits it never finishes: a fetchCells that awaits ' +
+                    'insert, remove, move, replace, fetchCradleCells or restoreScrollPositions before it returns is that shape'
+                if (callbacksRef.current?.warning) reportWarning(callbacksRef, 'queue', message, [], { waitedMs, waiting })
+                else console.warn(`react-super-simple-scroller${scrollerName ? ` (${scrollerName})` : ''}: ${message}`)
+            },
+        })),
         intersectionsConnectedRef = useRef(false),
         // true from the lifecycle effect's run to its cleanup; a call made outside that span is refused
         isMountedRef = useRef(false),
