@@ -183,7 +183,13 @@ const useIntersections = ({
                     (tailblockOverflowTrigger.rs3position == 'after')
                 )
 
-        if (allAreBefore || allAreAfter) {
+        // A viewport past every edge of a cradle that is short of its potential at that end has run past the end
+        // of the data, not lost the cradle: the host was asked for more there and had none. That is the overflow
+        // of that block, below, which asks once more and then holds the end. A full cradle the scroll has outrun
+        // is recovered here
+        const overshotEnd = allAreBefore ? 'tail' : allAreAfter ? 'head' : null
+
+        if (overshotEnd && !isCradleShortAt(overshotEnd)) {
 
             const now = Date.now()
             if (now - lastPositionRecoveryRef.current < 200) return
