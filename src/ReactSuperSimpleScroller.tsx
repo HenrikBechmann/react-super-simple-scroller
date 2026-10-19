@@ -18,7 +18,7 @@ import Queue from './Queue'
 import { SCROLLBLOCK_SPAN } from './orientationStyles'
 
 // sub-modules
-import { isValidID, reportError, errorMessage } from './utilities'
+import { isValidID, reportError, reportWarning, errorMessage } from './utilities'
 import useCells from './useCells'
 import useNewCradlePotential from './useNewCradlePotential'
 import useRemoveCells from './useRemoveCells'
@@ -221,9 +221,9 @@ const Viewport = (props) =>{
     const 
         cellDimensionsCheck = useMemo(()=>{
 
-            return validateCellDimensions(hostCellDimensions, lastGoodCellDimensionsRef.current)
+            return validateCellDimensions(hostCellDimensions, lastGoodCellDimensionsRef.current, orientation, layout)
 
-        },[hostCellDimensions]),
+        },[hostCellDimensions, orientation, layout]),
 
         cellDimensions = cellDimensionsCheck.value
 
@@ -343,16 +343,7 @@ const Viewport = (props) =>{
         const callbacks = callbacksRef.current
 
         if (!isValidID(referenceID)) {
-            if (callbacks.error) {
-                callbacks.error(
-                    {
-                        source: 'getSeed',
-                        message:'must be a valid referenceID',
-                        arguments: [referenceID],
-                        timestamp: Date.now()
-                    }
-                )
-            }
+            reportError(callbacksRef, 'getSeed', 'must be a valid referenceID', [referenceID])
             return false
         }
 
@@ -602,11 +593,15 @@ const Viewport = (props) =>{
 
     },[])
 
+    // a value something stands in for is a substitution the scroller goes on with, so the host is warned; one
+    // nothing stands in for leaves the list unable to lay out, and that is an error
     const reportProblems = (source, problems) => {
 
         problems.forEach(({property, value, used, message}) => {
 
-            reportError(callbacksRef, source, `${property} ${message}`, [value], {property, used})
+            const report = (used == null) ? reportError : reportWarning
+
+            report(callbacksRef, source, `${property} ${message}`, [value], {property, used})
 
         })
 

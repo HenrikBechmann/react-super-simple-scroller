@@ -112,19 +112,16 @@ const useReset = ({
 
         }
 
-        const isInvalidID = !isValidID(seedReferenceID)
-        if (isInvalidID && callbacksRef.current.error) {
-            callbacksRef.current.error(
-                {
-                    source: 'reset',
-                    message:'must be a valid seed referenceID',
-                    arguments: [seedReferenceID],
-                    timestamp: Date.now()
-                }
-            )
-        }
+        // the cradle is empty by now, so the axis goes with its rows, as for the clear
+        if (!isValidID(seedReferenceID)) {
 
-        if (isInvalidID) return false
+            currentAxisReferenceIDRef.current = null
+
+            reportError(callbacksRef, 'reset', 'must be a valid seed referenceID', [seedReferenceID])
+
+            return false
+
+        }
 
         // the cradle was emptied above, with no await since, so this is a guard against a future edit
         if (cellPortalListRef.current.length) {
@@ -145,6 +142,9 @@ const useReset = ({
             await getSeed(seedReferenceID)
 
             // console.log('[RESET] reset complete after getSeed, cellPortalList.length:', cellPortalListRef.current.length)
+
+            // a seed the host answered with no row leaves nothing to hold the axis, as for the clear
+            if (!cellPortalListRef.current.length) currentAxisReferenceIDRef.current = null
 
             resetAxisPosition(true) // freshReset: place axis 1px inside viewport to avoid spurious forward shift
 

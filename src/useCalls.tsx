@@ -5,7 +5,7 @@ import React, {FC} from 'react'
 
 import { createPortal } from 'react-dom'
 
-import { createContainer, createBand, isValidID } from './utilities'
+import { createContainer, createBand, isValidID, reportError } from './utilities'
 
 /*
     - calls available to host
@@ -79,74 +79,29 @@ const useCalls = ({
                     React.isValidElement(cellPack.component) && 
                     (isValidID(cellPack.id)) ) )
             {
-                if (callbacks.error) {
-                    callbacks.error(
-                        {
-                            source: 'insert',
-                            message:'insert must have a valid cellPack argument',
-                            arguments: [cellPack, targetReferenceID, position],
-                            timestamp: Date.now()
-                        }
-                    )
-                }
+                reportError(callbacksRef, 'insert', 'insert must have a valid cellPack argument', [cellPack, targetReferenceID, position])
                 return false
             }
 
             if (!isValidID(targetReferenceID)) {
-                if (callbacks.error) {
-                    callbacks.error(
-                        {
-                            source: 'insert',
-                            message:'insert targetReferenceID must be a valid ID',
-                            arguments: [cellPack, targetReferenceID, position],
-                            timestamp: Date.now()
-                        }
-                    )
-                }
+                reportError(callbacksRef, 'insert', 'insert targetReferenceID must be a valid ID', [cellPack, targetReferenceID, position])
                 return false
             }
 
             if (!['before','after'].includes(position)) {
-                if (callbacks.error) {
-                    callbacks.error(
-                        {
-                            source: 'insert',
-                            message:'insert position must be either "before" or "after"',
-                            arguments: [cellPack, targetReferenceID, position],
-                            timestamp: Date.now()
-                        }
-                    )
-                }
+                reportError(callbacksRef, 'insert', 'insert position must be either "before" or "after"', [cellPack, targetReferenceID, position])
                 return false
             }
 
             if (portalContainerMapRef.current.has(cellPack.id)) {
-                if (callbacks.error) {
-                    callbacks.error(
-                        {
-                            source: 'insert',
-                            message:'insert error: cellPack.id is already in the cradle',
-                            arguments: [cellPack, targetReferenceID, position],
-                            timestamp: Date.now()
-                        }
-                    )
-                }
+                reportError(callbacksRef, 'insert', 'insert error: cellPack.id is already in the cradle', [cellPack, targetReferenceID, position])
                 return false // aleady included
             }
 
             const targetPos = portalIDListRef.current.indexOf(targetReferenceID)
 
             if (targetPos === -1) {
-                if (callbacks.error) {
-                    callbacks.error(
-                        {
-                            source: 'insert',
-                            message:'target id is not in the cradle',
-                            arguments: [cellPack, targetReferenceID, position],
-                            timestamp: Date.now()
-                        }
-                    )
-                }
+                reportError(callbacksRef, 'insert', 'target id is not in the cradle', [cellPack, targetReferenceID, position])
                 return false // no target for positioning
             }
 
@@ -323,16 +278,7 @@ const useCalls = ({
         const doRemove = (targetReferenceID)=>{
 
             if (!isValidID(targetReferenceID)) {
-                if (callbacks.error) {
-                    callbacks.error(
-                        {
-                            source: 'remove',
-                            message:'must be valid target referenceID',
-                            arguments: [targetReferenceID],
-                            timestamp: Date.now()
-                        }
-                    )
-                }
+                reportError(callbacksRef, 'remove', 'must be valid target referenceID', [targetReferenceID])
                 return false
             }
 
@@ -483,44 +429,17 @@ const useCalls = ({
         // parameter validation
 
             if (!isValidID(sourceReferenceID) || !isValidID(targetReferenceID)) {
-                if (callbacks.error) {
-                    callbacks.error(
-                        {
-                            source: 'move',
-                            message:'both source and target must be valid referenceIDs',
-                            arguments: [sourceReferenceID, targetReferenceID, position],
-                            timestamp: Date.now()
-                        }
-                    )
-                }
+                reportError(callbacksRef, 'move', 'both source and target must be valid referenceIDs', [sourceReferenceID, targetReferenceID, position])
                 return false
             }
 
             if (!['before','after'].includes(position)) {
-                if (callbacks.error) {
-                    callbacks.error(
-                        {
-                            source: 'move',
-                            message:'position must be "before" or "after"',
-                            arguments: [sourceReferenceID, targetReferenceID, position],
-                            timestamp: Date.now()
-                        }
-                    )
-                }
+                reportError(callbacksRef, 'move', 'position must be "before" or "after"', [sourceReferenceID, targetReferenceID, position])
                 return false
             }
 
             if (sourceReferenceID === targetReferenceID) {
-                if (callbacks.error) {
-                    callbacks.error(
-                        {
-                            source: 'move',
-                            message:'source and target referenceIDs cannot be equal',
-                            arguments: [sourceReferenceID, targetReferenceID, position],
-                            timestamp: Date.now()
-                        }
-                    )
-                }
+                reportError(callbacksRef, 'move', 'source and target referenceIDs cannot be equal', [sourceReferenceID, targetReferenceID, position])
                 return false
             }
 
@@ -528,16 +447,7 @@ const useCalls = ({
                 portalContainerMap = portalContainerMapRef.current
 
             if (!portalContainerMap.has(sourceReferenceID)) {
-                if (callbacks.error) {
-                    callbacks.error(
-                        {
-                            source: 'move',
-                            message:'source referenceID not found in cradle',
-                            arguments: [sourceReferenceID, targetReferenceID, position],
-                            timestamp: Date.now()
-                        }
-                    )
-                }
+                reportError(callbacksRef, 'move', 'source referenceID not found in cradle', [sourceReferenceID, targetReferenceID, position])
                 return false
             }
 
@@ -874,7 +784,9 @@ const useCalls = ({
 
     }
 
-    // Resolves false for a reset that returned early; the reason goes to callbacks.error.
+    // Resolves false for a reset that returned early; the reason goes to callbacks.error. A fill resolves false
+    // when the cradle is empty, since a fill grows the cradle from its rows: nothing is fetched, and the reason
+    // goes to callbacks.error too, as the fill cannot go on.
     const fetchCradleCells = async (seedReferenceID?:any) => {
 
         if (seedReferenceID != null) {
@@ -886,6 +798,15 @@ const useCalls = ({
         }
 
         return await DOMManipulationQueue.enqueue(async () => {
+
+            if (!cellPortalListRef.current.length) {
+
+                reportError(callbacksRef, 'fetchCradleCells',
+                    'the cradle is empty, so there is nothing to fill from; seed it with a referenceID')
+
+                return false
+
+            }
 
             assertIntersectionsDisconnect()
 
@@ -927,16 +848,7 @@ const useCalls = ({
 
     const has = (referenceID) => {
         if (!isValidID(referenceID )) {
-            if (callbacks.error) {
-                callbacks.error(
-                    {
-                        source: 'has',
-                        message:'must be a valid referenceID',
-                        arguments: [referenceID],
-                        timestamp: Date.now()
-                    }
-                )
-            }
+            reportError(callbacksRef, 'has', 'must be a valid referenceID', [referenceID])
             return false
         }
         return portalContainerMapRef.current.has(referenceID)
@@ -955,44 +867,17 @@ const useCalls = ({
                 cellDimensions = cellDimensionsRef.current
 
             if (!isValidID(referenceID )) {
-                if (callbacks.error) {
-                    callbacks.error(
-                        {
-                            source: 'replace',
-                            message:'must be a valid referenceID',
-                            arguments: [referenceID, cellPack],
-                            timestamp: Date.now()
-                        }
-                    )
-                }
+                reportError(callbacksRef, 'replace', 'must be a valid referenceID', [referenceID, cellPack])
                 return false
             }
 
             if (!isValidID(cellPack.id)) {
-                if (callbacks.error) {
-                    callbacks.error(
-                        {
-                            source: 'replace',
-                            message:'must be a valid cellPack.id',
-                            arguments: [referenceID, cellPack],
-                            timestamp: Date.now()
-                        }
-                    )
-                }
+                reportError(callbacksRef, 'replace', 'must be a valid cellPack.id', [referenceID, cellPack])
                 return false
             }
 
             if (!React.isValidElement(cellPack.component)) {
-                if (callbacks.error) {
-                    callbacks.error(
-                        {
-                            source: 'replace',
-                            message:'must be a valid cellPack.component',
-                            arguments: [referenceID, cellPack],
-                            timestamp: Date.now()
-                        }
-                    )
-                }
+                reportError(callbacksRef, 'replace', 'must be a valid cellPack.component', [referenceID, cellPack])
                 return false
             }
 
@@ -1011,16 +896,7 @@ const useCalls = ({
             }
 
             if (portalContainerMap.has(cellPack.id)) {
-                if (callbacks.error) {
-                    callbacks.error(
-                        {
-                            source: 'replace',
-                            message:'cellPack.id already in cradle',
-                            arguments: [referenceID, cellPack],
-                            timestamp: Date.now()
-                        }
-                    )
-                }
+                reportError(callbacksRef, 'replace', 'cellPack.id already in cradle', [referenceID, cellPack])
                 return false
             }
 
@@ -1073,16 +949,7 @@ const useCalls = ({
     const dispatchEvent = (referenceID:any, event) => {
 
         if (!isValidID(referenceID )) {
-            if (callbacks.error) {
-                callbacks.error(
-                    {
-                        source: 'dispatchEvent',
-                        message:'must be a valid referenceID',
-                        arguments: [referenceID, event],
-                        timestamp: Date.now()
-                    }
-                )
-            }
+            reportError(callbacksRef, 'dispatchEvent', 'must be a valid referenceID', [referenceID, event])
             return false
         }
 
@@ -1111,16 +978,7 @@ const useCalls = ({
 
         if (!isValidEvent) {
 
-            if (callbacks.error) {
-                callbacks.error(
-                    {
-                        source: 'dispatchEvent',
-                        message:'event must be a synthetic event',
-                        arguments: [referenceID, event],
-                        timestamp: Date.now()
-                    }
-                )
-            }
+            reportError(callbacksRef, 'dispatchEvent', 'event must be a synthetic event', [referenceID, event])
             return false
         }
 

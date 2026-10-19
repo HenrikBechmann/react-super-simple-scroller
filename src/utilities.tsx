@@ -4,7 +4,7 @@
 // ============================[ utilities ]============================
 
 export const isValidID = (referenceID) => {
-    return ((typeof referenceID == 'number') && !Number.isNaN(referenceID) || 
+    return ((typeof referenceID == 'number') && Number.isFinite(referenceID) || 
         ((typeof referenceID == 'string')  && (referenceID !== '')) )
 }
 
@@ -21,6 +21,27 @@ export const reportError = (callbacksRef, source, message, args = [], extra = {}
 
     try {
         error({
+            source,
+            message,
+            arguments: args,
+            ...extra,
+            timestamp: Date.now()
+        })
+    } catch (e) {
+        console.error(e)
+    }
+
+}
+
+// As reportError, for the host's warning callback.
+export const reportWarning = (callbacksRef, source, message, args = [], extra = {}) => {
+
+    const warning = callbacksRef.current?.warning
+
+    if (!warning) return
+
+    try {
+        warning({
             source,
             message,
             arguments: args,
@@ -112,38 +133,73 @@ export const validateSpacing = (spacing, lastGood = DEFAULT_SPACING) => {
 
 const CELL_DIMENSIONS = ['minWidth', 'maxWidth', 'minHeight', 'maxHeight']
 
+// The fields an orientation and layout read: the two the cradle divides by (cells across a band, bands along
+// the viewport), and those that only size a cell's container. A uniform layout never reads the minimum along
+// the axis.
+export const cellDimensionsReadSet = (orientation, layout) => {
+
+    const 
+        vertical = (orientation != 'horizontal'),
+        uniform = (layout != 'variable'),
+        across = vertical ? 'minWidth' : 'minHeight',
+        along = vertical ? (uniform ? 'maxHeight' : 'minHeight') : (uniform ? 'maxWidth' : 'minWidth'),
+        unread = uniform ? (vertical ? 'minHeight' : 'minWidth') : null
+
+    return {
+        divides: [across, along],
+        reads: CELL_DIMENSIONS.filter((property) => property !== unread),
+    }
+
+}
+
 // cellDimensions is required, but a layout does not read every field (a uniform vertical list never reads
-// minHeight), so an absent field passes through and reports nothing. A present field that is not a size
-// is a problem, and the last good value stands in for it. There is no default: with no good value yet the
-// field is left out, and the scroller lays out nothing until one arrives. A valid value is returned as
-// given, and one whose good fields all match the last good value returns that value, so a rejected change
-// changes nothing downstream.
-export const validateCellDimensions = (cellDimensions, lastGood = null) => {
+// minHeight), so an absent field it does not read passes through and reports nothing. An absent field it
+// reads is a problem, as is a present field that is not a size and a 0 the cradle divides by; the last good
+// value stands in for each. There is no default: with no good value yet the field is left out, and the
+// scroller lays out nothing until one arrives. A valid value is returned as given, and one whose good fields
+// all match the last good value returns that value, so a rejected change changes nothing downstream.
+export const validateCellDimensions = (cellDimensions, lastGood = null, orientation = 'vertical', layout = 'uniform') => {
 
     const problems = []
 
     if ((cellDimensions == null) || (typeof cellDimensions != 'object')) {
 
-        problems.push({property: 'cellDimensions', value: cellDimensions, used: lastGood,
-            message: 'is required: an object of minWidth, maxWidth, minHeight and maxHeight'})
+        const used = (lastGood && CELL_DIMENSIONS.some((property) => lastGood[property] != null)) ? lastGood : undefined
+
+        problems.push({property: 'cellDimensions', value: cellDimensions, used,
+            message: `is required: an object of minWidth, maxWidth, minHeight and maxHeight; ${(used === undefined)
+                ? 'there is no good value to use yet' : 'the last good value is used'}`})
 
         return {value: lastGood ?? {}, problems}
 
     }
 
+    const {divides, reads} = cellDimensionsReadSet(orientation, layout)
+
     let value = cellDimensions
 
     CELL_DIMENSIONS.forEach((property) => {
 
-        const field = cellDimensions[property]
+        const 
+            field = cellDimensions[property],
+            isDivisor = divides.includes(property),
+            reason = (field == null)
+                ? (reads.includes(property) ? 'is required by this orientation and layout' : null)
+                : !isSize(field)
+                    ? SIZE_MESSAGE
+                    : (isDivisor && (field === 0))
+                        ? 'must be above zero: this orientation and layout divide by it'
+                        : null
 
-        if ((field == null) || isSize(field)) return
+        if (reason === null) return
 
-        const used = lastGood?.[property]
+        const 
+            good = lastGood?.[property],
+            used = (isSize(good) && !(isDivisor && (good === 0))) ? good : undefined
 
         problems.push({property, value: field, used, message: (used === undefined)
-            ? `${SIZE_MESSAGE}; there is no good value to use yet`
-            : `${SIZE_MESSAGE}; the last good value is used`})
+            ? `${reason}; there is no good value to use yet`
+            : `${reason}; the last good value is used`})
 
         if (value === cellDimensions) value = {...cellDimensions}
 

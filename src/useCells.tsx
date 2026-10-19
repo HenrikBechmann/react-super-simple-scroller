@@ -98,7 +98,7 @@ const useCells = ({
             if (newCells.length > count) {
                 const excess = newCells.splice(count)
                 if (excess.length) {
-                    const excessIDList = excess.map((cellPack) => cellPack.id)
+                    const excessIDList = excess.map((cellPack) => cellPack?.id)
                     callbacks.failed && callbacks.failed(
                         {
                             source:'fetchCells, seed',
@@ -159,7 +159,7 @@ const useCells = ({
                 if (newCells.length > count) {
                     const excess = newCells.splice(count)
                     if (excess.length) {
-                        const excessIDList = excess.map((cellPack) => cellPack.id)
+                        const excessIDList = excess.map((cellPack) => cellPack?.id)
                         callbacks.failed && callbacks.failed(
                             {
                                 source:'fetchCells, forward',
@@ -179,17 +179,7 @@ const useCells = ({
 
                     const newPortalList = setForwardCells(newCells)
                     if (newPortalList.length === cellPortalListRef.current.length) { // something went wrong
-                        if (callbacks.error) {
-                            callbacks.error(
-                                {
-                                    source: 'fetchCells, forward',
-                                    message:'one or more errors found in fetched cellPacks. Loading aborted',
-                                    arguments: [direction, portalIDListRef.current.at(-1), count],
-                                    return: newCells,
-                                    timestamp: Date.now()
-                                }
-                            )                
-                        }
+                        reportError(callbacksRef, 'fetchCells, forward', 'one or more errors found in fetched cellPacks. Loading aborted', [direction, portalIDListRef.current.at(-1), count], {return: newCells})
                         break
                     }
                     cellPortalListRef.current = newPortalList
@@ -221,7 +211,7 @@ const useCells = ({
                 if (newCells.length > count) {
                     const excess = newCells.splice(count)
                     if (excess.length) {
-                        const excessIDList = excess.map((cellPack) => cellPack.id)
+                        const excessIDList = excess.map((cellPack) => cellPack?.id)
                         callbacks.failed && callbacks.failed(
                             {
                                 source:'fetchCells, backward',
@@ -241,17 +231,7 @@ const useCells = ({
 
                     const newPortalList = setBackwardCells(newCells)
                     if (newPortalList.length === cellPortalListRef.current.length) { // something went wrong
-                        if (callbacks.error) {
-                            callbacks.error(
-                                {
-                                    source: 'fetchCells, backward',
-                                    message:'one or more errors found in fetched cellPacks. Loading aborted',
-                                    arguments: [direction, portalIDListRef.current[0], count],
-                                    return: newCells,
-                                    timestamp: Date.now()
-                                }
-                            )                
-                        }
+                        reportError(callbacksRef, 'fetchCells, backward', 'one or more errors found in fetched cellPacks. Loading aborted', [direction, portalIDListRef.current[0], count], {return: newCells})
 
                         break
                     }
@@ -276,17 +256,8 @@ const useCells = ({
             cellPortalList = cellPortalListRef.current,
             cellPack = newCells[0]
 
-        if (!((typeof cellPack == 'object') && React.isValidElement(cellPack.component) && isValidID(cellPack.id))) {
-            if (callbacks.error) {
-                callbacks.error(
-                    {
-                        source: 'fetchCells, seed',
-                        message:'cellPack must have valid id and component; seed cellPack ignored',
-                        arguments: [cellPack],
-                        timestamp: Date.now()
-                    }
-                )
-            }
+        if (!((cellPack !== null) && (typeof cellPack == 'object') && React.isValidElement(cellPack.component) && isValidID(cellPack.id))) {
+            reportError(callbacksRef, 'fetchCells, seed', 'cellPack must have valid id and component; seed cellPack ignored', [cellPack])
             return cellPortalList
         }
 
@@ -355,34 +326,17 @@ const useCells = ({
         if (!newCells.every((cellPack)=>{ // if any errors found then abort loading
 
             const isInvalid = (!(
+                (cellPack !== null) &&
                 (typeof cellPack == 'object') && 
                 React.isValidElement(cellPack.component) && 
                 isValidID(cellPack.id)))
             
-            if (isInvalid && callbacks.error) {
-                callbacks.error(
-                    {
-                        source: 'fetchCells, forward',
-                        message:'cellPack must have valid id and component',
-                        arguments: [cellPack],
-                        timestamp: Date.now()
-                    }
-                )
-            }
+            if (isInvalid) reportError(callbacksRef, 'fetchCells, forward', 'cellPack must have valid id and component', [cellPack])
 
             let isDuplicate = false
             if (!isInvalid) {
                 isDuplicate = portalContainerMapRef.current.has(cellPack.id)
-                if (isDuplicate && callbacks.error) {
-                    callbacks.error(
-                        {
-                            source: 'fetchCells, forward',
-                            message:'fetched cellPack is a duplicate',
-                            arguments: [cellPack],
-                            timestamp: Date.now()
-                        }
-                    )                
-                }
+                if (isDuplicate) reportError(callbacksRef, 'fetchCells, forward', 'fetched cellPack is a duplicate', [cellPack])
             }
 
             return (!isDuplicate && !isInvalid)
@@ -452,31 +406,13 @@ const useCells = ({
 
         if (!newCells.every((cellPack)=>{ // if any errors found then abort loading
 
-            const isInvalid = (!((typeof cellPack == 'object') && React.isValidElement(cellPack.component) && (isValidID(cellPack.id))))
-            if (isInvalid && callbacks.error) {
-                callbacks.error(
-                    {
-                        source: 'fetchCells, backward',
-                        message:'cellPack must have valid id and component',
-                        arguments: [cellPack],
-                        timestamp: Date.now()
-                    }
-                )
-            }
+            const isInvalid = (!((cellPack !== null) && (typeof cellPack == 'object') && React.isValidElement(cellPack.component) && (isValidID(cellPack.id))))
+            if (isInvalid) reportError(callbacksRef, 'fetchCells, backward', 'cellPack must have valid id and component', [cellPack])
 
             let isDuplicate = false
             if (!isInvalid) {
                 isDuplicate = portalContainerMapRef.current.has(cellPack.id)
-                if (isDuplicate && callbacks.error) {
-                    callbacks.error(
-                        {
-                            source: 'fetchCells, backward',
-                            message:'fetched cellPack is a duplicate',
-                            arguments: [cellPack],
-                            timestamp: Date.now()
-                        }
-                    )                
-                }
+                if (isDuplicate) reportError(callbacksRef, 'fetchCells, backward', 'fetched cellPack is a duplicate', [cellPack])
             }
 
             return (!isDuplicate && !isInvalid)
