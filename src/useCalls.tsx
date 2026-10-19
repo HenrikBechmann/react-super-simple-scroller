@@ -814,21 +814,39 @@ const useCalls = ({
 
     }
 
+    // a queued operation, so the restore cannot land in the middle of a band shift or a fill
     const restoreScrollPositions = () => {
 
-        const event = new Event('rs3attached')
+        const restore = async () => {
 
-        assertIntersectionsDisconnect()
+            if (!viewportRef.current) return false
 
-        viewportRef.current.scrollTo(scrollLeftRef.current, scrollTopRef.current)
+            assertIntersectionsDisconnect()
 
-        setTimeout(()=>{
-            assertIntersectionsConnect()
-        },1)
+            try {
 
-        operationsRef.current.dispatchAttachedEvents && portalContainerMapRef.current.forEach((container) => {
-            container.firstChild && container.firstChild.dispatchEvent(event)
-        })
+                viewportRef.current.scrollTo(scrollLeftRef.current, scrollTopRef.current)
+
+                if (operationsRef.current.dispatchAttachedEvents) {
+                    const event = new Event('rs3attached')
+                    portalContainerMapRef.current.forEach((container) => {
+                        container.firstChild && container.firstChild.dispatchEvent(event)
+                    })
+                }
+
+            } finally {
+
+                setTimeout(()=>{
+                    assertIntersectionsConnect()
+                },1)
+
+            }
+
+            return true
+
+        }
+
+        return DOMManipulationQueue.enqueue(restore)
 
     }
 

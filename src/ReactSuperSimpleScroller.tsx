@@ -50,6 +50,7 @@ const
         move: Promise.resolve(false),
         replace: Promise.resolve(false),
         fetchCradleCells: Promise.resolve(false),
+        restoreScrollPositions: Promise.resolve(false),
         getCradleIDList: [],
         getCradleSpecs: null,
     }
@@ -657,7 +658,12 @@ const Viewport = (props) =>{
         rObserver.observe(viewportRef.current)
 
         // allow ancestor components to trigger scroll-position restoration via DOM event
-        const handleRs3Restore = () => availableCalls.restoreScrollPositions()
+        // the restore's promise is discarded here, so a failure inside it is reported
+        const handleRs3Restore = () => {
+            availableCalls.restoreScrollPositions().catch((error) => {
+                reportError(callbacksRef, 'restoreScrollPositions', errorMessage(error), [])
+            })
+        }
         viewportRef.current.addEventListener('rs3restore', handleRs3Restore)
 
         return () => {
