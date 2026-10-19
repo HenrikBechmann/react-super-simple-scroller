@@ -64,6 +64,77 @@ const useIntersections = ({
 
     const holdRef = useRef({viewport:null, onWheel:null, endOfData:null, endCellID:null, cradle:null, isRecovery:false, lastWheelTime:0, count:0})
 
+    // -------------------------[ shift measurement ]-------------------------
+
+    // Both counts are read as the shift runs, from the bands and the viewport as they stand then: a task
+    // queued ahead of the shift may have moved bands, and the viewport may have gone on scrolling, since the
+    // trigger crossing was observed. A count taken at the crossing and carried into the task ran against bands
+    // that had since moved. Each returns 0 when the trigger is no longer where the crossing put it.
+
+    // The backward trigger sits at the top of the lead head band, so the gap is what the bands beyond that band
+    // must cover: the lead band always moves, and each band after it moves until the band that would lead has
+    // its top above the viewport
+    const measureBackwardShiftCount = (trigger) => {
+
+        const headBandList = headBandListRef.current
+
+        if (!headBandList.length || !trigger || !viewportRef.current) return 0
+
+        const
+            vertical = orientationRef.current == 'vertical',
+            rect = trigger.getBoundingClientRect(),
+            viewportBounds = viewportRef.current.getBoundingClientRect(),
+            axisGap = vertical
+                ? rect.bottom - viewportBounds.top
+                : rect.right - viewportBounds.left
+
+        if (axisGap < 0) return 0 // the trigger is before the viewport again
+
+        let bandIndex = headBandList.length - 1
+        let bandSpan = 0
+        while (bandIndex > 0) {
+            bandSpan += vertical ? headBandList[bandIndex - 1].offsetHeight : headBandList[bandIndex - 1].offsetWidth
+            if (bandSpan >= axisGap) break
+            bandIndex--
+        }
+
+        return headBandList.length - bandIndex
+
+    }
+
+    // shiftAxis('forward') takes bands off the front of the tail list, so the span is measured from the front
+    const measureForwardShiftCount = (trigger) => {
+
+        const tailBandList = tailBandListRef.current
+
+        if (!tailBandList.length || !trigger || !viewportRef.current) return 0
+
+        const
+            vertical = orientationRef.current == 'vertical',
+            rect = trigger.getBoundingClientRect(),
+            viewportBounds = viewportRef.current.getBoundingClientRect(),
+            axisGap = vertical
+                ? viewportBounds.top - rect.bottom
+                : viewportBounds.left - rect.right
+
+        if (axisGap <= 0) return 0 // the trigger is no longer before the viewport
+
+        const size = band => vertical ? band.offsetHeight : band.offsetWidth
+
+        let bandIndex = 0
+        let bandSpan = size(tailBandList[bandIndex])
+        let nextSize = 0
+        while ((bandSpan + nextSize) < axisGap) {
+            bandSpan += nextSize
+            bandIndex++
+            if (bandIndex >= tailBandList.length) break
+            nextSize = size(tailBandList[bandIndex])
+        }
+
+        return Math.min(tailBandList.length, bandIndex + 1)
+
+    }
+
     // -------------------------[ intersection observations controller ]-------------------------
 
     const evaluate = useCallback( async (source) => {
@@ -285,48 +356,7 @@ const useIntersections = ({
 
             assertIntersectionsDisconnect()
 
-            const headBandList = headBandListRef.current
-
-            let bandCount = 0
-            if (orientationRef.current == 'vertical') {
-
-                const axisGap = leadHeadblockBandBackwardTrigger.boundingClientRect.bottom -
-                    leadHeadblockBandBackwardTrigger.rs3rootBounds.top
-
-                if (headBandList.length > 0) {
-                    // the trigger sits at the top of the lead head band, so the gap is what the bands beyond that band
-                    // must cover: the lead band always moves, and each band after it moves until the band that would
-                    // lead has its top above the viewport
-                    let bandIndex = headBandList.length - 1
-                    let bandHeightSpan = 0
-                    while (bandIndex > 0) {
-                        bandHeightSpan += headBandList[bandIndex - 1].offsetHeight
-                        if (bandHeightSpan >= axisGap) break
-                        bandIndex--
-                    }
-                    bandCount = headBandList.length - bandIndex
-                }
-
-            } else { // 'horizontal'
-
-                const axisGap = leadHeadblockBandBackwardTrigger.boundingClientRect.right -
-                    leadHeadblockBandBackwardTrigger.rs3rootBounds.left
-
-                if (headBandList.length > 0) {
-                    let bandIndex = headBandList.length - 1
-                    let bandWidthSpan = 0
-                    while (bandIndex > 0) {
-                        bandWidthSpan += headBandList[bandIndex - 1].offsetWidth
-                        if (bandWidthSpan >= axisGap) break
-                        bandIndex--
-                    }
-                    bandCount = headBandList.length - bandIndex
-                }
-            }
-
-            const count = bandCount
-
-            // console.log('SHIFT AXIS BACKWARD', count)
+            const trigger = leadHeadblockBandBackwardTrigger.target
 
             const executeShiftBackward = async () => {
 
@@ -334,7 +364,12 @@ const useIntersections = ({
 
                 try {
 
-                    shiftAxis('backward',count) // axis backward, bands forward
+                    const count = measureBackwardShiftCount(trigger)
+
+                    // with no head band left, shiftAxis('backward', 0) sets the axis just above the viewport for
+                    // the backward fetch, as it always has; a count of 0 with head bands means the trigger is no
+                    // longer past the edge, and nothing moves
+                    if (count || !headBandListRef.current.length) shiftAxis('backward',count) // axis backward, bands forward
 
                     await fillCradle()
 
@@ -359,50 +394,11 @@ const useIntersections = ({
 
         if ( leadTailblockBandForwardTrigger.rs3position == 'before' ) {
 
-            const tailBandList = tailBandListRef.current
-
-            let bandCount = 0
-            if (!tailBandList.length) return
+            if (!tailBandListRef.current.length) return
 
             assertIntersectionsDisconnect()
 
-            if (orientationRef.current == 'vertical') {
-                const axisGap = leadTailblockBandForwardTrigger.rs3rootBounds.top - 
-                    leadTailblockBandForwardTrigger.boundingClientRect.bottom
-                    
-                // shiftAxis('forward') takes bands off the front of the tail list, so the span is measured from the front
-                let bandIndex = 0
-                let bandHeightSpan = tailBandList[bandIndex].offsetHeight
-                let nextHeight = 0
-                while ((bandHeightSpan + nextHeight) < axisGap) {
-                    bandHeightSpan += nextHeight
-                    bandIndex++
-                    if (bandIndex >= tailBandList.length) break
-                    nextHeight = tailBandList[bandIndex].offsetHeight
-                }
-                bandCount = Math.min(tailBandList.length, bandIndex + 1)
-
-            } else { // 'horizontal'
-
-                const axisGap = leadTailblockBandForwardTrigger.rs3rootBounds.left -
-                    leadTailblockBandForwardTrigger.boundingClientRect.right
-
-                let bandIndex = 0
-                let bandWidthSpan = tailBandList[bandIndex].offsetWidth
-                let nextWidth = 0
-
-                while ((bandWidthSpan + nextWidth) < axisGap) {
-                    bandWidthSpan += nextWidth
-                    bandIndex++
-                    if (bandIndex >= tailBandList.length) break
-                    nextWidth = tailBandList[bandIndex].offsetWidth
-                }
-                bandCount = Math.min(tailBandList.length, bandIndex + 1)
-            }
-
-            const axisshiftcount = bandCount
-
-            // console.log('SHIFT AXIS FORWARD', axisshiftcount)
+            const trigger = leadTailblockBandForwardTrigger.target
 
             const executeShiftForward = async () => {
 
@@ -410,7 +406,9 @@ const useIntersections = ({
 
                 try {
 
-                    shiftAxis('forward', axisshiftcount) // axis forward, bands backward
+                    const count = measureForwardShiftCount(trigger)
+
+                    if (count) shiftAxis('forward', count) // axis forward, bands backward
 
                     await fillCradle()
 
