@@ -263,7 +263,9 @@ const useCalls = ({
 
             } finally {
 
-                assertIntersectionsConnect()
+                setTimeout(()=>{
+                    assertIntersectionsConnect()
+                },1)
 
             }
 
@@ -392,17 +394,9 @@ const useCalls = ({
 
             } finally {
 
-                if (result) {
-
-                    setTimeout(()=>{
-                        assertIntersectionsConnect()
-                    },1)
-
-                } else {
-
+                setTimeout(()=>{
                     assertIntersectionsConnect()
-
-                }
+                },1)
 
             }
 
@@ -731,17 +725,9 @@ const useCalls = ({
 
             } finally {
 
-                if (result) {
-
-                    setTimeout(()=>{
-                        assertIntersectionsConnect()
-                    },1)
-
-                } else {
-
+                setTimeout(()=>{
                     assertIntersectionsConnect()
-
-                }
+                },1)
 
             }
 
@@ -936,7 +922,9 @@ const useCalls = ({
 
             } finally {
 
-                assertIntersectionsConnect()
+                setTimeout(()=>{
+                    assertIntersectionsConnect()
+                },1)
 
             }
 

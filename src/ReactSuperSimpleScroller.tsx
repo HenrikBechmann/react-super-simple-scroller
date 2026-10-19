@@ -260,7 +260,7 @@ const Viewport = (props) =>{
         if (!isMountedRef.current) return
         if (intersectionsConnectedRef.current) return
 
-        if (DOMManipulationQueueRef.current.queue.length) return
+        if (DOMManipulationQueueRef.current.isBusy()) return
 
         intersectionsMapRef.current.clear()
 
@@ -1080,7 +1080,9 @@ const Viewport = (props) =>{
 
             } finally {
 
-                assertIntersectionsConnect()
+                setTimeout(()=>{
+                    assertIntersectionsConnect()
+                },1)
 
             }
 

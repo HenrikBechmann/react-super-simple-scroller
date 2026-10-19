@@ -5,6 +5,12 @@ export default class Queue {
   queue = [];
   pendingPromise = false;
 
+  // a task is running, or one is waiting to run. dequeue shifts a task off the queue before it starts it, so
+  // queue.length alone reads as idle while the only task runs
+  isBusy() {
+    return this.pendingPromise || this.queue.length > 0;
+  }
+
   enqueue(promise) {
     return new Promise((resolve, reject) => {
         this.queue.push({
