@@ -119,6 +119,7 @@ const Viewport = (props) =>{
             },
         })),
         intersectionsConnectedRef = useRef(false),
+        intersectionsConnectWantedRef = useRef(false), // a reconnect asked for and not yet made
         // true from the lifecycle effect's run to its cleanup; a call made outside that span is refused
         isMountedRef = useRef(false),
         unmountedCallWarnedRef = useRef(false),
@@ -193,6 +194,7 @@ const Viewport = (props) =>{
         cellPortalListRef = useRef([]), // immediate access
         portalContainerMapRef = useRef(new Map()), // id -> containerElement
         [portalRenderList,setPortalRenderList] = useState([]), // portal render
+        [connectTick,setConnectTick] = useState(0), // a wanted observer reconnect is flushed after the commit
 
         // band tracking -- bands are listed in presentaton order
         headBandListRef = useRef<HTMLElement[]>([]),
@@ -269,9 +271,12 @@ const Viewport = (props) =>{
     const assertIntersectionsConnect = useCallback(() => {
 
         if (!isMountedRef.current) return
-        if (intersectionsConnectedRef.current) return
 
         if (DOMManipulationQueueRef.current.isBusy()) return
+
+        intersectionsConnectWantedRef.current = false // past the gate the request is answered: connected already, or now
+
+        if (intersectionsConnectedRef.current) return
 
         intersectionsMapRef.current.clear()
 
@@ -287,6 +292,24 @@ const Viewport = (props) =>{
         intersectionsConnectedRef.current = true
 
     },[])
+
+    // asked for inside a queued task the connect is refused (the queue is busy with that task), so the request is
+    // held and flushed by the layout effect below, after the commit of the state the task changed
+    const requestIntersectionsConnect = useCallback(() => {
+
+        intersectionsConnectWantedRef.current = true
+
+        assertIntersectionsConnect()
+
+        if (intersectionsConnectWantedRef.current && isMountedRef.current) setConnectTick(tick => tick + 1)
+
+    },[])
+
+    useLayoutEffect(()=>{
+
+        if (intersectionsConnectWantedRef.current) assertIntersectionsConnect()
+
+    },[connectTick])
 
     const setAxisPosition = useCallback((x,y, source = 'general') =>{
 
@@ -480,7 +503,7 @@ const Viewport = (props) =>{
             callbacksRef,
             setAxisPosition,
             assertIntersectionsDisconnect,
-            assertIntersectionsConnect,
+            requestIntersectionsConnect,
 
             trimCradle,
             fillCradle,
@@ -503,7 +526,7 @@ const Viewport = (props) =>{
 
             setPortalRenderList,
             assertIntersectionsDisconnect,
-            assertIntersectionsConnect,
+            requestIntersectionsConnect,
             getSeed,
             callbacksRef,
             heldSeedReferenceIDRef,
@@ -538,7 +561,7 @@ const Viewport = (props) =>{
 
             // callbacksRef,
             assertIntersectionsDisconnect,
-            assertIntersectionsConnect,
+            requestIntersectionsConnect,
             setPortalRenderList,
             removeCells,
             getSeed,
@@ -591,7 +614,7 @@ const Viewport = (props) =>{
             reset,
             callbacksRef,
             assertIntersectionsDisconnect,
-            assertIntersectionsConnect,
+            requestIntersectionsConnect,
             bandMutationObserverRef,
         })
 
@@ -1096,9 +1119,7 @@ const Viewport = (props) =>{
 
             } finally {
 
-                setTimeout(()=>{
-                    assertIntersectionsConnect()
-                },1)
+                requestIntersectionsConnect()
 
             }
 

@@ -22,7 +22,7 @@ const useReset = ({
 
     setPortalRenderList,
     assertIntersectionsDisconnect,
-    assertIntersectionsConnect,
+    requestIntersectionsConnect,
 
     getSeed,
     callbacksRef,
@@ -150,11 +150,7 @@ const useReset = ({
 
         } finally {
 
-            setTimeout(()=>{ // yield for DOM
-
-                assertIntersectionsConnect()
-
-            },1)
+            requestIntersectionsConnect()
 
         }
 

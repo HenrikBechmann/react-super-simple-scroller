@@ -62,7 +62,7 @@ const useCalls = ({
     reset,
     callbacksRef,
     assertIntersectionsDisconnect,
-    assertIntersectionsConnect,
+    requestIntersectionsConnect,
     bandMutationObserverRef,
 
 }) => {
@@ -242,9 +242,7 @@ const useCalls = ({
 
             trimCradle()
 
-            setTimeout(()=>{
-                assertIntersectionsConnect()
-            },1)
+            requestIntersectionsConnect()
 
             return true
 
@@ -263,9 +261,7 @@ const useCalls = ({
 
             } finally {
 
-                setTimeout(()=>{
-                    assertIntersectionsConnect()
-                },1)
+                requestIntersectionsConnect()
 
             }
 
@@ -394,9 +390,7 @@ const useCalls = ({
 
             } finally {
 
-                setTimeout(()=>{
-                    assertIntersectionsConnect()
-                },1)
+                requestIntersectionsConnect()
 
             }
 
@@ -725,9 +719,7 @@ const useCalls = ({
 
             } finally {
 
-                setTimeout(()=>{
-                    assertIntersectionsConnect()
-                },1)
+                requestIntersectionsConnect()
 
             }
 
@@ -802,9 +794,7 @@ const useCalls = ({
 
             } finally {
 
-                setTimeout(()=>{
-                    assertIntersectionsConnect()
-                },1)
+                requestIntersectionsConnect()
 
             }
 
@@ -836,9 +826,7 @@ const useCalls = ({
 
             } finally {
 
-                setTimeout(()=>{
-                    assertIntersectionsConnect()
-                },1)
+                requestIntersectionsConnect()
 
             }
 
@@ -940,9 +928,7 @@ const useCalls = ({
 
             } finally {
 
-                setTimeout(()=>{
-                    assertIntersectionsConnect()
-                },1)
+                requestIntersectionsConnect()
 
             }
 

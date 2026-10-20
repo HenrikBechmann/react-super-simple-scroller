@@ -51,7 +51,7 @@ const useIntersections = ({
     callbacksRef,
     setAxisPosition,
     assertIntersectionsDisconnect,
-    assertIntersectionsConnect,
+    requestIntersectionsConnect,
     fillCradle,
     updateCurrentAxisReferenceID,
     trimCradle,
@@ -225,11 +225,7 @@ const useIntersections = ({
 
             }
 
-            setTimeout(()=>{ // yield for DOM
-
-                assertIntersectionsConnect()
-
-            },1)
+            requestIntersectionsConnect()
 
             return
         }
@@ -297,11 +293,7 @@ const useIntersections = ({
 
                 } finally {
 
-                    setTimeout(()=>{ // yield for DOM
-
-                        assertIntersectionsConnect()
-
-                    },1)
+                    requestIntersectionsConnect()
 
                 }
             }
@@ -340,11 +332,7 @@ const useIntersections = ({
 
                 } finally {
 
-                    setTimeout(()=>{ // yield for DOM
-
-                        assertIntersectionsConnect()
-
-                    },1)
+                    requestIntersectionsConnect()
 
                 }
 
@@ -381,11 +369,7 @@ const useIntersections = ({
 
                 } finally {
 
-                    setTimeout(()=>{ // yield for DOM
-
-                        assertIntersectionsConnect()
-
-                    },1)
+                    requestIntersectionsConnect()
 
                 }
 
@@ -420,11 +404,7 @@ const useIntersections = ({
 
                 } finally {
 
-                    setTimeout(()=>{ // yield for DOM
-
-                        assertIntersectionsConnect()
-
-                    },1)
+                    requestIntersectionsConnect()
 
                 }
 
@@ -448,11 +428,7 @@ const useIntersections = ({
 
             reportError(callbacksRef, 'evaluateIntersections', errorMessage(error), [source])
 
-            setTimeout(()=>{
-
-                assertIntersectionsConnect()
-
-            },1)
+            requestIntersectionsConnect()
 
         })
 

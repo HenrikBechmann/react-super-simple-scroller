@@ -31,7 +31,7 @@ const useCradlePotential = ({
 
     // callbacksRef,
     assertIntersectionsDisconnect,
-    assertIntersectionsConnect,
+    requestIntersectionsConnect,
     setPortalRenderList,
     removeCells,
     getSeed,
@@ -252,11 +252,7 @@ const useCradlePotential = ({
             cradleActual.totalBands = cradleActual.backwardBands + cradleActual.forwardBands
             cradleActual.totalCells = cradleActual.backwardCells + cradleActual.forwardCells
 
-            setTimeout(()=>{ // yield for DOM
-
-                assertIntersectionsConnect()
-
-            },1)
+            requestIntersectionsConnect()
 
         } else {
 
@@ -264,11 +260,7 @@ const useCradlePotential = ({
 
             cradleActual.totalBands = cradleActual.backwardBands + cradleActual.forwardBands
             cradleActual.totalCells = cradleActual.backwardCells + cradleActual.forwardCells
-            setTimeout(()=>{
-
-                assertIntersectionsConnect()
-
-            },1)
+            requestIntersectionsConnect()
 
         }
 
