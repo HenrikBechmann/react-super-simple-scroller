@@ -11,21 +11,26 @@
 // inside a queued task, so a host's fetchCells that awaits one of the scroller's calls (insert, remove, move,
 // replace, fetchCradleCells, restoreScrollPositions) before it returns is this shape. The queue warns through
 // onStall, once per running task, when a task has waited behind it for stallMs: a stall is what a nested
-// enqueue looks like from here, and the warning says so
+// enqueue looks like from here, and the warning says so.
+//
+// The queue reports through onIdle, once, when the task that ended was the last one waiting: a caller refused
+// while a task ran (the scroller's observer reconnect) is answered by the queue itself, not by the next caller
 export const DEFAULT_STALL_MS = 5000
 
 export default class Queue {
   queue = [];
   pendingPromise = false;
   onStall = null;
+  onIdle = null;
   stallMs = DEFAULT_STALL_MS;
   // the running task's number, so a stall timer can tell whether the task it was armed behind still runs
   runSerial = 0;
   stallTimer = null;
   stallWarnedSerial = 0;
 
-  constructor({ onStall = null, stallMs = DEFAULT_STALL_MS } = {}) {
+  constructor({ onStall = null, onIdle = null, stallMs = DEFAULT_STALL_MS } = {}) {
     this.onStall = onStall;
+    this.onIdle = onIdle;
     this.stallMs = stallMs;
   }
 
@@ -68,6 +73,15 @@ export default class Queue {
     this.stallTimer = null;
   }
 
+  reportIdle() {
+    if (!this.onIdle) return;
+    try {
+      this.onIdle();
+    } catch (err) {
+      // a reporter that throws must not take the queue down
+    }
+  }
+
   dequeue() {
     if (this.pendingPromise) {
       return false;
@@ -79,6 +93,7 @@ export default class Queue {
     const finish = () => {
       this.pendingPromise = false;
       this.clearStall();
+      if (this.queue.length === 0) this.reportIdle();
     };
     try {
       this.pendingPromise = true;

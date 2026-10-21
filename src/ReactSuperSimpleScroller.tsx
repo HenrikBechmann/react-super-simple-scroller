@@ -117,6 +117,11 @@ const Viewport = (props) =>{
                 if (callbacksRef.current?.warning) reportWarning(callbacksRef, 'queue', message, [], { waitedMs, waiting })
                 else console.warn(`react-super-simple-scroller${scrollerName ? ` (${scrollerName})` : ''}: ${message}`)
             },
+            // a reconnect asked for during a cradle task is refused while the queue is busy, and the queue is the one
+            // writer that knows when it has drained: it ticks the flush below, which connects after the task's commit
+            onIdle: () => {
+                if (intersectionsConnectWantedRef.current && isMountedRef.current) setConnectTick(tick => tick + 1)
+            },
         })),
         intersectionsConnectedRef = useRef(false),
         intersectionsConnectWantedRef = useRef(false), // a reconnect asked for and not yet made
@@ -206,8 +211,10 @@ const Viewport = (props) =>{
         // scrollDirectionVerticalRef = useRef(0),
         // scrollDirectionHorizontalRef = useRef(0),
         [isScrollingMode, setIsScrollingMode] = useState(false),
+        [scrollingModeEndTick, setScrollingModeEndTick] = useState(0), // see endScrollingMode
         immediateIsScrollingRef = useRef(false),
         immediateStopScrollingRef = useRef(false),
+        scrollendSupportedRef = useRef(false), // read once at mount; see the listener there
 
         // observers
         intersectionObserverRef = useRef(null),
@@ -294,14 +301,14 @@ const Viewport = (props) =>{
     },[])
 
     // asked for inside a queued task the connect is refused (the queue is busy with that task), so the request is
-    // held and flushed by the layout effect below, after the commit of the state the task changed
+    // held; the queue ticks the layout effect below when it drains (its onIdle), after the commit of the state
+    // the task changed. The request itself never ticks: a tick raised in a discrete event's lane flushed before
+    // the task had finished, was refused again, and nothing re-ticked
     const requestIntersectionsConnect = useCallback(() => {
 
         intersectionsConnectWantedRef.current = true
 
         assertIntersectionsConnect()
-
-        if (intersectionsConnectWantedRef.current && isMountedRef.current) setConnectTick(tick => tick + 1)
 
     },[])
 
@@ -699,6 +706,12 @@ const Viewport = (props) =>{
         }
         viewportRef.current.addEventListener('rs3restore', handleRs3Restore)
 
+        // Chrome 114, Firefox 109 and Safari 26 send scrollend once a scroll has settled, so scrolling mode ends
+        // there, well inside the momentum fade; a browser without it is served by the fade timer alone. The read
+        // and this branch can go, the listener kept unconditionally, once every supported browser sends it
+        scrollendSupportedRef.current = typeof window !== 'undefined' && 'onscrollend' in window
+        if (scrollendSupportedRef.current) viewportRef.current.addEventListener('scrollend', onViewportScrollEnd, { passive: true })
+
         return () => {
             isMountedRef.current = false
             cancelAnimationFrame(reconcileFrameIDRef.current)
@@ -709,6 +722,7 @@ const Viewport = (props) =>{
             intersectionsConnectedRef.current = false
             resizeObserverRef.current.disconnect()
             viewportRef.current?.removeEventListener('rs3restore', handleRs3Restore)
+            viewportRef.current?.removeEventListener('scrollend', onViewportScrollEnd)
         }
 
     },[])
@@ -859,6 +873,33 @@ const Viewport = (props) =>{
 
     // ======================[ events ]============================
 
+    // the end of scrolling mode: the browser's scrollend or the momentum fade timer, whichever comes first.
+    // A second call is a no-op, and the timer is cleared so that neither end repeats the other
+    const endScrollingMode = useCallback(() => {
+
+        clearTimeout(scrollMomentumTimeoutIDRef.current)
+        scrollMomentumTimeoutIDRef.current = null
+
+        if (!immediateIsScrollingRef.current) return
+
+        // the scroll handler's entry (a continuous-priority update) and a scrollend listener's end (a default one)
+        // render in one batch when the browser sends both in one rendering step, as it does for an instant scroll,
+        // and a mode that enters and ends in one commit changes no state: the tick makes the end effect run anyway
+        setIsScrollingMode(false)
+        setScrollingModeEndTick(tick => tick + 1)
+
+    },[])
+
+    // under the pin (a hold at an end of the data, a position recovery) every scroll event is answered by a
+    // scrollTo, and each of those sends a scrollend of its own: the fade timer ends the mode once the pin is released
+    const onViewportScrollEnd = useCallback(() => {
+
+        if (immediateStopScrollingRef.current) return
+
+        endScrollingMode()
+
+    },[])
+
     // TODO reverse scroll direction should cancel immediateStopScrolling
     const onViewportScroll = (event) => {
 
@@ -898,7 +939,7 @@ const Viewport = (props) =>{
             setIsScrollingMode(true)
         }
         scrollMomentumTimeoutIDRef.current = setTimeout(()=>{
-            setIsScrollingMode(false)
+            endScrollingMode()
         },standardMomentumFadeRef.current)
     }
 
@@ -1160,7 +1201,7 @@ const Viewport = (props) =>{
             }
 
         }
-    },[isScrollingMode])
+    },[isScrollingMode, scrollingModeEndTick])
 
     // =============================[ render ]=======================
 
