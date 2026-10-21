@@ -213,6 +213,7 @@ const Viewport = (props) =>{
         [isScrollingMode, setIsScrollingMode] = useState(false),
         [scrollingModeEndTick, setScrollingModeEndTick] = useState(0), // see endScrollingMode
         immediateIsScrollingRef = useRef(false),
+        lastScrollEventTimeRef = useRef(0),
         immediateStopScrollingRef = useRef(false),
         scrollendSupportedRef = useRef(false), // read once at mount; see the listener there
 
@@ -486,6 +487,7 @@ const Viewport = (props) =>{
 
             intersectionsMapRef,
             immediateIsScrollingRef,
+            lastScrollEventTimeRef,
             viewportRef,
             immediateStopScrollingRef,
             scrollTopRef,
@@ -934,6 +936,7 @@ const Viewport = (props) =>{
             })
         }
 
+        lastScrollEventTimeRef.current = performance.now()
         if (!isScrollingMode) {
             immediateIsScrollingRef.current = true
             setIsScrollingMode(true)

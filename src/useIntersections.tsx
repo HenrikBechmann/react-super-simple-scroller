@@ -44,6 +44,7 @@ const useIntersections = ({
 
     // control data
     immediateIsScrollingRef,
+    lastScrollEventTimeRef,
     immediateStopScrollingRef,
     restoreScrollingTimeoutIDRef,
 
@@ -59,6 +60,14 @@ const useIntersections = ({
 }) => {
 
     const DOMManipulationQueue = DOMManipulationQueueRef.current
+
+    // a hold begins on the observation of a crossing that a scroll caused. Scrolling mode ends at the browser's
+    // scrollend, which an instant scroll (a wheel notch, a key) sends about a millisecond after it settles, before
+    // that observation arrives, so the mode alone would say the scroll was over. Input this recent is still
+    // arriving, and more may follow it within the fade, which is what the mode said while the fade timer was its
+    // only end
+    const isScrollInputRecent = () =>
+        immediateIsScrollingRef.current || ((performance.now() - lastScrollEventTimeRef.current) < standardMomentumFadeRef.current)
 
     const lastPositionRecoveryRef = useRef(0)
 
@@ -199,7 +208,7 @@ const useIntersections = ({
 
             assertIntersectionsDisconnect()
 
-            if (immediateIsScrollingRef.current) {
+            if (isScrollInputRecent()) {
 
                 holdScrolling(null, true)
                 scrollTopRef.current = viewportRef.current.scrollTop
@@ -264,7 +273,7 @@ const useIntersections = ({
 
             let headHold = 0
 
-            if (immediateIsScrollingRef.current) {
+            if (isScrollInputRecent()) {
 
                 headHold = holdScrolling()
                 scrollTopRef.current = viewportRef.current.scrollTop
@@ -312,7 +321,7 @@ const useIntersections = ({
 
             assertIntersectionsDisconnect()
 
-            if (immediateIsScrollingRef.current) {
+            if (isScrollInputRecent()) {
 
                 holdScrolling()
                 scrollTopRef.current = viewportRef.current.scrollTop
