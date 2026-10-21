@@ -30,6 +30,9 @@ import { selectStyles, selectViewportStyles } from './orientationStyles'
 import { 
     baseCradleActual, 
     DEFAULT_SPACING,
+    ORIENTATIONS,
+    LAYOUTS,
+    validateOption,
     validateSpacing,
     validateCellDimensions,
 } from './utilities'
@@ -92,10 +95,10 @@ const Viewport = (props) =>{
         defaultOperationsRef = useRef({}),
 
         // host data
-        { 
-            orientation = 'vertical', 
-            layout = 'uniform', 
-            cellDimensions: hostCellDimensions, 
+        {
+            orientation: hostOrientation,
+            layout: hostLayout,
+            cellDimensions: hostCellDimensions,
             seedReferenceID, 
             fetchCells,
             callbacks = defaultCallbacksRef.current, 
@@ -106,6 +109,23 @@ const Viewport = (props) =>{
             scrollerName = 'not named'
         } = props,
 
+        // orientation and layout are checked where they enter, and everything below reads the checked value; an
+        // unknown value is replaced by the last good one here, and reported by an effect below
+        lastGoodOrientationRef = useRef(null),
+        lastGoodLayoutRef = useRef(null),
+        orientationCheck = useMemo(()=>{
+
+            return validateOption('orientation', hostOrientation, ORIENTATIONS, lastGoodOrientationRef.current)
+
+        },[hostOrientation]),
+        layoutCheck = useMemo(()=>{
+
+            return validateOption('layout', hostLayout, LAYOUTS, lastGoodLayoutRef.current)
+
+        },[hostLayout]),
+        orientation = orientationCheck.value,
+        layout = layoutCheck.value,
+
         // processing control
         // a task that has waited behind one running task for the queue's stall time is reported: a nested
         // enqueue (a fetchCells that awaits one of the calls) never finishes, and this is how it shows
@@ -114,8 +134,7 @@ const Viewport = (props) =>{
                 const message = `a cradle operation has waited ${waitedMs} ms behind one that has not finished (${waiting} waiting). ` +
                     'A task that enqueues another task on the same queue and awaits it never finishes: a fetchCells that awaits ' +
                     'insert, remove, move, replace, fetchCradleCells or restoreScrollPositions before it returns is that shape'
-                if (callbacksRef.current?.warning) reportWarning(callbacksRef, 'queue', message, [], { waitedMs, waiting })
-                else console.warn(`react-super-simple-scroller${scrollerName ? ` (${scrollerName})` : ''}: ${message}`)
+                reportWarning(callbacksRef, 'queue', message, [], { waitedMs, waiting })
             },
             // a reconnect asked for during a cradle task is refused while the queue is busy, and the queue is the one
             // writer that knows when it has drained: it ticks the flush below, which connects after the task's commit
@@ -142,9 +161,13 @@ const Viewport = (props) =>{
         cellDimensionsRef = useRef(null),
         lastGoodCellDimensionsRef = useRef(null),
         // what the validation effects last saw: StrictMode runs an effect twice at mount, and a bad value is reported once
+        lastOrientationCheckRef = useRef(null),
+        lastLayoutCheckRef = useRef(null),
         lastCellDimensionsCheckRef = useRef(null),
         lastSpacingPropRef = useRef(undefined),
-        callbacksRef = useRef(null),
+        // the host's callbacks, with the scroller's name beside them: a report with no callback names its scroller in
+        // the console (utilities.tsx). A holder of its own, since React seals the object useRef returns
+        callbacksRef = useState(() => ({current: null, scrollerName: null}))[0],
         callsRef = useRef(null),
         operationsRef = useRef(null),
         viewportDimensionsRef = useRef(null),
@@ -213,7 +236,7 @@ const Viewport = (props) =>{
         [isScrollingMode, setIsScrollingMode] = useState(false),
         [scrollingModeEndTick, setScrollingModeEndTick] = useState(0), // see endScrollingMode
         immediateIsScrollingRef = useRef(false),
-        lastScrollEventTimeRef = useRef(0),
+        lastScrollEventTimeRef = useRef(-Infinity),
         immediateStopScrollingRef = useRef(false),
         scrollendSupportedRef = useRef(false), // read once at mount; see the listener there
 
@@ -255,6 +278,7 @@ const Viewport = (props) =>{
     // fetchCellsRef.current set separately
     // spacingRef.current = set separately
     callbacksRef.current = callbacks
+    callbacksRef.scrollerName = scrollerName
     callsRef.current = calls
     operationsRef.current = operations
     viewportDimensionsRef.current = viewportDimensions
@@ -381,8 +405,6 @@ const Viewport = (props) =>{
     },[])
 
     const getSeed = useCallback(async (referenceID) => {
-
-        const callbacks = callbacksRef.current
 
         if (!isValidID(referenceID)) {
             reportError(callbacksRef, 'getSeed', 'must be a valid referenceID', [referenceID])
@@ -652,6 +674,28 @@ const Viewport = (props) =>{
 
     useLayoutEffect(()=>{
 
+        if (lastOrientationCheckRef.current === orientationCheck) return
+        lastOrientationCheckRef.current = orientationCheck
+
+        reportProblems('orientation', orientationCheck.problems)
+
+        lastGoodOrientationRef.current = orientationCheck.value
+
+    },[orientationCheck])
+
+    useLayoutEffect(()=>{
+
+        if (lastLayoutCheckRef.current === layoutCheck) return
+        lastLayoutCheckRef.current = layoutCheck
+
+        reportProblems('layout', layoutCheck.problems)
+
+        lastGoodLayoutRef.current = layoutCheck.value
+
+    },[layoutCheck])
+
+    useLayoutEffect(()=>{
+
         if (lastCellDimensionsCheckRef.current === cellDimensionsCheck) return
         lastCellDimensionsCheckRef.current = cellDimensionsCheck
 
@@ -757,10 +801,7 @@ const Viewport = (props) =>{
                 if (isMountedRef.current) return call(...args)
                 if (!unmountedCallWarnedRef.current) {
                     unmountedCallWarnedRef.current = true
-                    const detail = {source: name, message: 'called after the scroller was unmounted; nothing was done', arguments: args, timestamp: Date.now()}
-                    callbacksRef.current.warning
-                        ? callbacksRef.current.warning(detail)
-                        : console.warn(`react-super-simple-scroller${scrollerName ? ` (${scrollerName})` : ''}: ${name} ${detail.message}`)
+                    reportWarning(callbacksRef, name, 'called after the scroller was unmounted; nothing was done', args)
                 }
                 return (name in UNMOUNTED_ANSWERS) ? UNMOUNTED_ANSWERS[name] : false
             }

@@ -109,7 +109,7 @@ const ScrollerDemo = (props) => {
   </div>
 }
 ```
-Note that the scroller requires a container which accommodates content (non-0 width and height), otherwise the scroller calculates `cellsPerBand` as 0, and goes into an undefined state. So if cellsPerBand is calculated at 0, the scroller displays an error and halts operation.
+Note that the scroller lays out in the space its container gives it. `cellsPerBand` is never below 1: a viewport narrower than one cell still takes one cell per band, and the cradle overflows across the axis. The cradle is laid out again whenever the viewport is resized, so a container that has no size at mount is laid out once it has one. The `cellDimensions` fields the cradle divides by must be above zero (see below).
 
 ## Technology
 
@@ -226,9 +226,9 @@ The following properties are required.
 
 |property|details|
 |:-----|:-----|
-|orientation: ’vertical’ &vert; ‘horizontal’|the scrolling axis (default ‘vertical')|
-|layout: ’uniform’ &vert; ‘variable’|’variable' allows expandability along the scrolling axis (default ‘uniform')|
-|cellDimensions: {<br>&nbsp; minWidth, maxWidth,<br>&nbsp; minHeight, maxHeight<br>}|integers, which can be combined to achieve various layout effects. Each is a finite number, not below zero. A field the orientation and layout read must be present (a uniform layout never reads the minimum along the axis), and the two the cradle divides by must be above zero: the minimum across the axis, and along it the maximum in a uniform layout or the minimum in a variable one. A field that breaks any of these, absent or bad, is replaced by its last good value and reported to the `warning` callback. Until a field has had a good value (at mount) nothing can stand in for it: it is reported to the `error` callback and left out, so a list mounted without a field the cradle divides by lays out nothing until one arrives|
+|orientation: ’vertical’ &vert; ‘horizontal’|the scrolling axis (default ‘vertical'). An absent value (`undefined` or `null`) is the default. Any other value, including one in another case (`'Vertical'`), is replaced by the last good value (at mount, the default) and reported to the `warning` callback|
+|layout: ’uniform’ &vert; ‘variable’|’variable' allows expandability along the scrolling axis (default ‘uniform'). An absent value is the default, and any other is replaced and reported as for `orientation`|
+|cellDimensions: {<br>&nbsp; minWidth, maxWidth,<br>&nbsp; minHeight, maxHeight<br>}|integers, which can be combined to achieve various layout effects. Each is a finite number, not below zero. A field the orientation and layout read must be present (a uniform layout never reads the minimum along the axis), and the two the cradle divides by must be above zero: the minimum across the axis, and along it the maximum in a uniform layout or the minimum in a variable one. A field that breaks any of these, absent or bad, is replaced by its last good value and reported to the `warning` callback. Until a field has had a good value (at mount) nothing can stand in for it: it is reported to the `error` callback and left out, so a list mounted without a field the cradle divides by lays out nothing until one arrives. A value equal to the last good one, field by field, changes nothing, even in a new object|
 |seedReferenceID: number &vert; string|the cell referenceID from which RS3 requests initial forward and backward cells|
 |fetchCells: Function|host-provided callback function; parameters: (direction, referenceID, count)|
 
@@ -236,15 +236,16 @@ Notes:
 
 **axis** refers to scrolling direction; **cross-axis** refers to the perpendicular.
 
-**cross-axis sizing** distributes cells evenly within the space available according to the formula:
-`cellsPerBand = Math.ceil((viewportDimensions.width - (cradleMarginStart + cradleMarginEnd) + cellGap)/(cellMaxWidth + cellGap))` 
+**cross-axis sizing** distributes cells evenly within the space available according to the formula, for a vertical list:
+`cellsPerBand = Math.max(1, Math.floor((viewportDimensions.width - (cradleMarginStart + cradleMarginEnd) + cellGap)/(minWidth + cellGap)))` 
+and for a horizontal list the same with `viewportDimensions.height` and `minHeight`,
 where 
 - `viewportDimensions` is measured by RS3
 - `cradleMarginStart`, `cradleMarginEnd` and `cellGap` are taken from the `spacing` property object (see below — but all default to 0)
 
-Thus for a single column (assuming cellGap = 0), the `maxWidth` should be slightly _greater than_ `viewportWidth - (cradleMarginStart + cradleMarginEnd)`. To avoid cross-axis overflow the `minWidth` should leave a bit of room to shrink to fit.
+So a band takes as many cells as fit at their minimum across the axis, and never fewer than one; the cells then share the band evenly, each up to its maximum. Thus for a single column (assuming cellGap = 0), the `minWidth` should be _more than half_ of `viewportWidth - (cradleMarginStart + cradleMarginEnd)`.
 
-Note that the even distribution inside the bounds of the `viewport` can be over-ridden with minWidth. If the minWidth is proportionately large enough, then the distribution is tied to the minWidth value, and may cause a cross-axis overflow (which may be desired). This can cause the cradle to scroll slightly left and right to accommodate the overflow. The host scroller container can be set to fixed dimensions to avoid this cross-axis scrolling if desired.
+A viewport narrower than one cell's `minWidth` still takes one cell per band, and the cradle overflows across the axis (which may be desired). This can cause the cradle to scroll slightly left and right to accommodate the overflow. The host scroller container can be set to fixed dimensions to avoid this cross-axis scrolling if desired.
 
 Setting the minWidth and maxWidth to the same number creates a fixedWidth cell. Setting min to about half of max gives the most reliable distribution fit inside the `viewport` dimensions.
 
@@ -262,7 +263,7 @@ The following properties are optional, and are designed to support specific use 
 
 | property | details |
 |:----|:----|
-| callbacks:{<br> &nbsp;axisReferenceID,<br> &nbsp;removed,<br> &nbsp;resized,<br> &nbsp;failed,<br> &nbsp;error,<br> &nbsp;warning<br>} | host-provided functions to provide support for data synchronization, and feedback from the scroller. `error` reports what the scroller could not go on with; `warning` reports a value of the host's that the scroller replaced and went on without, and a call whose purpose was already met (a `remove` of an id the cradle does not hold). A fill on an empty cradle is an error: it cannot be met, and the host has to seed instead |
+| callbacks:{<br> &nbsp;axisReferenceID,<br> &nbsp;removed,<br> &nbsp;resized,<br> &nbsp;failed,<br> &nbsp;error,<br> &nbsp;warning<br>} | host-provided functions to provide support for data synchronization, and feedback from the scroller. `error` reports what the scroller could not go on with; `warning` reports a value of the host's that the scroller replaced and went on without, and a call whose purpose was already met (a `remove` of an id the cradle does not hold). A fill on an empty cradle is an error: it cannot be met, and the host has to seed instead. Each callback is read when the report is made, and one that throws is caught and logged to the console. With no callback for a report, the report goes to the console, named by the scroller: an `error` to `console.error`, a `warning` or a `failed` batch to `console.warn`, as `react-super-simple-scroller (<scrollerName>): <source>: <message>` with the report's object beside it |
 | calls:{<br> &nbsp;insert, <br> &nbsp;remove, <br> &nbsp;move <br> &nbsp;replace, <br> &nbsp;dispatchEvent, <br> &nbsp;fetchCradleCells, <br> &nbsp;has, <br> &nbsp;getCradleIDList <br> &nbsp;getCradleSpecs, <br> &nbsp;restoreScrollPositions <br>} | Pass an empty object which will be populated by RS3. RS3 provided functions: 6 operations on the cradle, 3 ways to query the cradle, and `restoreScrollPositions` (see the section on restoring scroll positions below) |
 | spacing:{<br> &nbsp;cradleMargin:[start, end]<br> &nbsp;bandPadding:[start, end]<br> &nbsp;cellGap:number <br>} | all integers. cradleMargin is cross-axis spacing at the edges; bandPadding is axis spacing at the start and end of each band; cellGap is cross-axis spacing between cells  |
 | operations:{<br> &nbsp;dispatchAttachedEvents,<br> runway<br>} | when dispatchAttachedEvents is set to `true`, RS3 dispatches events to container components to alert them to the need to restore scroll positions. Default `false`. `runway` is the number of bands out of view, both start and end. Default 4 |
@@ -274,13 +275,13 @@ The **axisReferenceID(axisReferenceID)** function returns the current referenceI
 
 the **resized(cradlePotential)** function returns the current cradlePotential object, as modified as the result of a user resize operation. See the `getCradleSpecs` call for details of the cradlePotential contents.
 
-The **failed(failedPack)** function returns an object including an array of cellPacks that were trimmed by RS3 for being beyond the requested amount from `fetchCells`. The structure of the returned object is `{source, message, excessList, timestamp}`
+The **failed(failedPack)** function returns an object including an array of cellPacks that were trimmed by RS3 for being beyond the requested amount from `fetchCells`. The structure of the returned object is `{source, message, excessList, timestamp}`. Without a `failed` callback the report goes to `console.warn`.
 
 The **removed(removedList)** function returns an array of cell referenceID’s for cells that have been removed by RS3. This could be normal trimming while scrolling, or a cell removed by a call to the remove function.
 
-The **error(errorPack)** function returns an object including information about an error that has occurred. The structure of the returned object is `{source, message, arguments, timestamp}`. The scroller reads the callback each time it reports, and a callback that throws is caught and logged to the console. It is called when a cellPack is rejected (a duplicate or invalid `id`, for instance); when `fetchCells` rejects or returns something other than an array (`source` is `'fetchCells, seed'`, `'fetchCells, forward'` or `'fetchCells, backward'`, `arguments` holds the `direction`, `referenceID` and `count` that `fetchCells` was called with, and a `return` property holds what came back when it was not an array); when `fetchCradleCells(referenceID)` could not reset the cradle (`source` is `'reset'`; see `fetchCradleCells` below); and when one of the scroller's own cradle operations fails (`source` is `'evaluateIntersections'` or `'cradlePotential'`). None of these stops the scroller. A failed `fetchCells` is treated as an empty batch, and the scroller asks again on the next scroll
+The **error(errorPack)** function returns an object including information about an error that has occurred. The structure of the returned object is `{source, message, arguments, timestamp}`. The scroller reads the callback each time it reports, and a callback that throws is caught and logged to the console. It is called when a cellPack is rejected (a duplicate or invalid `id`, for instance); when `fetchCells` rejects or returns something other than an array (`source` is `'fetchCells, seed'`, `'fetchCells, forward'` or `'fetchCells, backward'`, `arguments` holds the `direction`, `referenceID` and `count` that `fetchCells` was called with, and a `return` property holds what came back when it was not an array); when `fetchCradleCells(referenceID)` could not reset the cradle (`source` is `'reset'`; see `fetchCradleCells` below); and when one of the scroller's own cradle operations fails (`source` is `'evaluateIntersections'` or `'cradlePotential'`). None of these stops the scroller. A failed `fetchCells` is treated as an empty batch, and the scroller asks again on the next scroll. Without an `error` callback the report goes to `console.error`.
 
-The **warning(warningPack)** function returns an object including information about a warning that is being issued about an action taken by RS3. The structure of the returned object is `{source, message, arguments, timestamp}`
+The **warning(warningPack)** function returns an object including information about a warning that is being issued about an action taken by RS3. The structure of the returned object is `{source, message, arguments, timestamp}`; a replaced value adds `property` and `used` (the value the scroller went on with), and the queue's stall adds `waitedMs` and `waiting`. Without a `warning` callback the report goes to `console.warn`.
 
 Notes about the calls:
 

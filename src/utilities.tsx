@@ -12,45 +12,51 @@ export const errorMessage = (error) => {
     return (error instanceof Error)?error.message:String(error)
 }
 
-// The host's callback is read at call time. One that throws must not take the scroller down with it.
-export const reportError = (callbacksRef, source, message, args = [], extra = {}) => {
+// Every report the scroller makes goes through here. The host's callback is read at call time, and one that throws
+// must not take the scroller down with it. A host that gives no callback for the channel hears the report in the
+// console, named by the scroller: an error on console.error, a warning or a failed batch on console.warn.
+// callbacksRef is the component's holder, which carries the scroller's name beside the callbacks.
+const report = (channel, callbacksRef, payload) => {
 
-    const error = callbacksRef.current?.error
+    const callback = callbacksRef.current?.[channel]
 
-    if (!error) return
+    if (!callback) {
+
+        const
+            name = callbacksRef.scrollerName,
+            line = `react-super-simple-scroller${name ? ` (${name})` : ''}: ${payload.source}: ${payload.message}`
+
+        if (channel == 'error') console.error(line, payload)
+        else console.warn(line, payload)
+
+        return
+
+    }
 
     try {
-        error({
-            source,
-            message,
-            arguments: args,
-            ...extra,
-            timestamp: Date.now()
-        })
+        callback(payload)
     } catch (e) {
         console.error(e)
     }
 
 }
 
-// As reportError, for the host's warning callback.
+export const reportError = (callbacksRef, source, message, args = [], extra = {}) => {
+
+    report('error', callbacksRef, {source, message, arguments: args, ...extra, timestamp: Date.now()})
+
+}
+
 export const reportWarning = (callbacksRef, source, message, args = [], extra = {}) => {
 
-    const warning = callbacksRef.current?.warning
+    report('warning', callbacksRef, {source, message, arguments: args, ...extra, timestamp: Date.now()})
 
-    if (!warning) return
+}
 
-    try {
-        warning({
-            source,
-            message,
-            arguments: args,
-            ...extra,
-            timestamp: Date.now()
-        })
-    } catch (e) {
-        console.error(e)
-    }
+// failed has its own payload: the ids of the cellPacks cut from a batch longer than was asked for
+export const reportFailed = (callbacksRef, source, message, excessList) => {
+
+    report('failed', callbacksRef, {source, message, excessList, timestamp: Date.now()})
 
 }
 
@@ -131,6 +137,27 @@ export const validateSpacing = (spacing, lastGood = DEFAULT_SPACING) => {
 
 }
 
+export const ORIENTATIONS = ['vertical', 'horizontal']
+export const LAYOUTS = ['uniform', 'variable']
+
+// orientation and layout are optional, and the first of each pair is the default: an absent one (undefined or null)
+// is the default and reports nothing. Any other value is a problem, and the last good value stands in for it; at
+// mount that is the default. Case is not folded: 'Vertical' is not one of the two.
+export const validateOption = (property, value, options, lastGood) => {
+
+    const used = lastGood ?? options[0]
+
+    if (value == null) return {value: options[0], problems: []}
+
+    if (options.includes(value)) return {value, problems: []}
+
+    return {
+        value: used,
+        problems: [{property, value, used, message: `must be '${options[0]}' or '${options[1]}'; '${used}' is used`}],
+    }
+
+}
+
 const CELL_DIMENSIONS = ['minWidth', 'maxWidth', 'minHeight', 'maxHeight']
 
 // The fields an orientation and layout read: the two the cradle divides by (cells across a band, bands along
@@ -156,8 +183,9 @@ export const cellDimensionsReadSet = (orientation, layout) => {
 // minHeight), so an absent field it does not read passes through and reports nothing. An absent field it
 // reads is a problem, as is a present field that is not a size and a 0 the cradle divides by; the last good
 // value stands in for each. There is no default: with no good value yet the field is left out, and the
-// scroller lays out nothing until one arrives. A valid value is returned as given, and one whose good fields
-// all match the last good value returns that value, so a rejected change changes nothing downstream.
+// scroller lays out nothing until one arrives. A value whose four fields, once checked, all match the last good
+// value returns that value, so neither a rejected change nor an equal one in a new object changes anything
+// downstream; any other valid value is returned as given. orientation and layout are the checked values.
 export const validateCellDimensions = (cellDimensions, lastGood = null, orientation = 'vertical', layout = 'uniform') => {
 
     const problems = []
@@ -207,7 +235,7 @@ export const validateCellDimensions = (cellDimensions, lastGood = null, orientat
 
     })
 
-    if (problems.length && lastGood && CELL_DIMENSIONS.every((property) => value[property] === lastGood[property])) {
+    if (lastGood && CELL_DIMENSIONS.every((property) => value[property] === lastGood[property])) {
 
         value = lastGood
 

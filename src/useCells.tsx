@@ -4,7 +4,7 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 
-import { createBand, createContainer, isValidID, reportError, errorMessage } from './utilities'
+import { createBand, createContainer, isValidID, reportError, reportFailed, errorMessage } from './utilities'
 
 const useCells = ({
 
@@ -38,8 +38,6 @@ const useCells = ({
     bandMutationObserverRef,
 
 }) => {
-
-    const callbacks = callbacksRef.current
 
     // A host fetch that rejects, or answers with anything but an array, is reported and read as an empty
     // batch: the pass ends there and the next scroll asks again. An empty array is the end of the data.
@@ -99,14 +97,7 @@ const useCells = ({
                 const excess = newCells.splice(count)
                 if (excess.length) {
                     const excessIDList = excess.map((cellPack) => cellPack?.id)
-                    callbacks.failed && callbacks.failed(
-                        {
-                            source:'fetchCells, seed',
-                            message: 'too many cellPacks; excess not loaded',
-                            excessList:excessIDList,
-                            timestamp: Date.now()
-                        }
-                    )
+                    reportFailed(callbacksRef, 'fetchCells, seed', 'too many cellPacks; excess not loaded', excessIDList)
                 }
             }
 
@@ -160,14 +151,7 @@ const useCells = ({
                     const excess = newCells.splice(count)
                     if (excess.length) {
                         const excessIDList = excess.map((cellPack) => cellPack?.id)
-                        callbacks.failed && callbacks.failed(
-                            {
-                                source:'fetchCells, forward',
-                                message: 'too many cellPacks; excess not loaded',
-                                excessList:excessIDList,
-                                timestamp: Date.now()
-                            }
-                        )
+                        reportFailed(callbacksRef, 'fetchCells, forward', 'too many cellPacks; excess not loaded', excessIDList)
                     }
                 }
 
@@ -212,14 +196,7 @@ const useCells = ({
                     const excess = newCells.splice(count)
                     if (excess.length) {
                         const excessIDList = excess.map((cellPack) => cellPack?.id)
-                        callbacks.failed && callbacks.failed(
-                            {
-                                source:'fetchCells, backward',
-                                message: 'too many cellPacks; excess not loaded',
-                                excessList:excessIDList,
-                                timestamp: Date.now()
-                            }
-                        )
+                        reportFailed(callbacksRef, 'fetchCells, backward', 'too many cellPacks; excess not loaded', excessIDList)
                     }
                 }
 

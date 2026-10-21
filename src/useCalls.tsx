@@ -5,7 +5,7 @@ import React, {FC} from 'react'
 
 import { createPortal } from 'react-dom'
 
-import { createContainer, createBand, isValidID, reportError } from './utilities'
+import { createContainer, createBand, isValidID, reportError, reportWarning } from './utilities'
 
 /*
     - calls available to host
@@ -67,15 +67,13 @@ const useCalls = ({
 
 }) => {
 
-    const callbacks = callbacksRef.current
-
     const DOMManipulationQueue = DOMManipulationQueueRef.current
 
     const insert = async (cellPack: {id:any, component:FC }, targetReferenceID: any, position: 'before' | 'after' = 'before') => {
 
         const doInsert = async (cellPack, targetReferenceID, position) => {
 
-            if ( !( (typeof cellPack == 'object') && 
+            if ( !( (cellPack != null) && (typeof cellPack == 'object') && 
                     React.isValidElement(cellPack.component) && 
                     (isValidID(cellPack.id)) ) )
             {
@@ -284,16 +282,7 @@ const useCalls = ({
                 targetPos = portalIDListRef.current.indexOf(targetReferenceID)
 
             if (targetPos === -1) {
-                if (callbacks.warning) {
-                    callbacks.warning(
-                        {
-                            source: 'remove',
-                            message:'target referenceID not found',
-                            arguments: [targetReferenceID],
-                            timestamp: Date.now()
-                        }
-                    )
-                }
+                reportWarning(callbacksRef, 'remove', 'target referenceID not found', [targetReferenceID])
                 return false // no remove target in cradle
             }
 
@@ -398,7 +387,7 @@ const useCalls = ({
 
                 updateCurrentAxisReferenceID()
 
-                callbacks.removed && callbacks.removed([targetReferenceID])
+                callbacksRef.current?.removed && callbacksRef.current.removed([targetReferenceID])
                 
             }
 
@@ -440,16 +429,7 @@ const useCalls = ({
             }
 
             if (!portalContainerMap.has(targetReferenceID)) {
-                if (callbacks.warning) {
-                    callbacks.warning(
-                        {
-                            source: 'move',
-                            message:'targetReferenceID not found in cradle. sourceReferenceID being removed',
-                            arguments: [sourceReferenceID, targetReferenceID, position],
-                            timestamp: Date.now()
-                        }
-                    )
-                }
+                reportWarning(callbacksRef, 'move', 'targetReferenceID not found in cradle. sourceReferenceID being removed', [sourceReferenceID, targetReferenceID, position])
                 remove(sourceReferenceID)
                 return true
             }
@@ -863,7 +843,7 @@ const useCalls = ({
                 return false
             }
 
-            if (!isValidID(cellPack.id)) {
+            if (!isValidID(cellPack?.id)) {
                 reportError(callbacksRef, 'replace', 'must be a valid cellPack.id', [referenceID, cellPack])
                 return false
             }
@@ -874,16 +854,7 @@ const useCalls = ({
             }
 
             if (!portalContainerMap.has(referenceID)) {
-                if (callbacks.warning) {
-                    callbacks.warning(
-                        {
-                            source: 'replace',
-                            message:'referenceID not found',
-                            arguments: [referenceID, cellPack],
-                            timestamp: Date.now()
-                        }
-                    )
-                }
+                reportWarning(callbacksRef, 'replace', 'referenceID not found', [referenceID, cellPack])
                 return false
             }
 
@@ -946,16 +917,7 @@ const useCalls = ({
         }
 
         if (!portalContainerMapRef.current.has(referenceID)) {
-            if (callbacks.warning) {
-                callbacks.warning(
-                    {
-                        source: 'dispatchEvent',
-                        message:'referenceID not found in cradle',
-                        arguments: [referenceID, event],
-                        timestamp: Date.now()
-                    }
-                )
-            }
+            reportWarning(callbacksRef, 'dispatchEvent', 'referenceID not found in cradle', [referenceID, event])
             return false
         }
 
