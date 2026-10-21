@@ -293,6 +293,8 @@ The following three are mainly intended to be support for drag and drop.
 
 **move(sourceReferenceID, targetReferenceID, position)** `await` return of `true` or `false`. Position must be 'before' or 'after'.
 
+`remove` and `move` refill the cradle before they resolve, and the refill asks `fetchCells` for the cells beyond the cradle's new edges. So the host changes its own data first, and calls them after: `fetchCells` must already answer without the removed cell, or with the moved cell in its new place. A `fetchCells` that still answers from the old data hands back cells the cradle already holds, so the scroller loads nothing from that fetch and reports a duplicate. If the call answers `false`, nothing changed on screen, and the host puts its data back.
+
 The following three are specialized operations.
 
 **replace(referenceID, cellPack)** `await` return of `true` or `false`. Replaces both the referenceID and the component.
