@@ -355,7 +355,7 @@ The `technical` object property is really only there for experimentation. It con
   SHORT_MOMENTUM_FADE // ms, default 200
 }
 ```
-The STANDARD_SCROLL_MOMENTUM_FADE is the scroll-end debounce's ceiling (a scroll counts as over at the browser's `scrollend` event where the browser sends one, and in any case once this long has passed since its last scroll event) and the least time the scroller holds the viewport still when the start or end of the data is reached (that hold ends once the wheel has gone quiet, and never sooner than this).
+The STANDARD_SCROLL_MOMENTUM_FADE is the scroll-end debounce's ceiling (a scroll counts as over at the browser's `scrollend` event where the browser sends one, and in any case once this long has passed since its last scroll event) and the least time the scroller holds the viewport still when the start or end of the data is reached (that hold ends once the wheel has gone quiet, and never sooner than this). It is also how recently a scroll event must have arrived for a crossing that the observers report to count as that scroll's and be held: an instant scroll's `scrollend` comes before the report, so the mode alone would say the scroll was over.
 
 The SHORT_MOMENTUM_FADE is the resize debounce: the viewport's new size is read this long after the last resize, from the first bootstrapping resizeObserver callback on.
 
