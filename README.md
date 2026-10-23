@@ -257,6 +257,21 @@ If **layout** is set to ‘uniform’, the height of the cell container is set t
 
 So if you run out of cells to return, return what you have, wait for the next `fetchCells` call, and return an empty array to stop the process. Bear in mind that RS3 does not keep internal BOD (beginning of data) or EOD (end of data) flags, as these conditions may change, so your `fetchCells` function may have to return an empty array frequently.
 
+**Metering the feed.** The `count` RS3 asks for is everything the cradle is short of in that direction, which at mount, or after a resize or a reset, can be most of the cradle. A host that wants smaller requests (a paged API, a rate-limited server, a slow source) meters its own feed by returning no more than its own cap from each call. RS3 has no setting for this, because the loop above already does the rest: a short batch is never taken as the end, so RS3 asks again at once, from the cell now at that end of the cradle, until the cradle is full or `fetchCells` returns an empty array. Each batch is rendered as it arrives, so the cradle fills in steps no larger than the cap.
+
+```js
+const MAX_PER_FETCH = 20
+
+const fetchCells = async (direction, referenceID, count) => {
+    const limit = Math.min(count, MAX_PER_FETCH)
+    return await source.read(direction, referenceID, limit) // [] only when there is nothing more that way
+}
+```
+
+Two things to avoid:
+- Don't return an empty array to slow the feed down. It ends that fill, and the cradle stays short until RS3 next asks, usually on a scroll.
+- Don't return more than `count` to read ahead. The excess is trimmed and reported to the `failed` callback.
+
 ### Optional
 
 The following properties are optional, and are designed to support specific use cases.
