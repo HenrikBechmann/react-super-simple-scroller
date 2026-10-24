@@ -849,6 +849,12 @@ const Viewport = (props) =>{
 
     const intersectionObserverCallback = useCallback((entries, observer)=> {
 
+        // React nulls the refs in the commit that removes the scroller and disconnects this observer in the
+        // effect cleanup after it, which a slow commit pushes into a later task: a notice queued before the commit
+        // is delivered in between, with no scroller to read. isMountedRef cannot tell, as it turns false only in
+        // that cleanup (and stays true while a Suspense boundary hides the list, which also nulls the refs)
+        if (!viewportRef.current) return
+
         entries.sort((a,b)=>{
             return a.time - b.time // ascending
         })
