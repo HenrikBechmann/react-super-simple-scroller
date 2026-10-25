@@ -87,7 +87,7 @@ const useCells = ({
         if (startCode == 'at') {
 
             const
-                count = 1,
+                count = cradlePotential.forwardCells,
                 newCells = await fetchBatch(fetchCells, startCode, seedReferenceID, count)
 
             // Re-check: scroller may have been reset/unmounted while fetchCells was in-flight
