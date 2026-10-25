@@ -398,7 +398,7 @@ const Viewport = (props) =>{
 
     const fillCradle = useCallback(async () => { // name to avoid collision with user call 'fillCradle'
 
-        await getCells('forward') // returns promise
+        await getCells('after') // returns promise
 
         return true
 
@@ -411,7 +411,7 @@ const Viewport = (props) =>{
             return false
         }
 
-        await getCells('seed', referenceID)
+        await getCells('at', referenceID)
 
         return true
 
@@ -1294,7 +1294,7 @@ const Viewport = (props) =>{
 
 export type CellPack = { id: any, component: ReactElement }
 
-export type FetchCells = (direction: 'seed' | 'forward' | 'backward', referenceID: any, count: number) => CellPack[] | Promise<CellPack[]>
+export type FetchCells = (startCode: 'at' | 'after' | 'before', referenceID: any, count: number) => CellPack[] | Promise<CellPack[]>
 
 export type ReactSuperSimpleScrollerProps = {
 

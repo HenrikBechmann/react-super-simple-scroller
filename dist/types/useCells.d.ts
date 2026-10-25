@@ -21,5 +21,5 @@ declare const useCells: ({ scrollerName, orientationRef, layoutRef, spacingRef, 
     updateCurrentAxisReferenceID: any;
     callbacksRef: any;
     bandMutationObserverRef: any;
-}) => (direction: any, seedReferenceID?: any) => Promise<void>;
+}) => (startCode: any, seedReferenceID?: any) => Promise<void>;
 export default useCells;

@@ -41,18 +41,18 @@ const useCells = ({
 
     // A host fetch that rejects, or answers with anything but an array, is reported and read as an empty
     // batch: the pass ends there and the next scroll asks again. An empty array is the end of the data.
-    const fetchBatch = async (fetchCells, direction, referenceID, count) => {
+    const fetchBatch = async (fetchCells, startCode, referenceID, count) => {
 
         let cells
 
         try {
 
-            cells = await fetchCells(direction, referenceID, count)
+            cells = await fetchCells(startCode, referenceID, count)
 
         } catch (error) {
 
-            leadTailblockBandRef.current && reportError(callbacksRef, `fetchCells, ${direction}`, 
-                `fetchCells rejected: ${errorMessage(error)}`, [direction, referenceID, count])
+            leadTailblockBandRef.current && reportError(callbacksRef, `fetchCells, ${startCode}`, 
+                `fetchCells rejected: ${errorMessage(error)}`, [startCode, referenceID, count])
 
             return []
 
@@ -60,8 +60,8 @@ const useCells = ({
 
         if (!Array.isArray(cells)) {
 
-            leadTailblockBandRef.current && reportError(callbacksRef, `fetchCells, ${direction}`, 
-                'fetchCells must return an array of cellPacks', [direction, referenceID, count], {return: cells})
+            leadTailblockBandRef.current && reportError(callbacksRef, `fetchCells, ${startCode}`, 
+                'fetchCells must return an array of cellPacks', [startCode, referenceID, count], {return: cells})
 
             return []
 
@@ -71,8 +71,8 @@ const useCells = ({
 
     }
 
-    // call 'seed' or 'forward', never 'backward' (called by forward)
-    const getCells = async (direction, seedReferenceID = null) => { // second parm for 'seed' option
+    // call 'at' or 'after', never 'before' (called by after)
+    const getCells = async (startCode, seedReferenceID = null) => { // second parm for 'at' option
 
         if (!tailblockRef.current || !headblockRef.current || !leadTailblockBandRef.current) return
 
@@ -84,11 +84,11 @@ const useCells = ({
 
         if (!cradlePotential) return // uninitialized
 
-        if (direction == 'seed') {
+        if (startCode == 'at') {
 
             const
                 count = 1,
-                newCells = await fetchBatch(fetchCells, direction, seedReferenceID, count)
+                newCells = await fetchBatch(fetchCells, startCode, seedReferenceID, count)
 
             // Re-check: scroller may have been reset/unmounted while fetchCells was in-flight
             if (!leadTailblockBandRef.current || cradleActualRef.current !== cradleActual) return
@@ -97,35 +97,30 @@ const useCells = ({
                 const excess = newCells.splice(count)
                 if (excess.length) {
                     const excessIDList = excess.map((cellPack) => cellPack?.id)
-                    reportFailed(callbacksRef, 'fetchCells, seed', 'too many cellPacks; excess not loaded', excessIDList)
+                    reportFailed(callbacksRef, 'fetchCells, at', 'too many cellPacks; excess not loaded', excessIDList)
                 }
             }
 
             if (newCells.length) {
 
-                const
-                    newPortalList = setSeedCell(newCells)
-
+                const newPortalList = setForwardCells(newCells, 'fetchCells, at')
+                if (newPortalList.length === cellPortalListRef.current.length) { // something went wrong
+                    reportError(callbacksRef, 'fetchCells, at', 'one or more errors found in fetched cellPacks. Loading aborted', [startCode, seedReferenceID, count], {return: newCells})
+                    return
+                }
                 cellPortalListRef.current = newPortalList
-
-                setPortalRenderList(cellPortalListRef.current)
+                setPortalRenderList(newPortalList)
 
                 updateCurrentAxisReferenceID()
 
             }
 
-            // no seed in the cradle: there is no row to fetch forward or backward from
+            // nothing at the reference: there is no row to fetch after or before from
             if (!cellPortalListRef.current.length) return
 
-            await getCells('forward')
+            await getCells('after')
 
-            // Safety flush: if getSeed returned no cells, neither forward nor backward
-            // will have called setPortalRenderList, so nothing would render without this.
-            if (cellPortalListRef.current.length) {
-                setPortalRenderList(cellPortalListRef.current)
-            }
-
-        } else if (direction == 'forward') {
+        } else if (startCode == 'after') {
 
             const tailBandList = tailBandListRef.current
 
@@ -142,7 +137,7 @@ const useCells = ({
 
                 let newCells = []
                 if (count > 0) {
-                    newCells = await fetchBatch(fetchCells, direction, portalIDListRef.current.at(-1), count)
+                    newCells = await fetchBatch(fetchCells, startCode, portalIDListRef.current.at(-1), count)
                 }
 
                 if (!leadTailblockBandRef.current || cradleActualRef.current !== cradleActual) return
@@ -151,7 +146,7 @@ const useCells = ({
                     const excess = newCells.splice(count)
                     if (excess.length) {
                         const excessIDList = excess.map((cellPack) => cellPack?.id)
-                        reportFailed(callbacksRef, 'fetchCells, forward', 'too many cellPacks; excess not loaded', excessIDList)
+                        reportFailed(callbacksRef, 'fetchCells, after', 'too many cellPacks; excess not loaded', excessIDList)
                     }
                 }
 
@@ -163,7 +158,7 @@ const useCells = ({
 
                     const newPortalList = setForwardCells(newCells)
                     if (newPortalList.length === cellPortalListRef.current.length) { // something went wrong
-                        reportError(callbacksRef, 'fetchCells, forward', 'one or more errors found in fetched cellPacks. Loading aborted', [direction, portalIDListRef.current.at(-1), count], {return: newCells})
+                        reportError(callbacksRef, 'fetchCells, after', 'one or more errors found in fetched cellPacks. Loading aborted', [startCode, portalIDListRef.current.at(-1), count], {return: newCells})
                         break
                     }
                     cellPortalListRef.current = newPortalList
@@ -175,9 +170,9 @@ const useCells = ({
 
             }
 
-            await getCells('backward')
+            await getCells('before')
 
-        } else if (direction == 'backward') {
+        } else if (startCode == 'before') {
 
             let moreExpected = true
             while ((cradleActual.backwardCells < cradlePotential.backwardCells) && moreExpected) {
@@ -187,7 +182,7 @@ const useCells = ({
 
                 let newCells = []
                 if (count > 0) {
-                    newCells = await fetchBatch(fetchCells, direction, portalIDListRef.current[0], count)
+                    newCells = await fetchBatch(fetchCells, startCode, portalIDListRef.current[0], count)
                 }
 
                 if (!leadTailblockBandRef.current || cradleActualRef.current !== cradleActual) return
@@ -196,7 +191,7 @@ const useCells = ({
                     const excess = newCells.splice(count)
                     if (excess.length) {
                         const excessIDList = excess.map((cellPack) => cellPack?.id)
-                        reportFailed(callbacksRef, 'fetchCells, backward', 'too many cellPacks; excess not loaded', excessIDList)
+                        reportFailed(callbacksRef, 'fetchCells, before', 'too many cellPacks; excess not loaded', excessIDList)
                     }
                 }
 
@@ -208,7 +203,7 @@ const useCells = ({
 
                     const newPortalList = setBackwardCells(newCells)
                     if (newPortalList.length === cellPortalListRef.current.length) { // something went wrong
-                        reportError(callbacksRef, 'fetchCells, backward', 'one or more errors found in fetched cellPacks. Loading aborted', [direction, portalIDListRef.current[0], count], {return: newCells})
+                        reportError(callbacksRef, 'fetchCells, before', 'one or more errors found in fetched cellPacks. Loading aborted', [startCode, portalIDListRef.current[0], count], {return: newCells})
 
                         break
                     }
@@ -225,50 +220,9 @@ const useCells = ({
 
     }
 
-    const setSeedCell = (newCells) => {
-
-        const 
-            cradleActual = cradleActualRef.current,
-            incomingPortalList = [],
-            cellPortalList = cellPortalListRef.current,
-            cellPack = newCells[0]
-
-        if (!((cellPack !== null) && (typeof cellPack == 'object') && React.isValidElement(cellPack.component) && isValidID(cellPack.id))) {
-            reportError(callbacksRef, 'fetchCells, seed', 'cellPack must have valid id and component; seed cellPack ignored', [cellPack])
-            return cellPortalList
-        }
-
-        const {id, component} = cellPack
-
-        // register cell data
-        cellDataListRef.current.push(cellPack)
-        portalIDListRef.current.push(id)
-        const container = createContainer(
-            id, cellDimensionsRef.current, cradleActual.cellsPerBand,
-            orientationRef.current,layoutRef.current)
-        portalContainerMapRef.current.set(id, container)
-        incomingPortalList.push(createPortal(component, container, id))
-
-        // allocate cell data
-        const band = createBand(orientationRef.current, layoutRef.current, cradleActualRef.current.cellsPerBand,
-            spacingRef.current, bandMutationObserverRef.current)
-        tailBandListRef.current.push(band)
-        leadTailblockBandRef.current.append(band) // first band belongs in lead tail band
-        band.append(container)
-
-        // update cradleActual
-        cradleActual.totalBands++
-        cradleActual.forwardBands++
-        cradleActual.forwardCells++
-        cradleActual.totalCells++    
-
-        const newPortalList = cellPortalList.concat(incomingPortalList)
-        return newPortalList
-    }
-
     // The checks in setForwardCells and setBackwardCells catch an id the cradle already holds, not one the
     // batch itself repeats. A repeat is reported and skipped, and the rest of the batch loads.
-    const dropRepeats = (newCells, direction) => {
+    const dropRepeats = (newCells, source) => {
 
         const seen = new Set()
 
@@ -283,7 +237,7 @@ const useCells = ({
                 return true
             }
 
-            reportError(callbacksRef, `fetchCells, ${direction}`,
+            reportError(callbacksRef, source,
                 'duplicate id within the batch; the repeat is skipped', [cellPack], {return: newCells})
 
             return false
@@ -292,9 +246,9 @@ const useCells = ({
 
     }
 
-    const setForwardCells = (newCells) => {
+    const setForwardCells = (newCells, source = 'fetchCells, after') => {
 
-        newCells = dropRepeats(newCells, 'forward')
+        newCells = dropRepeats(newCells, source)
 
         const 
             incomingPortalList = [],
@@ -308,12 +262,12 @@ const useCells = ({
                 React.isValidElement(cellPack.component) && 
                 isValidID(cellPack.id)))
             
-            if (isInvalid) reportError(callbacksRef, 'fetchCells, forward', 'cellPack must have valid id and component', [cellPack])
+            if (isInvalid) reportError(callbacksRef, source, 'cellPack must have valid id and component', [cellPack])
 
             let isDuplicate = false
             if (!isInvalid) {
                 isDuplicate = portalContainerMapRef.current.has(cellPack.id)
-                if (isDuplicate) reportError(callbacksRef, 'fetchCells, forward', 'fetched cellPack is a duplicate', [cellPack])
+                if (isDuplicate) reportError(callbacksRef, source, 'fetched cellPack is a duplicate', [cellPack])
             }
 
             return (!isDuplicate && !isInvalid)
@@ -373,9 +327,9 @@ const useCells = ({
 
     }
 
-    const setBackwardCells = (newCells) => {
+    const setBackwardCells = (newCells, source = 'fetchCells, before') => {
 
-        newCells = dropRepeats(newCells, 'backward')
+        newCells = dropRepeats(newCells, source)
 
         const 
             incomingPortalList = [],
@@ -384,12 +338,12 @@ const useCells = ({
         if (!newCells.every((cellPack)=>{ // if any errors found then abort loading
 
             const isInvalid = (!((cellPack !== null) && (typeof cellPack == 'object') && React.isValidElement(cellPack.component) && (isValidID(cellPack.id))))
-            if (isInvalid) reportError(callbacksRef, 'fetchCells, backward', 'cellPack must have valid id and component', [cellPack])
+            if (isInvalid) reportError(callbacksRef, source, 'cellPack must have valid id and component', [cellPack])
 
             let isDuplicate = false
             if (!isInvalid) {
                 isDuplicate = portalContainerMapRef.current.has(cellPack.id)
-                if (isDuplicate) reportError(callbacksRef, 'fetchCells, backward', 'fetched cellPack is a duplicate', [cellPack])
+                if (isDuplicate) reportError(callbacksRef, source, 'fetched cellPack is a duplicate', [cellPack])
             }
 
             return (!isDuplicate && !isInvalid)

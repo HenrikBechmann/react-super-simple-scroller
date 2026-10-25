@@ -3,7 +3,7 @@ export type CellPack = {
     id: any;
     component: ReactElement;
 };
-export type FetchCells = (direction: 'seed' | 'forward' | 'backward', referenceID: any, count: number) => CellPack[] | Promise<CellPack[]>;
+export type FetchCells = (startCode: 'at' | 'after' | 'before', referenceID: any, count: number) => CellPack[] | Promise<CellPack[]>;
 export type ReactSuperSimpleScrollerProps = {
     orientation?: 'vertical' | 'horizontal';
     layout?: 'uniform' | 'variable';

@@ -65,15 +65,20 @@ const ScrollerDemo = (props) => {
     maxWidth:300, minWidth:200, maxHeight:40, minHeight:30
   })
   
-  const fetchCells = useCallback( async (direction, referenceID, count)=>{
+  const fetchCells = useCallback( async (startCode, referenceID, count)=>{
     const list = []
     if (referenceID >=0 && referenceID <=500) {
-      if (direction == 'seed') {
-        list.push({
-          id = referenceID,
-          component = <CellComponent id = {id} />
-        })
-      } else if (direction == 'forward') {
+      if (startCode == 'at') {
+        let processcount = 0
+        for (let id = referenceID;id <= 500; id++) {
+          processcount++
+          list.push({
+            id,
+            component: <CellComponent id = {id} />,
+          })
+          if (processcount === count) break
+        }
+      } else if (startCode == 'after') {
         let processcount = 0
         for (let id = referenceID + 1;id <= 500; id++) {
           processcount++
@@ -83,7 +88,7 @@ const ScrollerDemo = (props) => {
           })
           if (processcount === count) break
         }
-      } else if (direction == 'backward') {
+      } else if (startCode == 'before') {
         let processcount = 0
         for (let id = referenceID -1;id >= 0; id--) {
           processcount++
@@ -196,15 +201,15 @@ See notes about the required parameters, and other available parameters, below.
 
 RS3 requires every component received from the host to be associated with a unique (to the cradle) referenceID — a finite number or a non-empty string. It can be anything from a host array index to a database record's non-compound surrogate key. This is enforced. A cellPack with a duplicate id (or an invalid cellPack) provided to the scroller will cause loading of the current cellPack list to be aborted.
 
-This allows the `fetchCells` function to be straightforward. The parameters of the function are `fetchCells(direction, referenceID, count)`. The `direction` value can be ’seed’, ‘forward’, or 'backward’. The referenceID is the reference from which the returned cells should be selected. The `fetchCells` return value must be an array containing _cellPacks_ of items up to the `count` number (any extra items will be ignored). 
+This allows the `fetchCells` function to be straightforward. The parameters of the function are `fetchCells(startCode, referenceID, count)`. The `startCode` value can be `'at'`, `'after'` or `'before'`. The referenceID is the reference from which the returned cells should be selected. The `fetchCells` return value must be an array containing _cellPacks_ of items up to the `count` number (any extra items will be ignored). 
 
 Each cellPack is an object with two properties: `id`, and `component`. The `id` must be unique (to the cradle), and the component value must pass the `React.isValidElement` test.
 
-Returning an empty array signals to the scroller that the beginning or end of data (depending on the direction) has been reached.
+Returning an empty array signals to the scroller that there is nothing more that way: on `'before'` the beginning of the data has been reached, on `'after'` the end, and on `'at'` there is nothing at the reference.
 
-Also the scroller assumes the cellPacks in the returned array are in the order in which they should be presented. The cells are added to the cradle in the order received (see `fetchCells` below for details).
+`startCode` names where the returned batch starts, relative to `referenceID` in list order. It is a relation between items, not the name of an SDK method. `'at'` is inclusive: the batch begins with the reference item. `'after'` and `'before'` are exclusive: the batch begins with the item next to the reference, on that side of it. **`'before'` returns the items before the reference nearest-first** (REF−1, REF−2, …), because the scroller prepends them one by one. A host that pages backward with an ascending query (for example Firestore's `endBefore` with `limitToLast`) corrupts the head of the cradle silently, with no error to show for it: page backward with a reverse-ordered query and `startAfter` instead. For Firestore: `'at'` → `startAt`, `'after'` → `startAfter`, `'before'` → a reverse-ordered query with `startAfter`. `count` is a maximum on every code. A short batch is not taken as the end: the scroller asks again from the cell now at that end of the cradle (see *Metering the feed* below). An empty array is the end of the data that way, and an empty array on `'at'` leaves the cradle empty, with nothing asked `'after'` or `'before'`.
 
-The ’seed’ call is a request for the single cellPack (but in an array) indicated in the scroller’s seedReferenceID parameter. Host-returned ‘forward’ items are added to the tailblock, and ‘backward' items are added to the headblock.
+The `'at'` call is the opening request, made for the scroller's `seedReferenceID` parameter (or for the referenceID passed to `fetchCradleCells`): the cradle starts from what it returns. Host-returned `'after'` items are added to the tailblock, and `'before'` items are added to the headblock.
 
 ### Performance
 
@@ -231,8 +236,8 @@ The following properties are required.
 |orientation: ’vertical’ &vert; ‘horizontal’|the scrolling axis (default ‘vertical'). An absent value (`undefined` or `null`) is the default. Any other value, including one in another case (`'Vertical'`), is replaced by the last good value (at mount, the default) and reported to the `warning` callback|
 |layout: ’uniform’ &vert; ‘variable’|’variable' allows expandability along the scrolling axis (default ‘uniform'). An absent value is the default, and any other is replaced and reported as for `orientation`|
 |cellDimensions: {<br>&nbsp; minWidth, maxWidth,<br>&nbsp; minHeight, maxHeight<br>}|integers, which can be combined to achieve various layout effects. Each is a finite number, not below zero. A field the orientation and layout read must be present (a uniform layout never reads the minimum along the axis), and the two the cradle divides by must be above zero: the minimum across the axis, and along it the maximum in a uniform layout or the minimum in a variable one. A field that breaks any of these, absent or bad, is replaced by its last good value and reported to the `warning` callback. Until a field has had a good value (at mount) nothing can stand in for it: it is reported to the `error` callback and left out, so a list mounted without a field the cradle divides by lays out nothing until one arrives. A value equal to the last good one, field by field, changes nothing, even in a new object|
-|seedReferenceID: number &vert; string|the cell referenceID from which RS3 requests initial forward and backward cells|
-|fetchCells: Function|host-provided callback function; parameters: (direction, referenceID, count)|
+|seedReferenceID: number &vert; string|the referenceID the list opens at: RS3 asks for it with `'at'`, then for the cells after and before it|
+|fetchCells: Function|host-provided callback function; parameters: (startCode, referenceID, count)|
 
 Notes:
 
@@ -259,14 +264,14 @@ If **layout** is set to ‘uniform’, the height of the cell container is set t
 
 So if you run out of cells to return, return what you have, wait for the next `fetchCells` call, and return an empty array to stop the process. Bear in mind that RS3 does not keep internal BOD (beginning of data) or EOD (end of data) flags, as these conditions may change, so your `fetchCells` function may have to return an empty array frequently.
 
-**Metering the feed.** The `count` RS3 asks for is everything the cradle is short of in that direction, which at mount, or after a resize or a reset, can be most of the cradle. A host that wants smaller requests (a paged API, a rate-limited server, a slow source) meters its own feed by returning no more than its own cap from each call. RS3 has no setting for this, because the loop above already does the rest: a short batch is never taken as the end, so RS3 asks again at once, from the cell now at that end of the cradle, until the cradle is full or `fetchCells` returns an empty array. Each batch is rendered as it arrives, so the cradle fills in steps no larger than the cap.
+**Metering the feed.** The `count` RS3 asks for is everything the cradle is short of at that end, which at mount, or after a resize or a reset, can be most of the cradle. A host that wants smaller requests (a paged API, a rate-limited server, a slow source) meters its own feed by returning no more than its own cap from each call. RS3 has no setting for this, because the loop above already does the rest: a short batch is never taken as the end, so RS3 asks again at once, from the cell now at that end of the cradle, until the cradle is full or `fetchCells` returns an empty array. Each batch is rendered as it arrives, so the cradle fills in steps no larger than the cap.
 
 ```js
 const MAX_PER_FETCH = 20
 
-const fetchCells = async (direction, referenceID, count) => {
+const fetchCells = async (startCode, referenceID, count) => {
     const limit = Math.min(count, MAX_PER_FETCH)
-    return await source.read(direction, referenceID, limit) // [] only when there is nothing more that way
+    return await source.read(startCode, referenceID, limit) // [] only when there is nothing more that way
 }
 ```
 
@@ -280,7 +285,7 @@ The following properties are optional, and are designed to support specific use 
 
 | property | details |
 |:----|:----|
-| callbacks:{<br> &nbsp;axisReferenceID,<br> &nbsp;removed,<br> &nbsp;resized,<br> &nbsp;failed,<br> &nbsp;error,<br> &nbsp;warning<br>} | host-provided functions to provide support for data synchronization, and feedback from the scroller. `error` reports what the scroller could not go on with; `warning` reports a value of the host's that the scroller replaced and went on without, and a call whose purpose was already met (a `remove` of an id the cradle does not hold). A fill on an empty cradle is an error: it cannot be met, and the host has to seed instead. Each callback is read when the report is made, and one that throws is caught and logged to the console. With no callback for a report, the report goes to the console, named by the scroller: an `error` to `console.error`, a `warning` or a `failed` batch to `console.warn`, as `react-super-simple-scroller (<scrollerName>): <source>: <message>` with the report's object beside it |
+| callbacks:{<br> &nbsp;axisReferenceID,<br> &nbsp;removed,<br> &nbsp;resized,<br> &nbsp;failed,<br> &nbsp;error,<br> &nbsp;warning<br>} | host-provided functions to provide support for data synchronization, and feedback from the scroller. `error` reports what the scroller could not go on with; `warning` reports a value of the host's that the scroller replaced and went on without, and a call whose purpose was already met (a `remove` of an id the cradle does not hold). A fill on an empty cradle is an error: it cannot be met, and the host has to reposition the list with `fetchCradleCells(referenceID)` instead. Each callback is read when the report is made, and one that throws is caught and logged to the console. With no callback for a report, the report goes to the console, named by the scroller: an `error` to `console.error`, a `warning` or a `failed` batch to `console.warn`, as `react-super-simple-scroller (<scrollerName>): <source>: <message>` with the report's object beside it |
 | calls:{<br> &nbsp;insert, <br> &nbsp;remove, <br> &nbsp;move <br> &nbsp;replace, <br> &nbsp;dispatchEvent, <br> &nbsp;fetchCradleCells, <br> &nbsp;has, <br> &nbsp;getCradleIDList <br> &nbsp;getCradleSpecs, <br> &nbsp;restoreScrollPositions <br>} | Pass an empty object which will be populated by RS3. RS3 provided functions: 6 operations on the cradle, 3 ways to query the cradle, and `restoreScrollPositions` (see the section on restoring scroll positions below) |
 | spacing:{<br> &nbsp;cradleMargin:[start, end]<br> &nbsp;bandPadding:[start, end]<br> &nbsp;cellGap:number <br>} | all integers. cradleMargin is cross-axis spacing at the edges; bandPadding is axis spacing at the start and end of each band; cellGap is cross-axis spacing between cells  |
 | operations:{<br> &nbsp;dispatchAttachedEvents,<br> runway<br>} | when dispatchAttachedEvents is set to `true`, RS3 dispatches events to container components to alert them to the need to restore scroll positions. Default `false`. `runway` is the number of bands out of view, both start and end. Default 4 |
@@ -296,7 +301,7 @@ The **failed(failedPack)** function returns an object including an array of cell
 
 The **removed(removedList)** function returns an array of cell referenceID’s for cells that have been removed by RS3. This could be normal trimming while scrolling, or a cell removed by a call to the remove function.
 
-The **error(errorPack)** function returns an object including information about an error that has occurred. The structure of the returned object is `{source, message, arguments, timestamp}`. The scroller reads the callback each time it reports, and a callback that throws is caught and logged to the console. It is called when a cellPack is rejected (a duplicate or invalid `id`, for instance); when `fetchCells` rejects or returns something other than an array (`source` is `'fetchCells, seed'`, `'fetchCells, forward'` or `'fetchCells, backward'`, `arguments` holds the `direction`, `referenceID` and `count` that `fetchCells` was called with, and a `return` property holds what came back when it was not an array); when `fetchCradleCells(referenceID)` could not reset the cradle (`source` is `'reset'`; see `fetchCradleCells` below); and when one of the scroller's own cradle operations fails (`source` is `'evaluateIntersections'` or `'cradlePotential'`). None of these stops the scroller. A failed `fetchCells` is treated as an empty batch, and the scroller asks again on the next scroll. Without an `error` callback the report goes to `console.error`.
+The **error(errorPack)** function returns an object including information about an error that has occurred. The structure of the returned object is `{source, message, arguments, timestamp}`. The scroller reads the callback each time it reports, and a callback that throws is caught and logged to the console. It is called when a cellPack is rejected (a duplicate or invalid `id`, for instance); when `fetchCells` rejects or returns something other than an array (`source` is `'fetchCells, at'`, `'fetchCells, after'` or `'fetchCells, before'`, `arguments` holds the `startCode`, `referenceID` and `count` that `fetchCells` was called with, and a `return` property holds what came back when it was not an array); when `fetchCradleCells(referenceID)` could not reset the cradle (`source` is `'reset'`; see `fetchCradleCells` below); and when one of the scroller's own cradle operations fails (`source` is `'evaluateIntersections'` or `'cradlePotential'`). None of these stops the scroller. A failed `fetchCells` is treated as an empty batch, and the scroller asks again on the next scroll. Without an `error` callback the report goes to `console.error`.
 
 The **warning(warningPack)** function returns an object including information about a warning that is being issued about an action taken by RS3. The structure of the returned object is `{source, message, arguments, timestamp}`; a replaced value adds `property` and `used` (the value the scroller went on with), and the queue's stall adds `waitedMs` and `waiting`. Without a `warning` callback the report goes to `console.warn`.
 
@@ -318,7 +323,7 @@ The following three are specialized operations.
 
 **dispatchEvent(referenceID, event)** returns `true` or `false`. The dispatched event must be synthetic (`event = new Event(‘myevent')`).
 
-**fetchCradleCells(referenceID?)** returns a promise of `true`, or of `false` for a reset that could not be done or a fill with nothing to fill from. This re-runs the fetching of cradle cells. Useful to initiate fetch after a change in the underlying data. If no referenceID is passed, uses the current axisReferenceID, and just tries to add cells to the existing cradle. An empty cradle (after a clear, or a seed that `fetchCells` answered with no row) has nothing to fill from: the call fetches nothing, reports to the `error` callback (`source` is `'fetchCradleCells'`), and resolves `false`. To clear the scroller, pass an empty string as the referenceID. When a referenceID is passed, the cradle is emptied and reset, which can be useful to reposition the cradle after, say, the end user has selected a cell (that may be out of scope) to view, or if the cell sort order has changed. The promise resolves `false`, and the reason is sent to the `error` callback, when the referenceID is invalid, and when the call is made before the scroller has measured its layout; in that second case the referenceID is held, and the scroller seeds from it (in place of `seedReferenceID`) as soon as its layout is known. The promise does not reject for either. It resolves `true` when the reset ran, even if `fetchCells` then had nothing to return for that referenceID.
+**fetchCradleCells(referenceID?)** returns a promise of `true`, or of `false` for a reset that could not be done or a fill with nothing to fill from. This re-runs the fetching of cradle cells. Useful to initiate fetch after a change in the underlying data. If no referenceID is passed, uses the current axisReferenceID, and just tries to add cells to the existing cradle. An empty cradle (after a clear, or an `'at'` request that `fetchCells` answered with no row) has nothing to fill from: the call fetches nothing, reports to the `error` callback (`source` is `'fetchCradleCells'`), and resolves `false`. To clear the scroller, pass an empty string as the referenceID. When a referenceID is passed, the cradle is emptied and reset, which can be useful to reposition the cradle after, say, the end user has selected a cell (that may be out of scope) to view, or if the cell sort order has changed. The promise resolves `false`, and the reason is sent to the `error` callback, when the referenceID is invalid, and when the call is made before the scroller has measured its layout; in that second case the referenceID is held, and the scroller opens from it (in place of `seedReferenceID`) as soon as its layout is known. The promise does not reject for either. It resolves `true` when the reset ran, even if `fetchCells` then had nothing to return for that referenceID.
 
 **restoreScrollPositions()** returns a promise of `true` once the viewport has been scrolled to the position the scroller last recorded and, with `operations.dispatchAttachedEvents`, the `rs3attached` events have been dispatched to the cradle's cells. It runs as a queued cradle operation, after whatever operation is in flight, so it never lands in the middle of a band shift or a fill. The same restore runs when an `rs3restore` event is dispatched on the scroller's viewport.
 
