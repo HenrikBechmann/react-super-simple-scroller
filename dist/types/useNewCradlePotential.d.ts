@@ -1,0 +1,27 @@
+declare const useCradlePotential: ({ DOMManipulationQueueRef, orientationRef, layoutRef, spacingRef, seedReferenceIDRef, currentAxisReferenceIDRef, cradleActualRef, cellPortalListRef, portalIDListRef, portalContainerMapRef, headblockRef, headBandListRef, leadHeadblockBandRef, tailblockRef, tailBandListRef, leadTailblockBandRef, assertIntersectionsDisconnect, requestIntersectionsConnect, setPortalRenderList, removeCells, getSeed, fillCradle, updateCurrentAxisReferenceID, bandMutationObserverRef, }: {
+    DOMManipulationQueueRef: any;
+    orientationRef: any;
+    layoutRef: any;
+    spacingRef: any;
+    seedReferenceIDRef: any;
+    currentAxisReferenceIDRef: any;
+    cradleActualRef: any;
+    cellPortalListRef: any;
+    portalIDListRef: any;
+    portalContainerMapRef: any;
+    headblockRef: any;
+    headBandListRef: any;
+    leadHeadblockBandRef: any;
+    tailblockRef: any;
+    tailBandListRef: any;
+    leadTailblockBandRef: any;
+    assertIntersectionsDisconnect: any;
+    requestIntersectionsConnect: any;
+    setPortalRenderList: any;
+    removeCells: any;
+    getSeed: any;
+    fillCradle: any;
+    updateCurrentAxisReferenceID: any;
+    bandMutationObserverRef: any;
+}) => any;
+export default useCradlePotential;

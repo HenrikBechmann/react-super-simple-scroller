@@ -9,7 +9,7 @@
 
 // ===============================[ resources ]========================
 
-import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, CSSProperties, FC } from 'react'
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useMemo, CSSProperties, ReactElement } from 'react'
 
 import { ErrorBoundary } from "react-error-boundary"
 
@@ -1292,58 +1292,64 @@ const Viewport = (props) =>{
     }
 } // Viewport
 
+export type CellPack = { id: any, component: ReactElement }
+
+export type FetchCells = (direction: 'seed' | 'forward' | 'backward', referenceID: any, count: number) => CellPack[] | Promise<CellPack[]>
+
+export type ReactSuperSimpleScrollerProps = {
+
+    // required
+    orientation?:'vertical' | 'horizontal', // default 'vertical'
+    layout?:'uniform' | 'variable', // default 'uniform'
+    cellDimensions: {
+        maxHeight: number,
+        maxWidth: number,
+        minHeight: number,
+        minWidth: number,
+    },
+    seedReferenceID: any,
+    fetchCells: FetchCells,
+
+    // optional
+    callbacks?:{
+        axisReferenceID?: Function,
+        failed?: Function,
+        removed?: Function,
+        error?: Function,
+        warning?: Function,
+        resized?: Function,
+    }
+    calls?: {
+        has?: null | Function,
+        insert?: null | Function,
+        remove?: null | Function,
+        move?: null | Function,
+        replace?:null | Function,
+        getCradleIDList?: null | Function,
+        getCradleSpecs?: null | Function,
+        fetchCradleCells?: null | Function,
+    },
+    technical?: {
+        STANDARD_SCROLL_MOMENTUM_FADE?: number,
+        SHORT_MOMENTUM_FADE?: number,
+    }
+    spacing?: {
+        cradleMargin?: number[],
+        bandPadding?: number[],
+        cellGap?: number,
+    },
+    operations?: {
+        dispatchAttachedEvents?:boolean,
+        runway?: number,
+        crossAxisChaining?: boolean, // default true
+    },
+    scrollerName? : string
+}
+
 // the first five properties are required
 const ReactSuperSimpleScroller = (
     {orientation, layout, cellDimensions, seedReferenceID, fetchCells, ...moreProperties}
-    :{ // simple parameter typing...
-
-        // required
-        orientation?:'vertical' | 'horizontal', // default 'vertical'
-        layout?:'uniform' | 'variable', // default 'uniform'
-        cellDimensions: {
-            maxHeight: number,
-            maxWidth: number,
-            minHeight: number,
-            minWidth: number,
-        },
-        seedReferenceID: any,
-        fetchCells:  (direction:'seed' | 'forward' | 'backward', referenceID: any, count: number) => Promise<{id:any, component: FC}[]>,
-        
-        // optional
-        callbacks?:{
-            axisReferenceID?: Function,
-            failed?: Function,
-            removed?: Function,
-            error?: Function,
-            warning?: Function,
-            resized?: Function,
-        }
-        calls?: {
-            has?: null | Function,
-            insert?: null | Function,
-            remove?: null | Function,
-            move?: null | Function,
-            replace?:null | Function,
-            getCradleIDList?: null | Function,
-            getCradleSpecs?: null | Function,
-            fetchCradleCells?: null | Function,
-        },
-        technical?: {
-            STANDARD_SCROLL_MOMENTUM_FADE?: number,
-            SHORT_MOMENTUM_FADE?: number,
-        }
-        spacing?: {
-            cradleMargin?: number[],
-            bandPadding?: number[],
-            cellGap?: number,
-        },
-        operations?: {
-            dispatchAttachedEvents?:boolean,
-            runway?: number,
-            crossAxisChaining?: boolean, // default true
-        },
-        scrollerName? : string
-    }) => {
+    : ReactSuperSimpleScrollerProps) => {
 
     const 
         {callbacks, calls, spacing, operations, technical, scrollerName} = moreProperties,

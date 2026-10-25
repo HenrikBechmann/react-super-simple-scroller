@@ -109,6 +109,8 @@ const ScrollerDemo = (props) => {
   </div>
 }
 ```
+The package ships its TypeScript declarations. `FetchCells` (the signature of `fetchCells`), `CellPack` (one returned item: `{id, component}`) and `ReactSuperSimpleScrollerProps` are exported: `import Scroller, { FetchCells } from 'react-super-simple-scroller'`.
+
 Note that the scroller lays out in the space its container gives it. `cellsPerBand` is never below 1: a viewport narrower than one cell still takes one cell per band, and the cradle overflows across the axis. The cradle is laid out again whenever the viewport is resized, so a container that has no size at mount is laid out once it has one. The `cellDimensions` fields the cradle divides by must be above zero (see below).
 
 ## Technology

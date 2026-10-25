@@ -1,0 +1,25 @@
+declare const useCells: ({ scrollerName, orientationRef, layoutRef, spacingRef, cradlePotentialRef, cradleActualRef, cellPortalListRef, portalIDListRef, cellDataListRef, portalContainerMapRef, cellDimensionsRef, tailblockRef, tailBandListRef, leadTailblockBandRef, headblockRef, headBandListRef, leadHeadblockBandRef, setPortalRenderList, fetchCellsRef, updateCurrentAxisReferenceID, callbacksRef, bandMutationObserverRef, }: {
+    scrollerName: any;
+    orientationRef: any;
+    layoutRef: any;
+    spacingRef: any;
+    cradlePotentialRef: any;
+    cradleActualRef: any;
+    cellPortalListRef: any;
+    portalIDListRef: any;
+    cellDataListRef: any;
+    portalContainerMapRef: any;
+    cellDimensionsRef: any;
+    tailblockRef: any;
+    tailBandListRef: any;
+    leadTailblockBandRef: any;
+    headblockRef: any;
+    headBandListRef: any;
+    leadHeadblockBandRef: any;
+    setPortalRenderList: any;
+    fetchCellsRef: any;
+    updateCurrentAxisReferenceID: any;
+    callbacksRef: any;
+    bandMutationObserverRef: any;
+}) => (direction: any, seedReferenceID?: any) => Promise<void>;
+export default useCells;

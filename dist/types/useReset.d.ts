@@ -1,0 +1,20 @@
+declare const useReset: ({ DOMManipulationQueueRef, cradlePotentialRef, portalContainerMapRef, portalIDListRef, cellPortalListRef, cellDataListRef, tailBandListRef, headBandListRef, cradleActualRef, setPortalRenderList, assertIntersectionsDisconnect, requestIntersectionsConnect, getSeed, callbacksRef, heldSeedReferenceIDRef, currentAxisReferenceIDRef, resetAxisPosition, }: {
+    DOMManipulationQueueRef: any;
+    cradlePotentialRef: any;
+    portalContainerMapRef: any;
+    portalIDListRef: any;
+    cellPortalListRef: any;
+    cellDataListRef: any;
+    tailBandListRef: any;
+    headBandListRef: any;
+    cradleActualRef: any;
+    setPortalRenderList: any;
+    assertIntersectionsDisconnect: any;
+    requestIntersectionsConnect: any;
+    getSeed: any;
+    callbacksRef: any;
+    heldSeedReferenceIDRef: any;
+    currentAxisReferenceIDRef: any;
+    resetAxisPosition: any;
+}) => any;
+export default useReset;
