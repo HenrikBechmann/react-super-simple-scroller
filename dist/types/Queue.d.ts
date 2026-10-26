@@ -4,19 +4,27 @@ export default class Queue {
     pendingPromise: boolean;
     onStall: any;
     onIdle: any;
+    onDropped: any;
     stallMs: number;
     runSerial: number;
     stallTimer: any;
     stallWarnedSerial: number;
-    constructor({ onStall, onIdle, stallMs }?: {
+    stopped: boolean;
+    dropping: Set<unknown>;
+    dropAnswer: any;
+    constructor({ onStall, onIdle, onDropped, stallMs }?: {
         onStall?: any;
         onIdle?: any;
+        onDropped?: any;
         stallMs?: number;
     });
+    stop(answer?: any): void;
+    start(): void;
     isBusy(): boolean;
-    enqueue(promise: any): Promise<unknown>;
+    enqueue(promise: any, label?: any): Promise<unknown>;
     armStall(): void;
     clearStall(): void;
     reportIdle(): void;
+    drop(): void;
     dequeue(): boolean;
 }

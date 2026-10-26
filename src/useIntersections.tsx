@@ -1,7 +1,7 @@
 // useIntersections.tsx
 // copyright (c) 2025-present Henrik Bechmann, Toronto, Licence: MIT
 
-import React, { useCallback, useRef } from 'react'
+import React, { useCallback, useEffect, useRef } from 'react'
 
 import { reportError, errorMessage } from './utilities'
 
@@ -596,6 +596,10 @@ const useIntersections = ({
         hold.isRecovery = false
 
     }
+
+    // a hold live at the unmount keeps its wheel listener on the element it was added to, and the timer that would
+    // release it is cleared by the scroller's cleanup, so the release is made here
+    useEffect(() => () => releaseHold(), [])
 
     // -------------------------[ intersection observations support ]-------------------------
 

@@ -141,6 +141,12 @@ const Viewport = (props) =>{
             onIdle: () => {
                 if (intersectionsConnectWantedRef.current && isMountedRef.current) setConnectTick(tick => tick + 1)
             },
+            // calls still waiting at the unmount are answered false and not run, as a call made after it is
+            onDropped: ({ labels }) => {
+                if (unmountedCallWarnedRef.current) return
+                unmountedCallWarnedRef.current = true
+                reportWarning(callbacksRef, labels[0], 'queued before the scroller was unmounted; nothing was done', [], { dropped: labels })
+            },
         })),
         intersectionsConnectedRef = useRef(false),
         intersectionsConnectWantedRef = useRef(false), // a reconnect asked for and not yet made
@@ -733,6 +739,11 @@ const Viewport = (props) =>{
 
         isMountedRef.current = true
 
+        // React nulls viewportRef in the commit, before this cleanup runs, so the cleanup removes from what it added to
+        const viewport = viewportRef.current
+        const queue = DOMManipulationQueueRef.current
+        queue.start()
+
         const iObserver = intersectionObserverRef.current =
             new IntersectionObserver(intersectionObserverCallback,{
                 root:viewportRef.current,
@@ -750,13 +761,13 @@ const Viewport = (props) =>{
                 reportError(callbacksRef, 'restoreScrollPositions', errorMessage(error), [])
             })
         }
-        viewportRef.current.addEventListener('rs3restore', handleRs3Restore)
+        viewport.addEventListener('rs3restore', handleRs3Restore)
 
         // Chrome 114, Firefox 109 and Safari 26 send scrollend once a scroll has settled, so scrolling mode ends
         // there, well inside the momentum fade; a browser without it is served by the fade timer alone. The read
         // and this branch can go, the listener kept unconditionally, once every supported browser sends it
         scrollendSupportedRef.current = typeof window !== 'undefined' && 'onscrollend' in window
-        if (scrollendSupportedRef.current) viewportRef.current.addEventListener('scrollend', onViewportScrollEnd, { passive: true })
+        if (scrollendSupportedRef.current) viewport.addEventListener('scrollend', onViewportScrollEnd, { passive: true })
 
         return () => {
             isMountedRef.current = false
@@ -767,8 +778,9 @@ const Viewport = (props) =>{
             intersectionObserverRef.current.disconnect()
             intersectionsConnectedRef.current = false
             resizeObserverRef.current.disconnect()
-            viewportRef.current?.removeEventListener('rs3restore', handleRs3Restore)
-            viewportRef.current?.removeEventListener('scrollend', onViewportScrollEnd)
+            viewport.removeEventListener('rs3restore', handleRs3Restore)
+            viewport.removeEventListener('scrollend', onViewportScrollEnd)
+            queue.stop(false)
         }
 
     },[])

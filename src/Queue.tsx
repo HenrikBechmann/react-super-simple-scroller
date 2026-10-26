@@ -15,6 +15,13 @@
 //
 // The queue reports through onIdle, once, when the task that ended was the last one waiting: a caller refused
 // while a task ran (the scroller's observer reconnect) is answered by the queue itself, not by the next caller
+//
+// stop() is the owner's teardown. The stall timer is cleared and cannot be armed again, and every task waiting at
+// that moment is answered with the stop's answer when its turn comes, without being run; the onDropped report
+// names the labels of those that had one. A running task cannot be stopped and finishes as it would. start()
+// undoes it: a teardown followed by a setup on the same queue (React's StrictMode, a hidden Activity shown again)
+// runs whatever still waits. A task enqueued after stop() is not one of those dropped, so a setup that enqueues
+// before it calls start() is not answered empty
 export const DEFAULT_STALL_MS = 5000
 
 export default class Queue {
@@ -22,16 +29,35 @@ export default class Queue {
   pendingPromise = false;
   onStall = null;
   onIdle = null;
+  onDropped = null;
   stallMs = DEFAULT_STALL_MS;
   // the running task's number, so a stall timer can tell whether the task it was armed behind still runs
   runSerial = 0;
   stallTimer = null;
   stallWarnedSerial = 0;
+  stopped = false;
+  // the waiting items stop() found, each answered with dropAnswer instead of run
+  dropping = new Set();
+  dropAnswer = undefined;
 
-  constructor({ onStall = null, onIdle = null, stallMs = DEFAULT_STALL_MS } = {}) {
+  constructor({ onStall = null, onIdle = null, onDropped = null, stallMs = DEFAULT_STALL_MS } = {}) {
     this.onStall = onStall;
     this.onIdle = onIdle;
+    this.onDropped = onDropped;
     this.stallMs = stallMs;
+  }
+
+  stop(answer = undefined) {
+    this.stopped = true;
+    this.clearStall();
+    this.dropAnswer = answer;
+    for (const item of this.queue) this.dropping.add(item);
+  }
+
+  start() {
+    this.stopped = false;
+    this.dropping.clear();
+    if (this.pendingPromise && this.queue.length) this.armStall();
   }
 
   // a task is running, or one is waiting to run. dequeue shifts a task off the queue before it starts it, so
@@ -40,12 +66,13 @@ export default class Queue {
     return this.pendingPromise || this.queue.length > 0;
   }
 
-  enqueue(promise) {
+  enqueue(promise, label = null) {
     return new Promise((resolve, reject) => {
         this.queue.push({
             promise,
             resolve,
             reject,
+            label,
         });
         if (this.pendingPromise) this.armStall();
         this.dequeue();
@@ -53,7 +80,7 @@ export default class Queue {
   }
 
   armStall() {
-    if (!this.onStall || this.stallTimer || this.stallWarnedSerial == this.runSerial) return;
+    if (this.stopped || !this.onStall || this.stallTimer || this.stallWarnedSerial == this.runSerial) return;
     const serial = this.runSerial, armedAt = Date.now();
     this.stallTimer = setTimeout(() => {
       this.stallTimer = null;
@@ -82,6 +109,22 @@ export default class Queue {
     }
   }
 
+  drop() {
+    const labels = [];
+    while (this.queue.length && this.dropping.has(this.queue[0])) {
+      const item = this.queue.shift();
+      this.dropping.delete(item);
+      if (item.label != null) labels.push(item.label);
+      item.resolve(this.dropAnswer);
+    }
+    if (!labels.length || !this.onDropped) return;
+    try {
+      this.onDropped({ labels });
+    } catch (err) {
+      // a reporter that throws must not take the queue down
+    }
+  }
+
   dequeue() {
     if (this.pendingPromise) {
       return false;
@@ -93,6 +136,7 @@ export default class Queue {
     const finish = () => {
       this.pendingPromise = false;
       this.clearStall();
+      this.drop();
       if (this.queue.length === 0) this.reportIdle();
     };
     try {

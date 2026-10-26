@@ -263,7 +263,7 @@ const useCalls = ({
 
             }
 
-        })
+        }, 'insert')
 
         return result
 
@@ -393,7 +393,7 @@ const useCalls = ({
 
             return result
 
-        })
+        }, 'remove')
 
         return result
 
@@ -707,7 +707,7 @@ const useCalls = ({
         
             return result
 
-        })
+        }, 'move')
 
         return result
 
@@ -751,7 +751,7 @@ const useCalls = ({
 
             return await DOMManipulationQueue.enqueue(async () => {
                 return await reset(seedReferenceID)
-            })
+            }, 'fetchCradleCells')
 
         }
 
@@ -780,7 +780,7 @@ const useCalls = ({
 
             return true
 
-        })
+        }, 'fetchCradleCells')
 
     }
 
@@ -814,7 +814,7 @@ const useCalls = ({
 
         }
 
-        return DOMManipulationQueue.enqueue(restore)
+        return DOMManipulationQueue.enqueue(restore, 'restoreScrollPositions')
 
     }
 
@@ -903,7 +903,7 @@ const useCalls = ({
 
             }
 
-        })
+        }, 'replace')
 
         return result
 
