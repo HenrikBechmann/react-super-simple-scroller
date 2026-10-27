@@ -5,7 +5,7 @@ import React, {FC} from 'react'
 
 import { createPortal } from 'react-dom'
 
-import { createContainer, createBand, isValidID, reportError, reportWarning } from './utilities'
+import { createContainer, createBand, isValidID, isReservedID, reportError, reportWarning } from './utilities'
 
 /*
     - calls available to host
@@ -724,8 +724,8 @@ const useCalls = ({
         const specs = {
             cradleActual: {
                 scrollerName,
-                firstReferenceID: portalIDListRef.current[0],
-                lastReferenceID: portalIDListRef.current.at(-1),
+                firstRealReferenceID: portalIDListRef.current[0],
+                lastRealReferenceID: portalIDListRef.current.at(-1),
                 axisReferenceID: currentAxisReferenceIDRef.current, 
                 ...cradleActualRef.current
             },
@@ -818,7 +818,9 @@ const useCalls = ({
 
     }
 
+    // a reserved id is the scroller's own, never a host's, so asking about one is not a fault
     const has = (referenceID) => {
+        if (isReservedID(referenceID)) return false
         if (!isValidID(referenceID )) {
             reportError(callbacksRef, 'has', 'must be a valid referenceID', [referenceID])
             return false

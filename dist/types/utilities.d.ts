@@ -1,3 +1,4 @@
+export declare const isReservedID: (referenceID: any) => boolean;
 export declare const isValidID: (referenceID: any) => boolean;
 export declare const errorMessage: (error: any) => string;
 export declare const reportError: (callbacksRef: any, source: any, message: any, args?: any[], extra?: {}) => void;

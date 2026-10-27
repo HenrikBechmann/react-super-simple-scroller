@@ -3,9 +3,15 @@
 
 // ============================[ utilities ]============================
 
+// The scroller's own ids: a string that opens and closes with `_~_`. They are kept for cells the scroller places
+// itself, so a host id in this form is refused wherever an id is checked.
+const RESERVED_ID_PATTERN = /^_~_[\s\S]*_~_$/
+
+export const isReservedID = (referenceID) => (typeof referenceID == 'string') && RESERVED_ID_PATTERN.test(referenceID)
+
 export const isValidID = (referenceID) => {
     return ((typeof referenceID == 'number') && Number.isFinite(referenceID) || 
-        ((typeof referenceID == 'string')  && (referenceID !== '')) )
+        ((typeof referenceID == 'string')  && (referenceID !== '') && !isReservedID(referenceID)) )
 }
 
 export const errorMessage = (error) => {

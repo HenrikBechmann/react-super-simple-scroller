@@ -199,7 +199,7 @@ See notes about the required parameters, and other available parameters, below.
 
 ### Unique cell referenceID's
 
-RS3 requires every component received from the host to be associated with a unique (to the cradle) referenceID — a finite number or a non-empty string. It can be anything from a host array index to a database record's non-compound surrogate key. This is enforced. A cellPack with a duplicate id (or an invalid cellPack) provided to the scroller will cause loading of the current cellPack list to be aborted.
+RS3 requires every component received from the host to be associated with a unique (to the cradle) referenceID — a finite number or a non-empty string. It can be anything from a host array index to a database record's non-compound surrogate key. Ids of the form `_~_…_~_` (a string that opens and closes with `_~_`) are the scroller's own, and are refused from the host wherever an id is checked; `has` answers `false` for one, with no report. This is enforced. A cellPack with a duplicate id (or an invalid cellPack) provided to the scroller will cause loading of the current cellPack list to be aborted.
 
 This allows the `fetchCells` function to be straightforward. The parameters of the function are `fetchCells(startCode, referenceID, count)`. The `startCode` value can be `'at'`, `'after'` or `'before'`. The referenceID is the reference from which the returned cells should be selected. The `fetchCells` return value must be an array containing _cellPacks_ of items up to the `count` number (any extra items will be ignored). 
 
@@ -362,8 +362,8 @@ The following three are queries of the state of the cradle.
 ```
 {
   axisReferenceID
-  firstReferenceID
-  lastReferenceID
+  firstRealReferenceID // the first cell in the cradle
+  lastRealReferenceID // the last cell in the cradle
 }
 ```
 In a nutshell, RS3 tries to make the actual look like the potential, anchored by the axis.
