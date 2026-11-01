@@ -1360,6 +1360,9 @@ export type FetchCells = (startCode: 'at' | 'after' | 'before', referenceID: any
 // position in the run at its end, counted from the real rows, the direction of that run, and the real row it stands beside
 export type PlaceholderProps = { context: any, index: number, direction: 'forward' | 'backward', referenceID: any }
 
+// the second argument of callbacks.axisReferenceID when the axis stands on a placeholder
+export type AxisContext = { isPlaceholder: true, referenceID: any, direction: 'forward' | 'backward' }
+
 export type ReactSuperSimpleScrollerProps = {
 
     // required

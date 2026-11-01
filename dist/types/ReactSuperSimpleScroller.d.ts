@@ -14,6 +14,11 @@ export type PlaceholderProps = {
     direction: 'forward' | 'backward';
     referenceID: any;
 };
+export type AxisContext = {
+    isPlaceholder: true;
+    referenceID: any;
+    direction: 'forward' | 'backward';
+};
 export type ReactSuperSimpleScrollerProps = {
     orientation?: 'vertical' | 'horizontal';
     layout?: 'uniform' | 'variable';

@@ -294,7 +294,7 @@ The following properties are optional, and are designed to support specific use 
 
 Notes about the callbacks (the returned values are found in the arguments of the functions): 
 
-The **axisReferenceID(axisReferenceID, context?)** function returns the current referenceID situated in the first position of the tailblock (right next to the axis) whenever that changes, providing important context to the host. When the cell at the axis is a placeholder (see **Placeholders**), the id is the placeholder's own, and `context` is `{isPlaceholder: true, referenceID, direction}`: the host's row the placeholder stands beside and which side of it. A host that keeps the axis for a restore reads `context?.referenceID ?? axisReferenceID`. A real row at the axis is reported with no `context`.
+The **axisReferenceID(axisReferenceID, context?)** function returns the current referenceID situated in the first position of the tailblock (right next to the axis) whenever that changes, providing important context to the host. When the cell at the axis is a placeholder (see **Placeholders**), the id is the placeholder's own, and `context` is `{isPlaceholder: true, referenceID, direction}` (the exported `AxisContext` type): the host's row the placeholder stands beside and which side of it. A host that keeps the axis for a restore reads `context?.referenceID ?? axisReferenceID`. A real row at the axis is reported with no `context`.
 
 the **resized(cradlePotential)** function returns the current cradlePotential object, as modified as the result of a user resize operation. See the `getCradleSpecs` call for details of the cradlePotential contents.
 
