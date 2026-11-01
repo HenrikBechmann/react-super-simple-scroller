@@ -514,7 +514,8 @@ const Viewport = (props) =>{
             currentAxisReferenceIDRef,
             callbacksRef,
             bandMutationObserverRef,
-            
+            requestIntersectionsConnect,
+
         }),
 
         removeCells = useRemoveCells({

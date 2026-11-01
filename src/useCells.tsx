@@ -60,6 +60,7 @@ const useCells = ({
     currentAxisReferenceIDRef,
     callbacksRef,
     bandMutationObserverRef,
+    requestIntersectionsConnect,
 
 }) => {
 
@@ -584,7 +585,13 @@ const useCells = ({
 
             clearTimeout(pending.ceilingTimer)
 
-            DOMManipulationQueueRef.current.enqueue(async () => applyAnswer(pending, attempt, answer), 'fetchCells answer')
+            DOMManipulationQueueRef.current.enqueue(async () => {
+                try {
+                    applyAnswer(pending, attempt, answer)
+                } finally {
+                    requestIntersectionsConnect()
+                }
+            }, 'fetchCells answer')
                 .catch((error) => {
                     leadTailblockBandRef.current && reportError(callbacksRef, `fetchCells, ${pending.startCode}`, errorMessage(error),
                         [pending.startCode, pending.referenceID, pending.count])
@@ -615,9 +622,11 @@ const useCells = ({
             return
         }
 
-        reportWarning(callbacksRef, `fetchCells, ${pending.startCode}`,
-            `no answer within ${fetchCeilingRef.current} ms (technical.FETCH_CEILING); the same cells are asked for again`,
-            [pending.startCode, pending.referenceID, pending.count], {attempt})
+        const
+            source = `fetchCells, ${pending.startCode}`,
+            message = `no answer within ${fetchCeilingRef.current} ms (technical.FETCH_CEILING); the same cells are asked for again`
+
+        reportWarning(callbacksRef, source, message, [pending.startCode, pending.referenceID, pending.count], {attempt})
 
         ids.forEach((id, k) => { state.map.get(id).index = k })
         pending.ids = ids
@@ -703,9 +712,9 @@ const useCells = ({
         }
 
         if (cells.length > count) {
-            const excess = cells.slice(count)
+            const excessIDList = cells.slice(count).map((cellPack) => cellPack?.id)
             cells = cells.slice(0, count)
-            reportFailed(callbacksRef, source, 'too many cellPacks; excess not loaded', excess.map((cellPack) => cellPack?.id))
+            reportFailed(callbacksRef, source, 'too many cellPacks; excess not loaded', excessIDList)
         }
 
         if (!cells.length) { // the end of the data at this end
@@ -721,16 +730,16 @@ const useCells = ({
             return
         }
 
-        const dropped = []
+        const droppedIDList = []
 
-        // the answer is in display order: forward, its first cell is nearest the real rows; backward, its last is.
-        // A short answer fills the nearest positions and leaves the far ones standing
+        // either answer starts nearest the real rows: 'after' is REF+1, REF+2, …, and 'before' is REF-1, REF-2, …,
+        // as the inline path takes them. A short answer fills the nearest positions and leaves the far ones standing
         cells.forEach((cellPack, k) => {
 
-            const id = pending.ids[(direction == 'forward')?k:(cells.length - 1 - k)]
+            const id = pending.ids[k]
 
             if (id === undefined || !state.map.has(id)) {
-                dropped.push(cellPack.id)
+                droppedIDList.push(cellPack.id)
                 return
             }
 
@@ -738,8 +747,8 @@ const useCells = ({
 
         })
 
-        if (dropped.length) {
-            reportFailed(callbacksRef, source, 'no placeholder stands at the asked position; not loaded', dropped)
+        if (droppedIDList.length) {
+            reportFailed(callbacksRef, source, 'no placeholder stands at the asked position; not loaded', droppedIDList)
         }
 
         reanchor(direction)

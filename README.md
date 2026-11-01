@@ -19,6 +19,7 @@ This product is in beta.
 - fixed or variable axis cell length, and uniform cross-axis cell length
 - dynamic changes to scroller cradle content through function calls
 - dispatch synthetic events to cells
+- placeholder cells while the host is fetching, in both directions, filled in place; the host may supply its own
 
 Designed for modern browsers.
 
@@ -215,7 +216,7 @@ The `'at'` call is the opening request, made for the scroller's `seedReferenceID
 
 The scroller waits synchronously for a response from each `fetchCells` call. Therefore if there is much latency in those responses, the performance of the scroller can deteriorate. If your cell content is heavy, or delayed, you might consider returning a light cellFrame component instead, whose job it is to load the substantial content asynchronously. You might even consider using `requestIdleCallback` for that asynchronous load.
 
-Another strategy is to load a light generic placeholder component and then use the scroller’s `replace` call to replace it when the host has obtained the substantial component.
+The scroller shows its own placeholder cells while a fetch is out (see **Placeholders** below), so the list keeps moving while the host is slow; a host that wants the placeholder to carry something of its own (a skeleton of the cell, a message) supplies it as `operations.placeholder`.
 
 ## Properties
 
@@ -237,7 +238,7 @@ The following properties are required.
 |layout: ’uniform’ &vert; ‘variable’|’variable' allows expandability along the scrolling axis (default ‘uniform'). An absent value is the default, and any other is replaced and reported as for `orientation`|
 |cellDimensions: {<br>&nbsp; minWidth, maxWidth,<br>&nbsp; minHeight, maxHeight<br>}|integers, which can be combined to achieve various layout effects. Each is a finite number, not below zero. A field the orientation and layout read must be present (a uniform layout never reads the minimum along the axis), and the two the cradle divides by must be above zero: the minimum across the axis, and along it the maximum in a uniform layout or the minimum in a variable one. A field that breaks any of these, absent or bad, is replaced by its last good value and reported to the `warning` callback. Until a field has had a good value (at mount) nothing can stand in for it: it is reported to the `error` callback and left out, so a list mounted without a field the cradle divides by lays out nothing until one arrives. A value equal to the last good one, field by field, changes nothing, even in a new object|
 |seedReferenceID: number &vert; string|the referenceID the list opens at: RS3 asks for it with `'at'`, then for the cells after and before it|
-|fetchCells: Function|host-provided callback function; parameters: (startCode, referenceID, count)|
+|fetchCells: Function|host-provided callback function; parameters: (startCode, referenceID, count, context). `context` is `{attempt, signal}`: see **Placeholders** below|
 
 Notes:
 
@@ -288,12 +289,12 @@ The following properties are optional, and are designed to support specific use 
 | callbacks:{<br> &nbsp;axisReferenceID,<br> &nbsp;removed,<br> &nbsp;resized,<br> &nbsp;failed,<br> &nbsp;error,<br> &nbsp;warning<br>} | host-provided functions to provide support for data synchronization, and feedback from the scroller. `error` reports what the scroller could not go on with; `warning` reports a value of the host's that the scroller replaced and went on without, and a call whose purpose was already met (a `remove` of an id the cradle does not hold). A fill on an empty cradle is an error: it cannot be met, and the host has to reposition the list with `fetchCradleCells(referenceID)` instead. Each callback is read when the report is made, and one that throws is caught and logged to the console. With no callback for a report, the report goes to the console, named by the scroller: an `error` to `console.error`, a `warning` or a `failed` batch to `console.warn`, as `react-super-simple-scroller (<scrollerName>): <source>: <message>` with the report's object beside it |
 | calls:{<br> &nbsp;insert, <br> &nbsp;remove, <br> &nbsp;move <br> &nbsp;replace, <br> &nbsp;dispatchEvent, <br> &nbsp;fetchCradleCells, <br> &nbsp;has, <br> &nbsp;getCradleIDList <br> &nbsp;getCradleSpecs, <br> &nbsp;restoreScrollPositions <br>} | Pass an empty object which will be populated by RS3. RS3 provided functions: 6 operations on the cradle, 3 ways to query the cradle, and `restoreScrollPositions` (see the section on restoring scroll positions below) |
 | spacing:{<br> &nbsp;cradleMargin:[start, end]<br> &nbsp;bandPadding:[start, end]<br> &nbsp;cellGap:number <br>} | all integers. cradleMargin is cross-axis spacing at the edges; bandPadding is axis spacing at the start and end of each band; cellGap is cross-axis spacing between cells  |
-| operations:{<br> &nbsp;dispatchAttachedEvents,<br> runway<br>} | when dispatchAttachedEvents is set to `true`, RS3 dispatches events to container components to alert them to the need to restore scroll positions. Default `false`. `runway` is the number of bands out of view, both start and end. Default 4 |
+| operations:{<br> &nbsp;dispatchAttachedEvents,<br> &nbsp;runway,<br> &nbsp;placeholderCap,<br> &nbsp;placeholder,<br> &nbsp;placeholderContext<br>} | when dispatchAttachedEvents is set to `true`, RS3 dispatches events to container components to alert them to the need to restore scroll positions. Default `false`. `runway` is the number of bands out of view, both start and end. Default 4. `placeholderCap` is the most placeholder cells the scroller stands at each end of the cradle while a fetch is out; `0` turns placeholders off; default a viewport and a half of cells. `placeholder` is the host's own placeholder component, and `placeholderContext` is passed to every placeholder untouched. See **Placeholders** below |
 |scrollerName: string|for debugging, added to the viewport element as data-scrollername|
 
 Notes about the callbacks (the returned values are found in the arguments of the functions): 
 
-The **axisReferenceID(axisReferenceID)** function returns the current referenceID situated in the first position of the tailblock (right next to the axis) whenever that changes, providing important context to the host.
+The **axisReferenceID(axisReferenceID, context?)** function returns the current referenceID situated in the first position of the tailblock (right next to the axis) whenever that changes, providing important context to the host. When the cell at the axis is a placeholder (see **Placeholders**), the id is the placeholder's own, and `context` is `{isPlaceholder: true, referenceID, direction}`: the host's row the placeholder stands beside and which side of it. A host that keeps the axis for a restore reads `context?.referenceID ?? axisReferenceID`. A real row at the axis is reported with no `context`.
 
 the **resized(cradlePotential)** function returns the current cradlePotential object, as modified as the result of a user resize operation. See the `getCradleSpecs` call for details of the cradlePotential contents.
 
@@ -331,9 +332,9 @@ A call must not be awaited from inside `fetchCells`. Every fetch runs inside a q
 
 The following three are queries of the state of the cradle.
 
-**has(referenceID)** Returns `true` or `false`.
+**has(referenceID, out?)** Returns `true` or `false`. A placeholder's id (the scroller's own, in the reserved form `_~_…_~_`) answers `true` while the placeholder stands, and never a report: pass an object as `out` and it is filled with `{isPlaceholder: true, referenceID, direction}`, the host's row the placeholder stands beside and which side of it.
 
-**getCradleIDList()** Returns an array of referenceID’s currently in the cradle, in presentation order.
+**getCradleIDList()** Returns an array of referenceID’s currently in the cradle, in presentation order. Placeholders are not listed: the list is the host's rows.
 
 **getCradleSpecs** Returns an object with two properties: `{cradlePotential, cradleActual}`.
 
@@ -362,10 +363,15 @@ The following three are queries of the state of the cradle.
 ```
 {
   axisReferenceID
-  firstRealReferenceID // the first cell in the cradle
-  lastRealReferenceID // the last cell in the cradle
+  firstRealReferenceID // the first of the host's cells in the cradle
+  lastRealReferenceID // the last of the host's cells in the cradle
+  forwardPlaceholders // placeholders standing after the host's last cell
+  backwardPlaceholders // placeholders standing before the host's first cell
+  firstPlaceholderReferenceID // the first cell in the cradle, when it is a placeholder; otherwise null
+  lastPlaceholderReferenceID // the last cell in the cradle, when it is a placeholder; otherwise null
 }
 ```
+The counts (`forwardCells`, `backwardCells`, `totalCells`) are of the host's cells; the placeholders at each end are counted beside them.
 In a nutshell, RS3 tries to make the actual look like the potential, anchored by the axis.
 
 A call made after the scroller is unmounted does nothing and answers with the empty value of its kind: `insert`, `remove`, `move`, `replace`, `fetchCradleCells` and `restoreScrollPositions` resolve `false`, `getCradleIDList` answers `[]`, `getCradleSpecs` `null`, and every other call `false`. The first such call is reported once through the `warning` callback (`source` is the call's name), or to `console.warn` when no `warning` callback is given; later ones on the same instance are silent. A call still waiting in the queue when the scroller is unmounted is answered in the same way without being run, and is reported under the same once-only warning, which then lists every dropped call's name in `dropped`. The scroller mounts under `React.StrictMode`.
@@ -378,11 +384,36 @@ The `technical` object property is really only there for experimentation. It con
 {
   STANDARD_SCROLL_MOMENTUM_FADE // ms, default 700
   SHORT_MOMENTUM_FADE // ms, default 200
+  FETCH_CEILING // ms, default 5000
 }
 ```
 The STANDARD_SCROLL_MOMENTUM_FADE is the scroll-end debounce's ceiling (a scroll counts as over at the browser's `scrollend` event where the browser sends one, and in any case once this long has passed since its last scroll event) and the least time the scroller holds the viewport still when the start or end of the data is reached (that hold ends once the wheel has gone quiet, and never sooner than this). It is also how recently a scroll event must have arrived for a crossing that the observers report to count as that scroll's and be held: an instant scroll's `scrollend` comes before the report, so the mode alone would say the scroll was over.
 
 The SHORT_MOMENTUM_FADE is the resize debounce: the viewport's new size is read this long after the last resize, from the first bootstrapping resizeObserver callback on.
+
+The FETCH_CEILING is how long a `fetchCells` call may go unanswered before the scroller drops it and asks for the same cells again (see **Placeholders**). A value that is not a positive number is the default.
+
+## Placeholders
+
+A list that outruns its rows shows placeholder cells. When the cradle is short at an end and the host has not yet answered, the scroller stands placeholder cells in the positions it is waiting on, asks `fetchCells` for them, and fills each in place when the answer comes: the row takes the placeholder's position and container, and nothing else in the cradle moves. The list keeps scrolling meanwhile, in both directions, and the end-of-data hold (the viewport held still for a moment when the data runs out) is taken only once the host has answered that there is nothing more.
+
+Three settings on `operations`:
+
+- **`placeholderCap`** is the most placeholders the scroller stands at each end. The default is a viewport and a half of cells (`Math.ceil(1.5 × cellsPerBand × visibleBands)`). `0` turns placeholders off, and the scroller then fills as it did before 2.0: it waits for each answer and holds the viewport while the cradle is short. A value that is not a number of 0 or more is reported to `callbacks.error` (`source` is `operations.placeholderCap`) and the default is used; a fraction is floored.
+- **`placeholder`** is the host's own placeholder component. Without one the scroller shows its default: a gray *fetching…*. The component is given `{context, index, direction, referenceID}`: the host's `placeholderContext`, the placeholder's position in the run at its end counted from the host's rows (the nearest is `0`), the run's direction (`'forward'` or `'backward'`), and the host's row it stands beside. It takes no size of its own: the cell container it stands in carries the cell dimensions, as it does for any cell. A value that is not a component is reported to `callbacks.error` (`source` is `operations.placeholder`) and the default is used.
+- **`placeholderContext`** is passed to every placeholder untouched, as `context`. The default placeholder reads `context.text` as its text, and shows none for `''`. **Define it once, or memoize it**: a new object on every render of the host re-renders every placeholder.
+
+How the fetch runs:
+
+- **One fetch out at a time.** The scroller never has two `fetchCells` calls in flight. An ask covers every placeholder standing at its end, and names the host's last (or first) row as `referenceID` with the standing count as `count`: `fetchCells('after', lastRow, n)` or `fetchCells('before', firstRow, n)`. A placeholder's id is never sent as a `referenceID`, and there is no offset to keep: a host that answers each call from the row it names needs no queue of its own. The forward end is asked first.
+- **`context`** is the fourth argument, `{attempt, signal}`. `attempt` counts the asks for the same cells, from `1`. `signal` is an `AbortSignal` that fires when the answer is no longer wanted (the ceiling below, a structural call, a reset, the unmount); a host that reads from a network can pass it on, and an answer that arrives after it fired fills nothing.
+- **The answer fills by position**, from its first cell, which takes the position nearest the host's rows: an `'after'` answer runs REF+1, REF+2, … and a `'before'` answer REF−1, REF−2, …, as they always have. A short answer fills the nearest positions and leaves the far ones standing; the next ask covers them. An empty array is the end of the data at that end: the standing placeholders there are taken down, and the hold, where one is in force, is released. The end is remembered while the cradle, the row at that end and the scroll position are as they were, so an empty answer does not start a loop of placing and asking; a scroll or a change at that end asks again.
+- **A failure withdraws the run.** A `fetchCells` that rejects, answers with anything other than an array, or returns an invalid or duplicate cellPack is reported to `callbacks.error` as before, and the placeholders at that end are taken down. The next scroll asks again. An answer beyond `count` is trimmed and reported to `failed`, as before.
+- **The ceiling.** A fetch unanswered within `technical.FETCH_CEILING` (5000 ms by default) is dropped: its `signal` fires, a warning goes to `callbacks.warning` (`source` is `fetchCells, after` or `fetchCells, before`; `attempt` is in the pack), and the same cells are asked for again with `attempt + 1`. That repeats at every ceiling, for as long as the placeholders stand; a late answer to a dropped attempt fills nothing.
+- **A structural call withdraws every placeholder** and the pending fetch before it runs: `insert`, `remove`, `move`, `replace` and `fetchCradleCells`. The refill after it stands placeholders again. A reset starts a new generation of placeholder ids.
+- **Trimming takes placeholders** as it takes any cell: a run scrolled out of the cradle is removed, and `removed` does not name them. `rs3attached` is not dispatched to them.
+
+What the host sees of a placeholder: its id is the scroller's own, in the reserved form `_~_ph:<generation>:<serial>_~_`, which `fetchCells` may never return (it is refused as any reserved id is). `callbacks.axisReferenceID` names it with a `context` when it is at the axis, `calls.has` answers it with `out`, `getCradleSpecs` counts the runs and names the outermost placeholder at each end, and `getCradleIDList` leaves them out.
 
 ## Restoring scroll positions
 
