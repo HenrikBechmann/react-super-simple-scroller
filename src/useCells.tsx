@@ -306,8 +306,9 @@ const useCells = ({
 
     // =========================[ placeholders on: placed first, filled by position ]=========================
 
-    // the placeholders standing at an end, nearest the real rows first. Where no real row stands between the
-    // two runs, a placeholder belongs to the end it was placed for
+    // the placeholders standing at an end, nearest the real rows first: a placeholder's index is its distance from
+    // them, and the run grows at its far end. Where no real row stands between the two runs, a placeholder belongs
+    // to the end it was placed for
     const standingAt = (direction) => {
 
         const
@@ -327,7 +328,7 @@ const useCells = ({
             }
         }
 
-        return ids
+        return ids.reverse()
 
     }
 
@@ -722,9 +723,11 @@ const useCells = ({
 
         const dropped = []
 
+        // the answer is in display order: forward, its first cell is nearest the real rows; backward, its last is.
+        // A short answer fills the nearest positions and leaves the far ones standing
         cells.forEach((cellPack, k) => {
 
-            const id = pending.ids[k]
+            const id = pending.ids[(direction == 'forward')?k:(cells.length - 1 - k)]
 
             if (id === undefined || !state.map.has(id)) {
                 dropped.push(cellPack.id)
