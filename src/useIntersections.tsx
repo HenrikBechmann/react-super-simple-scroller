@@ -56,6 +56,8 @@ const useIntersections = ({
     fillCradle,
     updateCurrentAxisReferenceID,
     trimCradle,
+    isFetchOpenAt,
+    onEndOfDataRef,
 
 }) => {
 
@@ -294,7 +296,7 @@ const useIntersections = ({
                     // asked for cells before the first one and none came: the hold begun above, if it is
                     // still the one in force, is at the head of the data
                     if (headHold && holdRef.current.viewport && (holdRef.current.count == headHold) && !holdRef.current.isRecovery &&
-                        isCradleShortAt('head')) {
+                        isCradleShortAt('head') && !isFetchOpenAt('head')) {
 
                         markEndOfData('head')
 
@@ -682,12 +684,25 @@ const useIntersections = ({
         }
 
         // No new cells: snap to boundary (last item bottom = viewport bottom).
-        // axis + tailHeight - vpDim is invariant under axis shifts, so this is always correct.
+        snapToTailBoundary()
+
+        // still short of its potential after the fill: the host was asked for more and had none, which is
+        // the end of the data. A full cradle that the scroll has outrun is not, and nor is one whose fetch
+        // is still out: the answer, when it comes, says
+        holdScrolling((isCradleShortAt('tail') && !isFetchOpenAt('tail'))?'tail':null)
+
+    }
+
+    // axis + tailHeight - vpDim is invariant under axis shifts, so this is always correct.
+    const snapToTailBoundary = (onlyIfPast = false) => {
+
         const isH = orientationRef.current === 'horizontal'
         const axis = isH ? axisPositionRef.current.x : axisPositionRef.current.y
         const tailDim = isH ? tailblockRef.current.offsetWidth : tailblockRef.current.offsetHeight
         const vpDim = isH ? viewportRef.current.clientWidth : viewportRef.current.clientHeight
         const boundary = axis + tailDim - vpDim
+
+        if (onlyIfPast && ((isH ? viewportRef.current.scrollLeft : viewportRef.current.scrollTop) <= boundary)) return
 
         if (isH) {
             scrollLeftRef.current = boundary
@@ -697,9 +712,24 @@ const useIntersections = ({
             viewportRef.current.scrollTo(viewportRef.current.scrollLeft, boundary)
         }
 
-        // still short of its potential after the fill: the host was asked for more and had none, which is
-        // the end of the data. A full cradle that the scroll has outrun is not
-        holdScrolling(isCradleShortAt('tail')?'tail':null)
+    }
+
+    // The host answered an ask at an end with nothing, after the fill that asked had returned: the placeholders
+    // there are gone. A viewport that had scrolled onto them is brought back to the last row, and the hold the
+    // fill began, or one a scroll still in progress earns, is told it is at the end of the data
+    onEndOfDataRef.current = (direction) => {
+
+        if (!viewportRef.current) return
+
+        const
+            end = (direction == 'forward')?'tail':'head',
+            hold = holdRef.current
+
+        if (end == 'tail') snapToTailBoundary(true)
+
+        if (hold.viewport && hold.endOfData && (hold.endOfData != end)) return // held at the other end
+
+        if (hold.viewport || isScrollInputRecent()) holdScrolling(end)
 
     }
 

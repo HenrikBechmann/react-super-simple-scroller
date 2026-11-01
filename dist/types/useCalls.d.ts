@@ -1,5 +1,5 @@
 import { FC } from 'react';
-declare const useCalls: ({ runwayBandsRef, DOMManipulationQueueRef, scrollerName, operationsRef, portalIDListRef, cellPortalListRef, cellDataListRef, portalContainerMapRef, spacingRef, scrollTopRef, scrollLeftRef, viewportRef, headblockRef, tailblockRef, headBandListRef, tailBandListRef, leadHeadblockBandRef, cradleActualRef, cradlePotentialRef, cellDimensionsRef, viewportDimensionsRef, orientationRef, layoutRef, currentAxisReferenceIDRef, setPortalRenderList, updateCurrentAxisReferenceID, trimCradle, fillCradle, reset, callbacksRef, assertIntersectionsDisconnect, requestIntersectionsConnect, bandMutationObserverRef, }: {
+declare const useCalls: ({ runwayBandsRef, DOMManipulationQueueRef, scrollerName, operationsRef, portalIDListRef, cellPortalListRef, cellDataListRef, portalContainerMapRef, spacingRef, scrollTopRef, scrollLeftRef, viewportRef, headblockRef, tailblockRef, headBandListRef, tailBandListRef, leadHeadblockBandRef, cradleActualRef, cradlePotentialRef, cellDimensionsRef, viewportDimensionsRef, orientationRef, layoutRef, currentAxisReferenceIDRef, setPortalRenderList, updateCurrentAxisReferenceID, trimCradle, fillCradle, reset, callbacksRef, assertIntersectionsDisconnect, requestIntersectionsConnect, bandMutationObserverRef, placeholdersRef, withdrawPlaceholders, placeholderReport, }: {
     runwayBandsRef: any;
     DOMManipulationQueueRef: any;
     scrollerName: any;
@@ -33,8 +33,15 @@ declare const useCalls: ({ runwayBandsRef, DOMManipulationQueueRef, scrollerName
     assertIntersectionsDisconnect: any;
     requestIntersectionsConnect: any;
     bandMutationObserverRef: any;
+    placeholdersRef: any;
+    withdrawPlaceholders: any;
+    placeholderReport: any;
 }) => {
-    has: (referenceID: any) => any;
+    has: (referenceID: any, out?: {
+        isPlaceholder?: boolean;
+        referenceID?: any;
+        direction?: string;
+    }) => any;
     insert: (cellPack: {
         id: any;
         component: FC;
@@ -46,7 +53,7 @@ declare const useCalls: ({ runwayBandsRef, DOMManipulationQueueRef, scrollerName
         component: any;
         default: boolean;
     }) => Promise<any>;
-    getCradleIDList: () => any[];
+    getCradleIDList: () => any;
     getCradleSpecs: () => {
         cradleActual: any;
         cradlePotential: any;

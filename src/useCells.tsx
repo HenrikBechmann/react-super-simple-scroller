@@ -4,11 +4,29 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 
-import { createBand, createContainer, isValidID, reportError, reportFailed, errorMessage } from './utilities'
+import { createBand, createContainer, isValidID, reportError, reportFailed, reportWarning, errorMessage } from './utilities'
+import { DefaultPlaceholder, placeholderID } from './placeholders'
 
+// Two ways to grow the cradle, chosen by operations.placeholderCap.
+//
+// With the cap at 0 the host's fetch is awaited where the fill runs: the cradle grows when the answer comes, and
+// nothing shows in the meantime (getCellsInline).
+//
+// With a cap above 0 a fill first places placeholder cells in the positions it would ask for, up to the cap at each
+// end and within the cradle's room there, so the list grows at once and the layout holds while the host answers.
+// One fetch is out at a time. It is asked for the last real row's id (the first, backward) and the count of the
+// placeholders standing at that end, and its answer fills them by position: item k fills the placeholder that was
+// k-th from the real rows when the ask was sent, in place, in the one container, so a fill moves nothing. A short
+// answer leaves the rest standing, re-anchored on the new last real row for the next ask; an empty answer is the
+// end of the data at that end and takes the rest down. Positions that open while a fetch is out get placeholders
+// and wait for the next ask. A fetch unanswered within technical.FETCH_CEILING is dropped, its signal fired, and
+// the same positions asked for again, once per ceiling, for as long as they stand. A structural call, a reset or
+// the unmount withdraws the standing placeholders and drops the pending answer.
 const useCells = ({
 
     scrollerName,
+
+    DOMManipulationQueueRef,
 
     orientationRef,
     layoutRef,
@@ -23,6 +41,7 @@ const useCells = ({
     portalContainerMapRef,
 
     cellDimensionsRef,
+    viewportRef,
 
     tailblockRef,
     tailBandListRef,
@@ -33,11 +52,68 @@ const useCells = ({
 
     setPortalRenderList,
     fetchCellsRef,
+    operationsRef,
+    fetchCeilingRef,
+    placeholdersRef,
+    onEndOfDataRef,
     updateCurrentAxisReferenceID,
+    currentAxisReferenceIDRef,
     callbacksRef,
     bandMutationObserverRef,
 
 }) => {
+
+    const
+        placeholderState = () => placeholdersRef.current,
+        badOptionsReported = new Set()
+
+    // an option that cannot be used is reported once per value, and the default stands in for it
+    const reportBadOption = (name, value, message) => {
+        if (badOptionsReported.has(value)) return
+        badOptionsReported.add(value)
+        reportError(callbacksRef, name, message, [value])
+    }
+
+    const placeholderCap = () => {
+
+        const
+            cap = operationsRef.current?.placeholderCap,
+            cradlePotential = cradlePotentialRef.current
+
+        if (cap === undefined || cap === null) {
+            return Math.ceil(1.5 * cradlePotential.cellsPerBand * cradlePotential.visibleBands)
+        }
+
+        if ((typeof cap == 'number') && Number.isFinite(cap) && (cap >= 0)) return Math.floor(cap)
+
+        reportBadOption('operations.placeholderCap', cap, 'must be a number of 0 or more; the default is used')
+
+        return Math.ceil(1.5 * cradlePotential.cellsPerBand * cradlePotential.visibleBands)
+
+    }
+
+    const placeholderComponentType = () => {
+
+        const Component = operationsRef.current?.placeholder
+
+        if (Component === undefined || Component === null) return DefaultPlaceholder
+
+        if (typeof Component == 'function' || (typeof Component == 'object')) return Component
+
+        reportBadOption('operations.placeholder', Component, 'must be a component; the default placeholder is used')
+
+        return DefaultPlaceholder
+
+    }
+
+    // -------------------------[ the host's fetch ]-------------------------
+
+    // the signal given to a fetch made with placeholders off: it fires at a reset and at the unmount
+    const inlineSignal = () => {
+        const state = placeholderState()
+        if (!state.inlineController || state.inlineController.signal.aborted) state.inlineController = new AbortController()
+        return state.inlineController.signal
+    }
 
     // A host fetch that rejects, or answers with anything but an array, is reported and read as an empty
     // batch: the pass ends there and the next scroll asks again. An empty array is the end of the data.
@@ -47,11 +123,11 @@ const useCells = ({
 
         try {
 
-            cells = await fetchCells(startCode, referenceID, count)
+            cells = await fetchCells(startCode, referenceID, count, {attempt: 1, signal: inlineSignal()})
 
         } catch (error) {
 
-            leadTailblockBandRef.current && reportError(callbacksRef, `fetchCells, ${startCode}`, 
+            leadTailblockBandRef.current && reportError(callbacksRef, `fetchCells, ${startCode}`,
                 `fetchCells rejected: ${errorMessage(error)}`, [startCode, referenceID, count])
 
             return []
@@ -60,7 +136,7 @@ const useCells = ({
 
         if (!Array.isArray(cells)) {
 
-            leadTailblockBandRef.current && reportError(callbacksRef, `fetchCells, ${startCode}`, 
+            leadTailblockBandRef.current && reportError(callbacksRef, `fetchCells, ${startCode}`,
                 'fetchCells must return an array of cellPacks', [startCode, referenceID, count], {return: cells})
 
             return []
@@ -76,13 +152,22 @@ const useCells = ({
 
         if (!tailblockRef.current || !headblockRef.current || !leadTailblockBandRef.current) return
 
-        const 
+        if (!cradlePotentialRef.current) return // uninitialized
+
+        if (placeholderCap() === 0) return getCellsInline(startCode, seedReferenceID)
+
+        return getCellsWithPlaceholders(startCode, seedReferenceID)
+
+    }
+
+    // =========================[ placeholders off: the fetch awaited in place ]=========================
+
+    const getCellsInline = async (startCode, seedReferenceID) => {
+
+        const
             cradlePotential = cradlePotentialRef.current,
             cradleActual = cradleActualRef.current,
             fetchCells = fetchCellsRef.current
-
-
-        if (!cradlePotential) return // uninitialized
 
         if (startCode == 'at') {
 
@@ -118,7 +203,7 @@ const useCells = ({
             // nothing at the reference: there is no row to fetch after or before from
             if (!cellPortalListRef.current.length) return
 
-            await getCells('after')
+            await getCellsInline('after', null)
 
         } else if (startCode == 'after') {
 
@@ -132,7 +217,7 @@ const useCells = ({
             let moreExpected = true
             while ((cradleActual.forwardCells < (cradlePotential.forwardCells - offset)) && moreExpected) {
 
-                const 
+                const
                     count = cradlePotential.forwardCells - cradleActual.forwardCells
 
                 let newCells = []
@@ -170,14 +255,14 @@ const useCells = ({
 
             }
 
-            await getCells('before')
+            await getCellsInline('before', null)
 
         } else if (startCode == 'before') {
 
             let moreExpected = true
             while ((cradleActual.backwardCells < cradlePotential.backwardCells) && moreExpected) {
 
-                const 
+                const
                     count = cradlePotential.backwardCells - cradleActual.backwardCells
 
                 let newCells = []
@@ -204,7 +289,6 @@ const useCells = ({
                     const newPortalList = setBackwardCells(newCells)
                     if (newPortalList.length === cellPortalListRef.current.length) { // something went wrong
                         reportError(callbacksRef, 'fetchCells, before', 'one or more errors found in fetched cellPacks. Loading aborted', [startCode, portalIDListRef.current[0], count], {return: newCells})
-
                         break
                     }
                     cellPortalListRef.current = newPortalList
@@ -219,6 +303,666 @@ const useCells = ({
         }
 
     }
+
+    // =========================[ placeholders on: placed first, filled by position ]=========================
+
+    // the placeholders standing at an end, nearest the real rows first. Where no real row stands between the
+    // two runs, a placeholder belongs to the end it was placed for
+    const standingAt = (direction) => {
+
+        const
+            portalIDList = portalIDListRef.current,
+            map = placeholderState().map,
+            ids = []
+
+        if (direction == 'forward') {
+            for (let index = portalIDList.length - 1; index >= 0; index--) {
+                if (map.get(portalIDList[index])?.direction !== 'forward') break
+                ids.push(portalIDList[index])
+            }
+        } else {
+            for (let index = 0; index < portalIDList.length; index++) {
+                if (map.get(portalIDList[index])?.direction !== 'backward') break
+                ids.push(portalIDList[index])
+            }
+        }
+
+        return ids
+
+    }
+
+    const lastRealID = () => {
+        const portalIDList = portalIDListRef.current, map = placeholderState().map
+        for (let index = portalIDList.length - 1; index >= 0; index--) {
+            if (!map.has(portalIDList[index])) return portalIDList[index]
+        }
+        return undefined
+    }
+
+    const firstRealID = () => {
+        const portalIDList = portalIDListRef.current, map = placeholderState().map
+        for (let index = 0; index < portalIDList.length; index++) {
+            if (!map.has(portalIDList[index])) return portalIDList[index]
+        }
+        return undefined
+    }
+
+    const forwardRoom = () => {
+
+        const
+            cradlePotential = cradlePotentialRef.current,
+            cradleActual = cradleActualRef.current,
+            tailBandList = tailBandListRef.current,
+            offset = (tailBandList.length > 1)?(cradleActual.cellsPerBand - tailBandList[0].childElementCount):0
+
+        return Math.max(cradlePotential.forwardCells - offset - cradleActual.forwardCells, 0)
+
+    }
+
+    const backwardRoom = () => Math.max(cradlePotentialRef.current.backwardCells - cradleActualRef.current.backwardCells, 0)
+
+    const endID = (direction) => (direction == 'forward')?portalIDListRef.current.at(-1):portalIDListRef.current[0]
+
+    const markEndOfData = (direction) => {
+
+        const viewport = viewportRef.current
+
+        placeholderState().endOfData[direction] = {
+            cradleActual: cradleActualRef.current,
+            endID: endID(direction),
+            scrollTop: viewport?.scrollTop,
+            scrollLeft: viewport?.scrollLeft,
+        }
+
+    }
+
+    // the mark stands while nothing has changed since the empty answer; it is cleared when read otherwise
+    const isEndMarked = (direction) => {
+
+        const
+            state = placeholderState(),
+            mark = state.endOfData[direction]
+
+        if (!mark) return false
+
+        const
+            viewport = viewportRef.current,
+            stands = (mark.cradleActual === cradleActualRef.current) && (mark.endID === endID(direction)) &&
+                !!viewport && (mark.scrollTop === viewport.scrollTop) && (mark.scrollLeft === viewport.scrollLeft)
+
+        if (!stands) state.endOfData[direction] = null
+
+        return stands
+
+    }
+
+    const clearEndOfDataMarks = () => {
+        const state = placeholderState()
+        state.endOfData.forward = null
+        state.endOfData.backward = null
+    }
+
+    const placeholderPortal = (id, entry) => {
+
+        const Component = placeholderComponentType()
+
+        return createPortal(
+            <Component context={operationsRef.current?.placeholderContext} index={entry.index}
+                direction={entry.direction} referenceID={entry.referenceID} />,
+            portalContainerMapRef.current.get(id), id)
+
+    }
+
+    const makePlaceholders = (direction, count, referenceID) => {
+
+        const
+            state = placeholderState(),
+            base = standingAt(direction).length,
+            packs = []
+
+        for (let k = 0; k < count; k++) {
+            const
+                id = placeholderID(state.generation, ++state.serial),
+                entry = {direction, referenceID, askID: null, index: base + k}
+            state.map.set(id, entry)
+            packs.push({id, entry})
+        }
+
+        return packs
+
+    }
+
+    // places up to count placeholders at the end, within the cap there; answers the number placed
+    const placeAt = (direction, referenceID, count) => {
+
+        const
+            cap = placeholderCap(),
+            standing = standingAt(direction).length,
+            n = Math.min(count, cap - standing)
+
+        if (n <= 0) return 0
+
+        const packs = makePlaceholders(direction, n, referenceID)
+
+        cellPortalListRef.current = (direction == 'forward')
+            ? placeForward(packs, (id, entry) => placeholderPortal(id, entry))
+            : placeBackward(packs, (id, entry) => placeholderPortal(id, entry))
+
+        return n
+
+    }
+
+    // fills the room at both ends with placeholders, within the caps, and sends the next ask if none is out
+    const fillWithPlaceholders = () => {
+
+        const state = placeholderState()
+
+        let placed = 0
+
+        const
+            last = lastRealID(),
+            first = firstRealID(),
+            forwardStanding = standingAt('forward'),
+            backwardStanding = standingAt('backward'),
+            forwardAnchor = (last !== undefined)?last:(forwardStanding.length?state.map.get(forwardStanding[0]).referenceID:undefined),
+            backwardAnchor = (first !== undefined)?first:(backwardStanding.length?state.map.get(backwardStanding[0]).referenceID:undefined)
+
+        if (forwardAnchor !== undefined && !isEndMarked('forward')) placed += placeAt('forward', forwardAnchor, forwardRoom())
+        if (backwardAnchor !== undefined && !isEndMarked('backward')) placed += placeAt('backward', backwardAnchor, backwardRoom())
+
+        if (placed) {
+            setPortalRenderList(cellPortalListRef.current)
+            updateCurrentAxisReferenceID()
+        }
+
+        if (!state.pending) sendNextAsk()
+
+    }
+
+    const getCellsWithPlaceholders = async (startCode, seedReferenceID) => {
+
+        const state = placeholderState()
+
+        if (startCode == 'at') {
+
+            // the opening: the seed row and those after it take the cradle's forward room
+            if (state.pending) dropPending()
+
+            const
+                count = Math.min(cradlePotentialRef.current.forwardCells, placeholderCap()),
+                packs = makePlaceholders('forward', count, seedReferenceID)
+
+            if (!count) return
+
+            cellPortalListRef.current = placeForward(packs, (id, entry) => placeholderPortal(id, entry))
+            setPortalRenderList(cellPortalListRef.current)
+            updateCurrentAxisReferenceID()
+
+            sendAsk('at', 'forward', seedReferenceID, packs.map((pack) => pack.id))
+
+            return
+
+        }
+
+        fillWithPlaceholders()
+
+    }
+
+    // the forward end is asked first; an ask covers every placeholder standing at its end
+    const sendNextAsk = () => {
+
+        for (const direction of ['forward', 'backward']) {
+
+            const ids = standingAt(direction)
+
+            if (!ids.length) continue
+
+            const
+                anchor = (direction == 'forward')?lastRealID():firstRealID(),
+                referenceID = (anchor !== undefined)?anchor:placeholderState().map.get(ids[0]).referenceID
+
+            sendAsk((direction == 'forward')?'after':'before', direction, referenceID, ids)
+
+            return
+
+        }
+
+    }
+
+    const sendAsk = (startCode, direction, referenceID, ids) => {
+
+        const
+            state = placeholderState(),
+            askID = ++state.askSerial
+
+        ids.forEach((id, k) => {
+            const entry = state.map.get(id)
+            entry.askID = askID
+            entry.index = k
+        })
+
+        state.pending = {
+            startCode,
+            direction,
+            referenceID,
+            count: ids.length,
+            attempt: 0,
+            controller: null,
+            ceilingTimer: null,
+            cradleActual: cradleActualRef.current,
+            askID,
+            ids,
+        }
+
+        issueAsk(state.pending)
+
+    }
+
+    const issueAsk = (pending) => {
+
+        pending.attempt++
+
+        const
+            attempt = pending.attempt,
+            controller = pending.controller = new AbortController(),
+            context = {attempt, signal: controller.signal}
+
+        pending.ceilingTimer = setTimeout(() => onCeiling(pending, attempt), fetchCeilingRef.current)
+
+        const call = async () => {
+            try {
+                return {ok: true, cells: await fetchCellsRef.current(pending.startCode, pending.referenceID, pending.count, context)}
+            } catch (error) {
+                return {ok: false, error}
+            }
+        }
+
+        call().then((answer) => {
+
+            if (controller.signal.aborted) return // dropped at the ceiling, by a structural call, a reset or the unmount
+
+            clearTimeout(pending.ceilingTimer)
+
+            DOMManipulationQueueRef.current.enqueue(async () => applyAnswer(pending, attempt, answer), 'fetchCells answer')
+                .catch((error) => {
+                    leadTailblockBandRef.current && reportError(callbacksRef, `fetchCells, ${pending.startCode}`, errorMessage(error),
+                        [pending.startCode, pending.referenceID, pending.count])
+                })
+
+        })
+
+    }
+
+    const onCeiling = (pending, attempt) => {
+
+        const state = placeholderState()
+
+        if (state.pending !== pending || pending.attempt !== attempt) return
+
+        if (!leadTailblockBandRef.current || cradleActualRef.current !== pending.cradleActual) {
+            dropPending()
+            return
+        }
+
+        pending.controller.abort()
+
+        const ids = standingAt(pending.direction)
+
+        if (!ids.length) { // every position has been trimmed; there is nothing to fill
+            state.pending = null
+            sendNextAsk()
+            return
+        }
+
+        reportWarning(callbacksRef, `fetchCells, ${pending.startCode}`,
+            `no answer within ${fetchCeilingRef.current} ms (technical.FETCH_CEILING); the same cells are asked for again`,
+            [pending.startCode, pending.referenceID, pending.count], {attempt})
+
+        ids.forEach((id, k) => { state.map.get(id).index = k })
+        pending.ids = ids
+        pending.count = ids.length
+
+        issueAsk(pending)
+
+    }
+
+    const dropPending = () => {
+
+        const
+            state = placeholderState(),
+            pending = state.pending
+
+        if (!pending) return
+
+        clearTimeout(pending.ceilingTimer)
+        pending.controller?.abort()
+        state.pending = null
+
+    }
+
+    const isValidCellPack = (cellPack, seen, source) => {
+
+        const isInvalid = !(
+            (cellPack !== null) &&
+            (typeof cellPack == 'object') &&
+            React.isValidElement(cellPack.component) &&
+            isValidID(cellPack.id))
+
+        if (isInvalid) {
+            reportError(callbacksRef, source, 'cellPack must have valid id and component', [cellPack])
+            return false
+        }
+
+        if (portalContainerMapRef.current.has(cellPack.id)) {
+            reportError(callbacksRef, source, 'fetched cellPack is a duplicate', [cellPack])
+            return false
+        }
+
+        if (seen.has(cellPack.id)) {
+            reportError(callbacksRef, source, 'duplicate id within the batch', [cellPack])
+            return false
+        }
+
+        seen.add(cellPack.id)
+
+        return true
+
+    }
+
+    const applyAnswer = (pending, attempt, answer) => {
+
+        const state = placeholderState()
+
+        if (state.pending !== pending || pending.attempt !== attempt) return
+
+        if (!leadTailblockBandRef.current || cradleActualRef.current !== pending.cradleActual) {
+            dropPending()
+            return
+        }
+
+        state.pending = null
+
+        const
+            {startCode, direction, referenceID, count} = pending,
+            source = `fetchCells, ${startCode}`,
+            args = [startCode, referenceID, count]
+
+        if (!answer.ok) {
+            reportError(callbacksRef, source, `fetchCells rejected: ${errorMessage(answer.error)}`, args, {attempt})
+            withdrawRun(direction)
+            return
+        }
+
+        let cells = answer.cells
+
+        if (!Array.isArray(cells)) {
+            reportError(callbacksRef, source, 'fetchCells must return an array of cellPacks', args, {return: cells})
+            withdrawRun(direction)
+            return
+        }
+
+        if (cells.length > count) {
+            const excess = cells.slice(count)
+            cells = cells.slice(0, count)
+            reportFailed(callbacksRef, source, 'too many cellPacks; excess not loaded', excess.map((cellPack) => cellPack?.id))
+        }
+
+        if (!cells.length) { // the end of the data at this end
+            endRun(direction, startCode)
+            return
+        }
+
+        const seen = new Set()
+
+        if (!cells.every((cellPack) => isValidCellPack(cellPack, seen, source))) {
+            reportError(callbacksRef, source, 'one or more errors found in fetched cellPacks. Loading aborted', args, {return: cells})
+            withdrawRun(direction)
+            return
+        }
+
+        const dropped = []
+
+        cells.forEach((cellPack, k) => {
+
+            const id = pending.ids[k]
+
+            if (id === undefined || !state.map.has(id)) {
+                dropped.push(cellPack.id)
+                return
+            }
+
+            fillInPlace(id, cellPack)
+
+        })
+
+        if (dropped.length) {
+            reportFailed(callbacksRef, source, 'no placeholder stands at the asked position; not loaded', dropped)
+        }
+
+        reanchor(direction)
+
+        setPortalRenderList([...cellPortalListRef.current])
+        updateCurrentAxisReferenceID()
+
+        fillWithPlaceholders()
+
+    }
+
+    // the real row takes the placeholder's position and container; the portal is re-keyed to the row's id
+    const fillInPlace = (placeholderID, cellPack) => {
+
+        const
+            portalIDList = portalIDListRef.current,
+            index = portalIDList.indexOf(placeholderID),
+            container = portalContainerMapRef.current.get(placeholderID),
+            {id, component} = cellPack
+
+        container.setAttribute('data-id', id)
+
+        portalIDList[index] = id
+        cellDataListRef.current[index] = cellPack
+        cellPortalListRef.current[index] = createPortal(component, container, id)
+
+        portalContainerMapRef.current.delete(placeholderID)
+        portalContainerMapRef.current.set(id, container)
+        placeholderState().map.delete(placeholderID)
+
+    }
+
+    // the placeholders left standing at an end follow the real row they now stand beside
+    const reanchor = (direction) => {
+
+        const
+            ids = standingAt(direction),
+            anchor = (direction == 'forward')?lastRealID():firstRealID(),
+            state = placeholderState()
+
+        ids.forEach((id, k) => {
+            const
+                entry = state.map.get(id),
+                index = portalIDListRef.current.indexOf(id)
+            if (anchor !== undefined) entry.referenceID = anchor
+            entry.index = k
+            entry.askID = null
+            cellPortalListRef.current[index] = placeholderPortal(id, entry)
+        })
+
+    }
+
+    // an empty answer: the positions at that end are taken down, and the hold, if one is in force, is told
+    const endRun = (direction, startCode) => {
+
+        removePlaceholderCells(standingAt(direction))
+
+        setPortalRenderList([...cellPortalListRef.current])
+
+        if (!portalIDListRef.current.length) {
+
+            // nothing at the seed: the axis stood on a placeholder, and there is no row to put it on
+            if (currentAxisReferenceIDRef.current !== null) {
+                currentAxisReferenceIDRef.current = null
+                callbacksRef.current.axisReferenceID && callbacksRef.current.axisReferenceID(null)
+            }
+
+            return
+
+        }
+
+        updateCurrentAxisReferenceID()
+
+        if (startCode != 'at') {
+            onEndOfDataRef.current && onEndOfDataRef.current(direction)
+            markEndOfData(direction) // after the snap the host of the hold may have made
+        }
+
+        sendNextAsk()
+
+    }
+
+    // a failed answer: the run is withdrawn, and the next scroll asks again
+    const withdrawRun = (direction) => {
+
+        removePlaceholderCells(standingAt(direction))
+
+        setPortalRenderList([...cellPortalListRef.current])
+        updateCurrentAxisReferenceID()
+
+        sendNextAsk()
+
+    }
+
+    // every standing placeholder goes, and the pending answer with it: a structural call is about to move rows
+    const withdrawPlaceholders = () => {
+
+        const state = placeholderState()
+
+        dropPending()
+        clearEndOfDataMarks()
+
+        if (!state.map.size) return false
+
+        removePlaceholderCells([...state.map.keys()])
+
+        setPortalRenderList([...cellPortalListRef.current])
+        updateCurrentAxisReferenceID()
+
+        return true
+
+    }
+
+    const removePlaceholderCells = (ids) => {
+
+        const
+            portalIDList = portalIDListRef.current,
+            cellPortalList = cellPortalListRef.current,
+            cellDataList = cellDataListRef.current,
+            portalContainerMap = portalContainerMapRef.current,
+            cradleActual = cradleActualRef.current,
+            state = placeholderState()
+
+        ids.forEach((id) => {
+
+            const index = portalIDList.indexOf(id)
+
+            if (index < 0) {
+                state.map.delete(id)
+                return
+            }
+
+            const inHead = index < cradleActual.backwardCells
+
+            portalIDList.splice(index, 1)
+            cellPortalList.splice(index, 1)
+            cellDataList.splice(index, 1)
+
+            portalContainerMap.get(id)?.remove()
+            portalContainerMap.delete(id)
+            state.map.delete(id)
+
+            if (inHead) cradleActual.backwardCells--
+            else cradleActual.forwardCells--
+
+        })
+
+        // the bands the placeholders emptied, at the ends they stood at
+        const
+            tailBandList = tailBandListRef.current,
+            headBandList = headBandListRef.current
+
+        while (tailBandList.length && !tailBandList.at(-1).childElementCount) {
+            tailBandList.pop().remove()
+            cradleActual.forwardBands--
+        }
+
+        while (headBandList.length && !headBandList[0].childElementCount) {
+            headBandList.shift().remove()
+            cradleActual.backwardBands--
+        }
+
+        cradleActual.totalCells = cradleActual.backwardCells + cradleActual.forwardCells
+        cradleActual.totalBands = cradleActual.backwardBands + cradleActual.forwardBands
+
+    }
+
+    // a fetch is open at an end while placeholders stand there or an ask for it is out
+    const isFetchOpenAt = (end) => {
+
+        const direction = (end == 'tail')?'forward':'backward'
+
+        return !!standingAt(direction).length || (placeholderState().pending?.direction == direction)
+
+    }
+
+    // the host's placeholder component or context changed: every standing placeholder is drawn again
+    const rebuildPlaceholderPortals = () => {
+
+        const
+            state = placeholderState(),
+            portalIDList = portalIDListRef.current
+
+        if (!state.map.size) return
+
+        portalIDList.forEach((id, index) => {
+            const entry = state.map.get(id)
+            if (entry) cellPortalListRef.current[index] = placeholderPortal(id, entry)
+        })
+
+        setPortalRenderList([...cellPortalListRef.current])
+
+    }
+
+    // the cradle's real rows, and its placeholders, as the host reads them
+    const placeholderReport = () => {
+
+        const
+            portalIDList = portalIDListRef.current,
+            cradleActual = cradleActualRef.current,
+            map = placeholderState().map
+
+        let forwardPlaceholders = 0, backwardPlaceholders = 0
+
+        portalIDList.forEach((id, index) => {
+            if (!map.has(id)) return
+            if (index < cradleActual.backwardCells) backwardPlaceholders++
+            else forwardPlaceholders++
+        })
+
+        const
+            firstID = portalIDList[0],
+            lastID = portalIDList.at(-1)
+
+        return {
+            forwardPlaceholders,
+            backwardPlaceholders,
+            firstPlaceholderReferenceID: map.has(firstID)?firstID:null,
+            lastPlaceholderReferenceID: map.has(lastID)?lastID:null,
+            firstRealReferenceID: firstRealID(),
+            lastRealReferenceID: lastRealID(),
+        }
+
+    }
+
+    // =========================[ placement into the cradle ]=========================
 
     // The checks in setForwardCells and setBackwardCells catch an id the cradle already holds, not one the
     // batch itself repeats. A repeat is reported and skipped, and the rest of the batch loads.
@@ -246,22 +990,16 @@ const useCells = ({
 
     }
 
-    const setForwardCells = (newCells, source = 'fetchCells, after') => {
+    const validateCells = (newCells, source) => {
 
-        newCells = dropRepeats(newCells, source)
-
-        const 
-            incomingPortalList = [],
-            cellPortalList = cellPortalListRef.current
-
-        if (!newCells.every((cellPack)=>{ // if any errors found then abort loading
+        return newCells.every((cellPack)=>{ // if any errors found then abort loading
 
             const isInvalid = (!(
                 (cellPack !== null) &&
-                (typeof cellPack == 'object') && 
-                React.isValidElement(cellPack.component) && 
+                (typeof cellPack == 'object') &&
+                React.isValidElement(cellPack.component) &&
                 isValidID(cellPack.id)))
-            
+
             if (isInvalid) reportError(callbacksRef, source, 'cellPack must have valid id and component', [cellPack])
 
             let isDuplicate = false
@@ -271,21 +1009,49 @@ const useCells = ({
             }
 
             return (!isDuplicate && !isInvalid)
-        })) {
-            return cellPortalList
-        }
+        })
 
-        const cradleActual = cradleActualRef.current
-        newCells.forEach((cellPack) => {
+    }
+
+    const setForwardCells = (newCells, source = 'fetchCells, after') => {
+
+        newCells = dropRepeats(newCells, source)
+
+        if (!validateCells(newCells, source)) return cellPortalListRef.current
+
+        return placeForward(newCells, (id, cellPack) => createPortal(cellPack.component, portalContainerMapRef.current.get(id), id))
+
+    }
+
+    const setBackwardCells = (newCells, source = 'fetchCells, before') => {
+
+        newCells = dropRepeats(newCells, source)
+
+        if (!validateCells(newCells, source)) return cellPortalListRef.current
+
+        return placeBackward(newCells, (id, cellPack) => createPortal(cellPack.component, portalContainerMapRef.current.get(id), id))
+
+    }
+
+    // each item is {id, ...}: a cellPack, or a placeholder's {id, entry}. makePortal is called once the
+    // container is registered, so a portal can be made for either
+    const placeForward = (newCells, makePortal) => {
+
+        const
+            incomingPortalList = [],
+            cellPortalList = cellPortalListRef.current,
+            cradleActual = cradleActualRef.current
+
+        newCells.forEach((item) => {
 
             // register cell data
-            cellDataListRef.current.push(cellPack)
-            const {id, component} = cellPack
+            cellDataListRef.current.push(item)
+            const {id} = item
             portalIDListRef.current.push(id)
             const container = createContainer(id, cellDimensionsRef.current, cradleActual.cellsPerBand,
                 orientationRef.current,layoutRef.current)
             portalContainerMapRef.current.set(id, container)
-            incomingPortalList.push(createPortal(component, container, id))
+            incomingPortalList.push(makePortal(id, item.entry ?? item))
 
             // allocate cell data
             let band
@@ -321,50 +1087,29 @@ const useCells = ({
 
         })
 
-        const newPortalList = cellPortalList.concat(incomingPortalList)
-
-        return newPortalList
+        return cellPortalList.concat(incomingPortalList)
 
     }
 
-    const setBackwardCells = (newCells, source = 'fetchCells, before') => {
+    const placeBackward = (newCells, makePortal) => {
 
-        newCells = dropRepeats(newCells, source)
-
-        const 
+        const
             incomingPortalList = [],
-            cellPortalList = cellPortalListRef.current
+            cellPortalList = cellPortalListRef.current,
+            cradleActual = cradleActualRef.current
 
-        if (!newCells.every((cellPack)=>{ // if any errors found then abort loading
-
-            const isInvalid = (!((cellPack !== null) && (typeof cellPack == 'object') && React.isValidElement(cellPack.component) && (isValidID(cellPack.id))))
-            if (isInvalid) reportError(callbacksRef, source, 'cellPack must have valid id and component', [cellPack])
-
-            let isDuplicate = false
-            if (!isInvalid) {
-                isDuplicate = portalContainerMapRef.current.has(cellPack.id)
-                if (isDuplicate) reportError(callbacksRef, source, 'fetched cellPack is a duplicate', [cellPack])
-            }
-
-            return (!isDuplicate && !isInvalid)
-        })) {
-            return cellPortalList
-        }
-
-        const cradleActual = cradleActualRef.current
-
-        newCells.forEach((cellPack) => {
+        newCells.forEach((item) => {
 
             // register cell data
-            cellDataListRef.current.unshift(cellPack)
-            const {id, component} = cellPack
+            cellDataListRef.current.unshift(item)
+            const {id} = item
             portalIDListRef.current.unshift(id)
 
             const container = createContainer(id, cellDimensionsRef.current, cradleActualRef.current.cellsPerBand,
                 orientationRef.current, layoutRef.current)
-            
+
             portalContainerMapRef.current.set(id, container)
-            incomingPortalList.unshift(createPortal(component, container, id))
+            incomingPortalList.unshift(makePortal(id, item.entry ?? item))
 
             // allocate cell data
             let band
@@ -411,12 +1156,34 @@ const useCells = ({
 
         })
 
-        const newPortalList = incomingPortalList.concat(cellPortalList)
-        return newPortalList
+        return incomingPortalList.concat(cellPortalList)
 
     }
 
-    return getCells
+    // the unmount: the fetch out, by either path, is told
+    const abortFetches = () => {
+        dropPending()
+        placeholderState().inlineController?.abort()
+    }
+
+    // a reset: the cradle is about to be emptied, so the registry goes with it, and a new generation names the next
+    const clearPlaceholders = () => {
+        const state = placeholderState()
+        abortFetches()
+        clearEndOfDataMarks()
+        state.map.clear()
+        state.generation++
+    }
+
+    return {
+        getCells,
+        withdrawPlaceholders,
+        abortFetches,
+        clearPlaceholders,
+        isFetchOpenAt,
+        rebuildPlaceholderPortals,
+        placeholderReport,
+    }
 
 }
 

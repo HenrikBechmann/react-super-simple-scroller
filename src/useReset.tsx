@@ -30,6 +30,7 @@ const useReset = ({
     currentAxisReferenceIDRef,
 
     resetAxisPosition,
+    clearPlaceholders,
 
 }) => {
 
@@ -41,6 +42,9 @@ const useReset = ({
         //     'current cellPortalList.length:', cellPortalListRef.current.length)
 
         const cradlePotential = cradlePotentialRef.current
+
+        // the fetch out, if any, is for the cradle that goes here; its answer would fill nothing
+        clearPlaceholders()
 
         // clear out existing portals
         portalContainerMapRef.current.forEach((container) => {

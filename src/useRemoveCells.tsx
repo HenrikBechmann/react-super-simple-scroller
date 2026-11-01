@@ -21,6 +21,7 @@ const useRemoveCells = ({
     tailBandListRef,
     
     cradleActualRef,
+    placeholdersRef,
     callbacksRef,
     
 }) => {
@@ -91,11 +92,12 @@ const useRemoveCells = ({
              band.parentElement.removeChild(band)
          })
 
-        if (callbacksRef.current.removed) { 
-            const removedList = backwardCellIDsToRemove.concat(forwardCellIDsToRemove)
-            if (removedList.length) {
-                callbacksRef.current.removed(removedList)
-            }
+        // a trimmed placeholder leaves the registry; it was never the host's, so removed does not name it
+        const placeholderMap = placeholdersRef.current.map
+        const removedList = backwardCellIDsToRemove.concat(forwardCellIDsToRemove).filter((ID) => !placeholderMap.delete(ID))
+
+        if (callbacksRef.current.removed && removedList.length) {
+            callbacksRef.current.removed(removedList)
         }
 
     }

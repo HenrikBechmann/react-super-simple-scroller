@@ -1,4 +1,4 @@
-declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, AXIS_START_POSITION, DOMManipulationQueueRef, orientationRef, viewportRef, headblockRef, leadHeadblockBandRef, headblockOverflowTriggerRef, tailblockRef, tailblockOverflowTriggerRef, leadTailblockBandRef, cradleActualRef, cradlePotentialRef, headBandListRef, tailBandListRef, intersectionsMapRef, scrollTopRef, scrollLeftRef, axisPositionRef, portalIDListRef, immediateIsScrollingRef, lastScrollEventTimeRef, immediateStopScrollingRef, restoreScrollingTimeoutIDRef, callbacksRef, setAxisPosition, assertIntersectionsDisconnect, requestIntersectionsConnect, fillCradle, updateCurrentAxisReferenceID, trimCradle, }: {
+declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, AXIS_START_POSITION, DOMManipulationQueueRef, orientationRef, viewportRef, headblockRef, leadHeadblockBandRef, headblockOverflowTriggerRef, tailblockRef, tailblockOverflowTriggerRef, leadTailblockBandRef, cradleActualRef, cradlePotentialRef, headBandListRef, tailBandListRef, intersectionsMapRef, scrollTopRef, scrollLeftRef, axisPositionRef, portalIDListRef, immediateIsScrollingRef, lastScrollEventTimeRef, immediateStopScrollingRef, restoreScrollingTimeoutIDRef, callbacksRef, setAxisPosition, assertIntersectionsDisconnect, requestIntersectionsConnect, fillCradle, updateCurrentAxisReferenceID, trimCradle, isFetchOpenAt, onEndOfDataRef, }: {
     scrollerName: any;
     standardMomentumFadeRef: any;
     AXIS_START_POSITION: any;
@@ -31,5 +31,7 @@ declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, AXIS_S
     fillCradle: any;
     updateCurrentAxisReferenceID: any;
     trimCradle: any;
+    isFetchOpenAt: any;
+    onEndOfDataRef: any;
 }) => any;
 export default useIntersections;

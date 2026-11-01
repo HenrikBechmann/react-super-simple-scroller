@@ -1,5 +1,6 @@
-declare const useCells: ({ scrollerName, orientationRef, layoutRef, spacingRef, cradlePotentialRef, cradleActualRef, cellPortalListRef, portalIDListRef, cellDataListRef, portalContainerMapRef, cellDimensionsRef, tailblockRef, tailBandListRef, leadTailblockBandRef, headblockRef, headBandListRef, leadHeadblockBandRef, setPortalRenderList, fetchCellsRef, updateCurrentAxisReferenceID, callbacksRef, bandMutationObserverRef, }: {
+declare const useCells: ({ scrollerName, DOMManipulationQueueRef, orientationRef, layoutRef, spacingRef, cradlePotentialRef, cradleActualRef, cellPortalListRef, portalIDListRef, cellDataListRef, portalContainerMapRef, cellDimensionsRef, viewportRef, tailblockRef, tailBandListRef, leadTailblockBandRef, headblockRef, headBandListRef, leadHeadblockBandRef, setPortalRenderList, fetchCellsRef, operationsRef, fetchCeilingRef, placeholdersRef, onEndOfDataRef, updateCurrentAxisReferenceID, currentAxisReferenceIDRef, callbacksRef, bandMutationObserverRef, }: {
     scrollerName: any;
+    DOMManipulationQueueRef: any;
     orientationRef: any;
     layoutRef: any;
     spacingRef: any;
@@ -10,6 +11,7 @@ declare const useCells: ({ scrollerName, orientationRef, layoutRef, spacingRef, 
     cellDataListRef: any;
     portalContainerMapRef: any;
     cellDimensionsRef: any;
+    viewportRef: any;
     tailblockRef: any;
     tailBandListRef: any;
     leadTailblockBandRef: any;
@@ -18,8 +20,28 @@ declare const useCells: ({ scrollerName, orientationRef, layoutRef, spacingRef, 
     leadHeadblockBandRef: any;
     setPortalRenderList: any;
     fetchCellsRef: any;
+    operationsRef: any;
+    fetchCeilingRef: any;
+    placeholdersRef: any;
+    onEndOfDataRef: any;
     updateCurrentAxisReferenceID: any;
+    currentAxisReferenceIDRef: any;
     callbacksRef: any;
     bandMutationObserverRef: any;
-}) => (startCode: any, seedReferenceID?: any) => Promise<void>;
+}) => {
+    getCells: (startCode: any, seedReferenceID?: any) => Promise<void>;
+    withdrawPlaceholders: () => boolean;
+    abortFetches: () => void;
+    clearPlaceholders: () => void;
+    isFetchOpenAt: (end: any) => boolean;
+    rebuildPlaceholderPortals: () => void;
+    placeholderReport: () => {
+        forwardPlaceholders: number;
+        backwardPlaceholders: number;
+        firstPlaceholderReferenceID: any;
+        lastPlaceholderReferenceID: any;
+        firstRealReferenceID: any;
+        lastRealReferenceID: any;
+    };
+};
 export default useCells;

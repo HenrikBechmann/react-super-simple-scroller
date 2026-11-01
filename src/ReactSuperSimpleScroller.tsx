@@ -20,6 +20,7 @@ import { SCROLLBLOCK_SPAN } from './orientationStyles'
 // sub-modules
 import { isValidID, reportError, reportWarning, errorMessage } from './utilities'
 import useCells from './useCells'
+import { createPlaceholderState, DEFAULT_FETCH_CEILING } from './placeholders'
 import useNewCradlePotential from './useNewCradlePotential'
 import useRemoveCells from './useRemoveCells'
 import useIntersections from './useIntersections'
@@ -183,6 +184,12 @@ const Viewport = (props) =>{
         // set by state change
         spacingRef = useRef(null),
         fetchCellsRef = useRef(fetchCells),
+        fetchCeilingRef = useRef(DEFAULT_FETCH_CEILING),
+
+        // the placeholder cells and the one fetch out at a time (useCells); a holder of its own, as callbacksRef
+        placeholdersRef = useState(() => ({current: createPlaceholderState()}))[0],
+        // the intersections' answer to an empty fetch at an end (useIntersections sets it, useCells calls it)
+        onEndOfDataRef = useRef(null),
 
         // the mount-time seed; the prop is inert after mount
         seedReferenceIDRef = useRef(seedReferenceID),
@@ -292,6 +299,10 @@ const Viewport = (props) =>{
     scrollerStateRef.current = scrollerState
     standardMomentumFadeRef.current = technical?.STANDARD_SCROLL_MOMENTUM_FADE ?? DEFAULT_STANDARD_SCROLL_MOMENTUM_FADE
     shortMomentumFadeRef.current = technical?.SHORT_MOMENTUM_FADE ?? DEFAULT_SHORT_MOMENTUM_FADE
+    const fetchCeiling = technical?.FETCH_CEILING
+    fetchCeilingRef.current = ((typeof fetchCeiling == 'number') && Number.isFinite(fetchCeiling) && (fetchCeiling > 0))
+        ? fetchCeiling
+        : DEFAULT_FETCH_CEILING
     runwayBandsRef.current = runwayBands
 
     // --- component utility functions
@@ -369,7 +380,17 @@ const Viewport = (props) =>{
 
             currentAxisReferenceIDRef.current = currentAxisReferenceID
 
-            callbacksRef.current.axisReferenceID && callbacksRef.current.axisReferenceID(currentAxisReferenceID)
+            if (callbacksRef.current.axisReferenceID) {
+
+                // an axis on a placeholder names the row the placeholder stands beside, and which side of it
+                const entry = placeholdersRef.current.map.get(currentAxisReferenceID)
+
+                entry
+                    ? callbacksRef.current.axisReferenceID(currentAxisReferenceID,
+                        {isPlaceholder: true, referenceID: entry.referenceID, direction: entry.direction})
+                    : callbacksRef.current.axisReferenceID(currentAxisReferenceID)
+
+            }
 
         }
     },[])
@@ -455,9 +476,11 @@ const Viewport = (props) =>{
     // ===================[ breakout code to use* modules ]======================
 
     const 
-        getCells = useCells({
+        {getCells, withdrawPlaceholders, abortFetches, clearPlaceholders, isFetchOpenAt, rebuildPlaceholderPortals, placeholderReport} = useCells({
 
             scrollerName,
+
+            DOMManipulationQueueRef,
 
             orientationRef,
             layoutRef,
@@ -472,6 +495,7 @@ const Viewport = (props) =>{
             portalContainerMapRef,
 
             cellDimensionsRef,
+            viewportRef,
 
             tailblockRef,
             tailBandListRef,
@@ -480,10 +504,14 @@ const Viewport = (props) =>{
             headBandListRef,
             leadHeadblockBandRef,
 
-            // callbacksRef,
             setPortalRenderList,
             fetchCellsRef,
+            operationsRef,
+            fetchCeilingRef,
+            placeholdersRef,
+            onEndOfDataRef,
             updateCurrentAxisReferenceID,
+            currentAxisReferenceIDRef,
             callbacksRef,
             bandMutationObserverRef,
             
@@ -500,6 +528,7 @@ const Viewport = (props) =>{
             tailBandListRef,
 
             cradleActualRef,
+            placeholdersRef,
 
             callbacksRef,
 
@@ -545,6 +574,8 @@ const Viewport = (props) =>{
             trimCradle,
             fillCradle,
             updateCurrentAxisReferenceID,
+            isFetchOpenAt,
+            onEndOfDataRef,
 
         }),
 
@@ -569,6 +600,7 @@ const Viewport = (props) =>{
             heldSeedReferenceIDRef,
             currentAxisReferenceIDRef,
             resetAxisPosition,
+            clearPlaceholders,
 
         }),
 
@@ -653,7 +685,17 @@ const Viewport = (props) =>{
             assertIntersectionsDisconnect,
             requestIntersectionsConnect,
             bandMutationObserverRef,
+            placeholdersRef,
+            withdrawPlaceholders,
+            placeholderReport,
         })
+
+    // the host's placeholder component or context changed identity: the standing placeholders are drawn again
+    useEffect(() => {
+
+        rebuildPlaceholderPortals()
+
+    }, [operations?.placeholder, operations?.placeholderContext])
 
     // ==============================[ initialization effects ]========================
 
@@ -780,6 +822,7 @@ const Viewport = (props) =>{
             resizeObserverRef.current.disconnect()
             viewport.removeEventListener('rs3restore', handleRs3Restore)
             viewport.removeEventListener('scrollend', onViewportScrollEnd)
+            abortFetches()
             queue.stop(false)
         }
 
@@ -1306,7 +1349,15 @@ const Viewport = (props) =>{
 
 export type CellPack = { id: any, component: ReactElement }
 
-export type FetchCells = (startCode: 'at' | 'after' | 'before', referenceID: any, count: number) => CellPack[] | Promise<CellPack[]>
+// attempt counts the asks for the same cells: 1, then one more at each FETCH_CEILING that passes unanswered.
+// signal fires when the answer is no longer wanted: at the ceiling, a structural call, a reset or the unmount
+export type FetchContext = { attempt: number, signal: AbortSignal }
+
+export type FetchCells = (startCode: 'at' | 'after' | 'before', referenceID: any, count: number, context: FetchContext) => CellPack[] | Promise<CellPack[]>
+
+// the props of a placeholder component (operations.placeholder): the host's context as given, the placeholder's
+// position in the run at its end, counted from the real rows, the direction of that run, and the real row it stands beside
+export type PlaceholderProps = { context: any, index: number, direction: 'forward' | 'backward', referenceID: any }
 
 export type ReactSuperSimpleScrollerProps = {
 
@@ -1344,6 +1395,7 @@ export type ReactSuperSimpleScrollerProps = {
     technical?: {
         STANDARD_SCROLL_MOMENTUM_FADE?: number,
         SHORT_MOMENTUM_FADE?: number,
+        FETCH_CEILING?: number, // ms a fetch may go unanswered before the same cells are asked for again; default 5000
     }
     spacing?: {
         cradleMargin?: number[],
@@ -1354,6 +1406,9 @@ export type ReactSuperSimpleScrollerProps = {
         dispatchAttachedEvents?:boolean,
         runway?: number,
         crossAxisChaining?: boolean, // default true
+        placeholderCap?: number, // placeholders at each end; 0 turns them off; default 1.5 × a viewport's cells
+        placeholder?: React.ComponentType<PlaceholderProps>, // the host's placeholder; default a gray "fetching…"
+        placeholderContext?: any, // passed to each placeholder untouched; memoize it
     },
     scrollerName? : string
 }

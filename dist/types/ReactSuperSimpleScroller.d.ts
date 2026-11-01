@@ -1,9 +1,19 @@
-import { ReactElement } from 'react';
+import React, { ReactElement } from 'react';
 export type CellPack = {
     id: any;
     component: ReactElement;
 };
-export type FetchCells = (startCode: 'at' | 'after' | 'before', referenceID: any, count: number) => CellPack[] | Promise<CellPack[]>;
+export type FetchContext = {
+    attempt: number;
+    signal: AbortSignal;
+};
+export type FetchCells = (startCode: 'at' | 'after' | 'before', referenceID: any, count: number, context: FetchContext) => CellPack[] | Promise<CellPack[]>;
+export type PlaceholderProps = {
+    context: any;
+    index: number;
+    direction: 'forward' | 'backward';
+    referenceID: any;
+};
 export type ReactSuperSimpleScrollerProps = {
     orientation?: 'vertical' | 'horizontal';
     layout?: 'uniform' | 'variable';
@@ -36,6 +46,7 @@ export type ReactSuperSimpleScrollerProps = {
     technical?: {
         STANDARD_SCROLL_MOMENTUM_FADE?: number;
         SHORT_MOMENTUM_FADE?: number;
+        FETCH_CEILING?: number;
     };
     spacing?: {
         cradleMargin?: number[];
@@ -46,6 +57,9 @@ export type ReactSuperSimpleScrollerProps = {
         dispatchAttachedEvents?: boolean;
         runway?: number;
         crossAxisChaining?: boolean;
+        placeholderCap?: number;
+        placeholder?: React.ComponentType<PlaceholderProps>;
+        placeholderContext?: any;
     };
     scrollerName?: string;
 };

@@ -64,6 +64,9 @@ const useCalls = ({
     assertIntersectionsDisconnect,
     requestIntersectionsConnect,
     bandMutationObserverRef,
+    placeholdersRef,
+    withdrawPlaceholders,
+    placeholderReport,
 
 }) => {
 
@@ -249,6 +252,8 @@ const useCalls = ({
 
         const result = await DOMManipulationQueue.enqueue(async ()=>{
 
+            withdrawPlaceholders()
+
             try {
 
                 const result = await doInsert(cellPack, targetReferenceID, position)
@@ -370,6 +375,8 @@ const useCalls = ({
         const result = await DOMManipulationQueue.enqueue(async () => {
 
             let result
+
+            withdrawPlaceholders()
 
             try {
 
@@ -691,6 +698,8 @@ const useCalls = ({
 
             let result
 
+            withdrawPlaceholders()
+
             try {
 
                 result = await doMove(sourceReferenceID, targetReferenceID, position)
@@ -713,21 +722,36 @@ const useCalls = ({
 
     }
 
+    // the host's rows; a placeholder is the scroller's own
     const getCradleIDList = () => {
 
-        return [...portalIDListRef.current]
+        const placeholderMap = placeholdersRef.current.map
+
+        return portalIDListRef.current.filter((id) => !placeholderMap.has(id))
 
     }
 
+    // the counts are of the host's rows; the placeholders standing at each end are counted beside them
     const getCradleSpecs = () => {
+
+        const
+            cradleActual = cradleActualRef.current,
+            report = placeholderReport()
 
         const specs = {
             cradleActual: {
                 scrollerName,
-                firstRealReferenceID: portalIDListRef.current[0],
-                lastRealReferenceID: portalIDListRef.current.at(-1),
+                firstRealReferenceID: report.firstRealReferenceID,
+                lastRealReferenceID: report.lastRealReferenceID,
                 axisReferenceID: currentAxisReferenceIDRef.current, 
-                ...cradleActualRef.current
+                ...cradleActual,
+                forwardCells: cradleActual.forwardCells - report.forwardPlaceholders,
+                backwardCells: cradleActual.backwardCells - report.backwardPlaceholders,
+                totalCells: cradleActual.totalCells - report.forwardPlaceholders - report.backwardPlaceholders,
+                forwardPlaceholders: report.forwardPlaceholders,
+                backwardPlaceholders: report.backwardPlaceholders,
+                firstPlaceholderReferenceID: report.firstPlaceholderReferenceID,
+                lastPlaceholderReferenceID: report.lastPlaceholderReferenceID,
             },
             cradlePotential: {
                 runway: runwayBandsRef.current,
@@ -756,6 +780,9 @@ const useCalls = ({
         }
 
         return await DOMManipulationQueue.enqueue(async () => {
+
+            // an explicit fill asks again, where an end the host answered empty at would otherwise wait
+            withdrawPlaceholders()
 
             if (!cellPortalListRef.current.length) {
 
@@ -798,8 +825,11 @@ const useCalls = ({
                 viewportRef.current.scrollTo(scrollLeftRef.current, scrollTopRef.current)
 
                 if (operationsRef.current.dispatchAttachedEvents) {
-                    const event = new Event('rs3attached')
-                    portalContainerMapRef.current.forEach((container) => {
+                    const
+                        event = new Event('rs3attached'),
+                        placeholderMap = placeholdersRef.current.map
+                    portalContainerMapRef.current.forEach((container, id) => {
+                        if (placeholderMap.has(id)) return // the scroller's own, not the host's
                         container.firstChild && container.firstChild.dispatchEvent(event)
                     })
                 }
@@ -818,9 +848,19 @@ const useCalls = ({
 
     }
 
-    // a reserved id is the scroller's own, never a host's, so asking about one is not a fault
-    const has = (referenceID) => {
-        if (isReservedID(referenceID)) return false
+    // a reserved id is the scroller's own, never a host's, so asking about one is not a fault. A placeholder's id
+    // answers true while it stands, and fills out, if given, with what the placeholder stands for
+    const has = (referenceID, out?: {isPlaceholder?: boolean, referenceID?: any, direction?: string}) => {
+        if (isReservedID(referenceID)) {
+            const entry = placeholdersRef.current.map.get(referenceID)
+            if (!entry) return false
+            if (out && (typeof out == 'object')) {
+                out.isPlaceholder = true
+                out.referenceID = entry.referenceID
+                out.direction = entry.direction
+            }
+            return true
+        }
         if (!isValidID(referenceID )) {
             reportError(callbacksRef, 'has', 'must be a valid referenceID', [referenceID])
             return false
@@ -890,6 +930,8 @@ const useCalls = ({
         }
 
         const result = await DOMManipulationQueue.enqueue(async () => {
+
+            withdrawPlaceholders()
 
             try {
             
