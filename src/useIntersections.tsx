@@ -57,7 +57,8 @@ const useIntersections = ({
     updateCurrentAxisReferenceID,
     trimCradle,
     isFetchOpenAt,
-    onEndOfDataRef,
+    clearQuietAt,
+    onRunEndedRef,
 
 }) => {
 
@@ -277,6 +278,7 @@ const useIntersections = ({
 
             if (isScrollInputRecent()) {
 
+                clearQuietAt('head')
                 headHold = holdScrolling()
                 scrollTopRef.current = viewportRef.current.scrollTop
                 scrollLeftRef.current = viewportRef.current.scrollLeft
@@ -325,6 +327,7 @@ const useIntersections = ({
 
             if (isScrollInputRecent()) {
 
+                clearQuietAt('tail')
                 holdScrolling()
                 scrollTopRef.current = viewportRef.current.scrollTop
                 scrollLeftRef.current = viewportRef.current.scrollLeft
@@ -676,12 +679,10 @@ const useIntersections = ({
 
         await fillCradle()
 
-        if (cradleActualRef.current.forwardCells > forwardCellsBefore) {
-
-            // New cells arrived — tailblock grew, trigger returns to 'after' naturally.
-            return
-
-        }
+        // new cells arrived, so the tailblock grew and the trigger returns to 'after' on its own; or the host has
+        // been asked, and the placeholders standing there already size the tailblock, so the answer fills in place
+        // and neither a snap on the stale layout nor a hold is owed
+        if (cradleActualRef.current.forwardCells > forwardCellsBefore || isFetchOpenAt('tail')) return
 
         // No new cells: snap to boundary (last item bottom = viewport bottom).
         snapToTailBoundary()
@@ -714,10 +715,11 @@ const useIntersections = ({
 
     }
 
-    // The host answered an ask at an end with nothing, after the fill that asked had returned: the placeholders
-    // there are gone. A viewport that had scrolled onto them is brought back to the last row, and the hold the
-    // fill began, or one a scroll still in progress earns, is told it is at the end of the data
-    onEndOfDataRef.current = (direction) => {
+    // The host answered an ask at an end with nothing, or failed to answer it, after the fill that asked had
+    // returned: the placeholders there are gone. A viewport that had scrolled onto them is brought back to the last
+    // row, and the hold the fill began, or one a scroll still in progress earns, is told it is at the end of the
+    // data when the answer was empty. A failed answer holds without marking the end: the host may answer next time
+    onRunEndedRef.current = (direction, reason) => {
 
         if (!viewportRef.current) return
 
@@ -729,7 +731,38 @@ const useIntersections = ({
 
         if (hold.viewport && hold.endOfData && (hold.endOfData != end)) return // held at the other end
 
-        if (hold.viewport || isScrollInputRecent()) holdScrolling(end)
+        // a viewport still bands away from that end has rows to scroll into: the overflow there marks the end
+        // when it arrives. A hold here would pin it short of them for as long as the scroll pushes
+        if (!isViewportAtEnd(end)) return
+
+        if (hold.viewport || isScrollInputRecent()) holdScrolling((reason == 'end')?end:null)
+
+    }
+
+    // the viewport's leading edge at or past the first head row, or its trailing edge at or past the last tail row
+    const isViewportAtEnd = (end) => {
+
+        const
+            isH = orientationRef.current === 'horizontal',
+            viewport = viewportRef.current,
+            axis = isH ? axisPositionRef.current.x : axisPositionRef.current.y,
+            scrollPos = isH ? viewport.scrollLeft : viewport.scrollTop
+
+        if (end == 'head') {
+
+            // an empty headblock still measures a pixel, and the head repositioning rests the viewport a pixel past
+            // the axis: with no head row the boundary is the axis itself
+            const headDim = cradleActualRef.current.backwardCells ? (isH ? headblockRef.current.offsetWidth : headblockRef.current.offsetHeight) : 0
+
+            return scrollPos <= (axis - headDim + 1)
+
+        }
+
+        const
+            tailDim = isH ? tailblockRef.current.offsetWidth : tailblockRef.current.offsetHeight,
+            vpDim = isH ? viewport.clientWidth : viewport.clientHeight
+
+        return scrollPos >= (axis + tailDim - vpDim - 1)
 
     }
 

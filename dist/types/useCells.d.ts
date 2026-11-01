@@ -1,4 +1,4 @@
-declare const useCells: ({ scrollerName, DOMManipulationQueueRef, orientationRef, layoutRef, spacingRef, cradlePotentialRef, cradleActualRef, cellPortalListRef, portalIDListRef, cellDataListRef, portalContainerMapRef, cellDimensionsRef, viewportRef, tailblockRef, tailBandListRef, leadTailblockBandRef, headblockRef, headBandListRef, leadHeadblockBandRef, setPortalRenderList, fetchCellsRef, operationsRef, fetchCeilingRef, placeholdersRef, onEndOfDataRef, updateCurrentAxisReferenceID, currentAxisReferenceIDRef, callbacksRef, bandMutationObserverRef, requestIntersectionsConnect, }: {
+declare const useCells: ({ scrollerName, DOMManipulationQueueRef, orientationRef, layoutRef, spacingRef, cradlePotentialRef, cradleActualRef, cellPortalListRef, portalIDListRef, cellDataListRef, portalContainerMapRef, cellDimensionsRef, viewportRef, tailblockRef, tailBandListRef, leadTailblockBandRef, headblockRef, headBandListRef, leadHeadblockBandRef, setPortalRenderList, fetchCellsRef, operationsRef, fetchCeilingRef, placeholdersRef, onRunEndedRef, updateCurrentAxisReferenceID, currentAxisReferenceIDRef, callbacksRef, bandMutationObserverRef, requestIntersectionsConnect, }: {
     scrollerName: any;
     DOMManipulationQueueRef: any;
     orientationRef: any;
@@ -23,7 +23,7 @@ declare const useCells: ({ scrollerName, DOMManipulationQueueRef, orientationRef
     operationsRef: any;
     fetchCeilingRef: any;
     placeholdersRef: any;
-    onEndOfDataRef: any;
+    onRunEndedRef: any;
     updateCurrentAxisReferenceID: any;
     currentAxisReferenceIDRef: any;
     callbacksRef: any;
@@ -35,6 +35,7 @@ declare const useCells: ({ scrollerName, DOMManipulationQueueRef, orientationRef
     abortFetches: () => void;
     clearPlaceholders: () => void;
     isFetchOpenAt: (end: any) => boolean;
+    clearQuietAt: (end: any) => void;
     rebuildPlaceholderPortals: () => void;
     placeholderReport: () => {
         forwardPlaceholders: number;

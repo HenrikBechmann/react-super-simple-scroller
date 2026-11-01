@@ -189,7 +189,7 @@ const Viewport = (props) =>{
         // the placeholder cells and the one fetch out at a time (useCells); a holder of its own, as callbacksRef
         placeholdersRef = useState(() => ({current: createPlaceholderState()}))[0],
         // the intersections' answer to an empty fetch at an end (useIntersections sets it, useCells calls it)
-        onEndOfDataRef = useRef(null),
+        onRunEndedRef = useRef(null),
 
         // the mount-time seed; the prop is inert after mount
         seedReferenceIDRef = useRef(seedReferenceID),
@@ -476,7 +476,7 @@ const Viewport = (props) =>{
     // ===================[ breakout code to use* modules ]======================
 
     const 
-        {getCells, withdrawPlaceholders, abortFetches, clearPlaceholders, isFetchOpenAt, rebuildPlaceholderPortals, placeholderReport} = useCells({
+        {getCells, withdrawPlaceholders, abortFetches, clearPlaceholders, isFetchOpenAt, clearQuietAt, rebuildPlaceholderPortals, placeholderReport} = useCells({
 
             scrollerName,
 
@@ -509,7 +509,7 @@ const Viewport = (props) =>{
             operationsRef,
             fetchCeilingRef,
             placeholdersRef,
-            onEndOfDataRef,
+            onRunEndedRef,
             updateCurrentAxisReferenceID,
             currentAxisReferenceIDRef,
             callbacksRef,
@@ -576,7 +576,8 @@ const Viewport = (props) =>{
             fillCradle,
             updateCurrentAxisReferenceID,
             isFetchOpenAt,
-            onEndOfDataRef,
+            clearQuietAt,
+            onRunEndedRef,
 
         }),
 

@@ -23,11 +23,11 @@ export const createPlaceholderState = () => ({
     map: new Map(), // placeholder id -> {direction, referenceID, askID, index}
     pending: null, // the one fetch out at a time: {startCode, direction, referenceID, count, attempt, controller, ceilingTimer, cradleActual, askID, ids}
     inlineController: null, // the signal given to fetches made with placeholders off
-    // an end the host answered empty at: {cradleActual, endID, scrollTop, scrollLeft}. While the cradle, the row at
-    // that end and the scroll position are as they were, a fill places nothing there, so an empty answer cannot
-    // start a loop of placing, asking and removing. A scroll, a change at that end, a structural call, an explicit
-    // fill or a reset clears it
-    endOfData: {forward: null, backward: null},
+    // an end the host answered empty at, or failed to answer: {reason: 'end' | 'failed', cradleActual, endID,
+    // scrollTop, scrollLeft}. While the cradle, the row at that end and the scroll position are as they were, a fill
+    // places nothing there, so an empty or failed answer cannot start a loop of placing, asking and removing. A
+    // scroll into that end, a change at that end, a structural call, an explicit fill or a reset clears it
+    quiet: {forward: null, backward: null},
 })
 
 const defaultStyles = {

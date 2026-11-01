@@ -55,7 +55,7 @@ const useCells = ({
     operationsRef,
     fetchCeilingRef,
     placeholdersRef,
-    onEndOfDataRef,
+    onRunEndedRef,
     updateCurrentAxisReferenceID,
     currentAxisReferenceIDRef,
     callbacksRef,
@@ -365,11 +365,12 @@ const useCells = ({
 
     const endID = (direction) => (direction == 'forward')?portalIDListRef.current.at(-1):portalIDListRef.current[0]
 
-    const markEndOfData = (direction) => {
+    const markQuiet = (direction, reason) => {
 
         const viewport = viewportRef.current
 
-        placeholderState().endOfData[direction] = {
+        placeholderState().quiet[direction] = {
+            reason,
             cradleActual: cradleActualRef.current,
             endID: endID(direction),
             scrollTop: viewport?.scrollTop,
@@ -378,12 +379,12 @@ const useCells = ({
 
     }
 
-    // the mark stands while nothing has changed since the empty answer; it is cleared when read otherwise
-    const isEndMarked = (direction) => {
+    // the mark stands while nothing has changed since the answer; it is cleared when read otherwise
+    const isQuietAt = (direction) => {
 
         const
             state = placeholderState(),
-            mark = state.endOfData[direction]
+            mark = state.quiet[direction]
 
         if (!mark) return false
 
@@ -392,16 +393,21 @@ const useCells = ({
             stands = (mark.cradleActual === cradleActualRef.current) && (mark.endID === endID(direction)) &&
                 !!viewport && (mark.scrollTop === viewport.scrollTop) && (mark.scrollLeft === viewport.scrollLeft)
 
-        if (!stands) state.endOfData[direction] = null
+        if (!stands) state.quiet[direction] = null
 
         return stands
 
     }
 
-    const clearEndOfDataMarks = () => {
+    const clearQuietMarks = () => {
         const state = placeholderState()
-        state.endOfData.forward = null
-        state.endOfData.backward = null
+        state.quiet.forward = null
+        state.quiet.backward = null
+    }
+
+    // a scroll into an end asks there again, whatever the hold at that end did to the scroll position
+    const clearQuietAt = (end) => {
+        placeholderState().quiet[(end == 'tail')?'forward':'backward'] = null
     }
 
     const placeholderPortal = (id, entry) => {
@@ -469,8 +475,8 @@ const useCells = ({
             forwardAnchor = (last !== undefined)?last:(forwardStanding.length?state.map.get(forwardStanding[0]).referenceID:undefined),
             backwardAnchor = (first !== undefined)?first:(backwardStanding.length?state.map.get(backwardStanding[0]).referenceID:undefined)
 
-        if (forwardAnchor !== undefined && !isEndMarked('forward')) placed += placeAt('forward', forwardAnchor, forwardRoom())
-        if (backwardAnchor !== undefined && !isEndMarked('backward')) placed += placeAt('backward', backwardAnchor, backwardRoom())
+        if (forwardAnchor !== undefined && !isQuietAt('forward')) placed += placeAt('forward', forwardAnchor, forwardRoom())
+        if (backwardAnchor !== undefined && !isQuietAt('backward')) placed += placeAt('backward', backwardAnchor, backwardRoom())
 
         if (placed) {
             setPortalRenderList(cellPortalListRef.current)
@@ -650,7 +656,7 @@ const useCells = ({
 
     }
 
-    const isValidCellPack = (cellPack, seen, source) => {
+    const isValidCellPack = (cellPack, source) => {
 
         const isInvalid = !(
             (cellPack !== null) &&
@@ -667,13 +673,6 @@ const useCells = ({
             reportError(callbacksRef, source, 'fetched cellPack is a duplicate', [cellPack])
             return false
         }
-
-        if (seen.has(cellPack.id)) {
-            reportError(callbacksRef, source, 'duplicate id within the batch', [cellPack])
-            return false
-        }
-
-        seen.add(cellPack.id)
 
         return true
 
@@ -722,34 +721,28 @@ const useCells = ({
             return
         }
 
-        const seen = new Set()
+        // a repeat within the batch is skipped and reported, as the inline path takes it; the rest still fill
+        cells = dropRepeats(cells, source)
 
-        if (!cells.every((cellPack) => isValidCellPack(cellPack, seen, source))) {
+        if (!cells.every((cellPack) => isValidCellPack(cellPack, source))) {
             reportError(callbacksRef, source, 'one or more errors found in fetched cellPacks. Loading aborted', args, {return: cells})
             withdrawRun(direction)
             return
         }
 
-        const droppedIDList = []
-
         // either answer starts nearest the real rows: 'after' is REF+1, REF+2, …, and 'before' is REF-1, REF-2, …,
-        // as the inline path takes them. A short answer fills the nearest positions and leaves the far ones standing
+        // as the inline path takes them. A short answer fills the nearest positions and leaves the far ones standing.
+        // A position trimmed while the ask was out takes nothing: the scroll has moved past it, and the row is
+        // asked for again if the cradle comes back to it
         cells.forEach((cellPack, k) => {
 
             const id = pending.ids[k]
 
-            if (id === undefined || !state.map.has(id)) {
-                droppedIDList.push(cellPack.id)
-                return
-            }
+            if (id === undefined || !state.map.has(id)) return
 
             fillInPlace(id, cellPack)
 
         })
-
-        if (droppedIDList.length) {
-            reportFailed(callbacksRef, source, 'no placeholder stands at the asked position; not loaded', droppedIDList)
-        }
 
         reanchor(direction)
 
@@ -823,21 +816,25 @@ const useCells = ({
         updateCurrentAxisReferenceID()
 
         if (startCode != 'at') {
-            onEndOfDataRef.current && onEndOfDataRef.current(direction)
-            markEndOfData(direction) // after the snap the host of the hold may have made
+            onRunEndedRef.current && onRunEndedRef.current(direction, 'end')
+            markQuiet(direction, 'end') // after the snap the host of the hold may have made
         }
 
         sendNextAsk()
 
     }
 
-    // a failed answer: the run is withdrawn, and the next scroll asks again
+    // a failed answer: the run is withdrawn, and the next scroll asks again. A viewport that had scrolled onto the
+    // placeholders is brought back as on an empty answer: left past the last row, the overflow would be seen again
+    // on the reconnect and ask again, once a frame, for as long as the scroll input is recent
     const withdrawRun = (direction) => {
 
         removePlaceholderCells(standingAt(direction))
 
         setPortalRenderList([...cellPortalListRef.current])
         updateCurrentAxisReferenceID()
+        onRunEndedRef.current && onRunEndedRef.current(direction, 'failed')
+        markQuiet(direction, 'failed') // after the snap, as endRun marks
 
         sendNextAsk()
 
@@ -849,7 +846,7 @@ const useCells = ({
         const state = placeholderState()
 
         dropPending()
-        clearEndOfDataMarks()
+        clearQuietMarks()
 
         if (!state.map.size) return false
 
@@ -1182,7 +1179,7 @@ const useCells = ({
     const clearPlaceholders = () => {
         const state = placeholderState()
         abortFetches()
-        clearEndOfDataMarks()
+        clearQuietMarks()
         state.map.clear()
         state.generation++
     }
@@ -1193,6 +1190,7 @@ const useCells = ({
         abortFetches,
         clearPlaceholders,
         isFetchOpenAt,
+        clearQuietAt,
         rebuildPlaceholderPortals,
         placeholderReport,
     }

@@ -8,7 +8,7 @@ export declare const createPlaceholderState: () => {
     map: Map<any, any>;
     pending: any;
     inlineController: any;
-    endOfData: {
+    quiet: {
         forward: any;
         backward: any;
     };

@@ -781,6 +781,10 @@ const useCalls = ({
 
         return await DOMManipulationQueue.enqueue(async () => {
 
+            // the opening ask is the fill in progress: nothing stands to fill from until it is answered, and
+            // withdrawing it would leave the cradle empty
+            if (!getCradleIDList().length && placeholdersRef.current.pending) return true
+
             // an explicit fill asks again, where an end the host answered empty at would otherwise wait
             withdrawPlaceholders()
 
