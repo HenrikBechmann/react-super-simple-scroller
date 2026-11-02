@@ -76,7 +76,7 @@ const useIntersections = ({
 
     const lastPositionRecoveryRef = useRef(0)
 
-    const holdRef = useRef({viewport:null, onWheel:null, endOfData:null, isRecovery:false, lastWheelTime:0, count:0})
+    const holdRef = useRef({viewport:null, onWheel:null, endOfData:null, mark:null, isRecovery:false, lastWheelTime:0, count:0})
 
     // -------------------------[ shift measurement ]-------------------------
 
@@ -482,6 +482,7 @@ const useIntersections = ({
         immediateStopScrollingRef.current = true
         isRecovery && (hold.isRecovery = true)
         hold.endOfData = null
+        hold.mark = null
         endOfData && !hold.isRecovery && markEndOfData(endOfData)
         hold.count++
 
@@ -552,17 +553,21 @@ const useIntersections = ({
     }
 
     // the end of the data is the one memory the fill keeps (useCells markQuiet / isQuietAt): the hold names the end it
-    // is held at, and marks and reads the end itself there
+    // is held at, marks the end there, and keeps the mark it was taken on
     const markEndOfData = (end) => {
 
-        holdRef.current.endOfData = end
-        markQuiet((end == 'tail')?'forward':'backward', 'end')
+        const hold = holdRef.current
+
+        hold.endOfData = end
+        hold.mark = markQuiet((end == 'tail')?'forward':'backward', 'end')
 
     }
 
     // a reset starts a new cradle, cells that arrive at the held end change which cell it ends on, and a structural call
-    // changes the data: each drops the mark
-    const isEndAsMarked = () => isQuietAt((holdRef.current.endOfData == 'tail')?'forward':'backward')
+    // changes the data: each drops the mark. The answer that follows marks the end again, on the rows that arrived or
+    // the new cradle, and the hold is not held on it: a push that was held while rows were fetched to its end goes on
+    // to them. The empty answer the hold waited on marks the end as the hold has it, and keeps it
+    const isEndAsMarked = () => isQuietAt((holdRef.current.endOfData == 'tail')?'forward':'backward', holdRef.current.mark)
 
     // fewer cells at an end of the cradle than it can hold there, counted as the fill counts them
     const isCradleShortAt = (end) => {
@@ -591,6 +596,7 @@ const useIntersections = ({
         hold.viewport?.removeEventListener('wheel', hold.onWheel)
         hold.viewport = null
         hold.endOfData = null
+        hold.mark = null
         hold.isRecovery = false
 
     }

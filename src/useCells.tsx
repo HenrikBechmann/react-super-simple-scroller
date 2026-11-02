@@ -378,7 +378,7 @@ const useCells = ({
     // moves the viewport with no input, and a mark keyed on the position dropped on every shift and asked again
     const markQuiet = (direction, reason) => {
 
-        placeholderState().quiet[direction] = {
+        return placeholderState().quiet[direction] = {
             reason,
             cradleActual: cradleActualRef.current,
             endID: endID(direction),
@@ -387,8 +387,11 @@ const useCells = ({
     }
 
     // the mark stands until input reaches its end (clearQuietAt), a structural call or a reset (clearQuietMarks), a new
-    // cradle, or a change of the cell at that end; it is cleared when read otherwise
-    const isQuietAt = (direction) => {
+    // cradle, or a change of the cell at that end; it is cleared when read otherwise. A reader that keeps the mark it
+    // was given (the hold) asks whether the end is still as that mark had it, the same cell on the same cradle: an
+    // answer that marks the end again after rows arrived or a reset is a later answer, and an answer that marks it as
+    // it was is the same one
+    const isQuietAt = (direction, asMarked = undefined) => {
 
         const
             state = placeholderState(),
@@ -400,7 +403,7 @@ const useCells = ({
 
         if (!stands) state.quiet[direction] = null
 
-        return stands
+        return stands && ((asMarked === undefined) || ((mark.cradleActual === asMarked.cradleActual) && (mark.endID === asMarked.endID)))
 
     }
 
