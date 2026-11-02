@@ -408,17 +408,21 @@ const Viewport = (props) =>{
             tailCellOffset = (cradleActual.cellsPerBand - tailBandList[0].childElementCount)
         }
 
+        // the trim never removes the real row a standing placeholder run is anchored on: the head trim stops short
+        // of the forward run's anchor, the tail trim of the backward run's
         const
-            forwardBandsToRemoveCount = Math.max(cradleActual.forwardBands - cradlePotential.forwardBands,0),
-            backwardBandsToRemoveCount = Math.max(cradleActual.backwardBands - cradlePotential.backwardBands,0),
-            forwardCellsToRemoveCount = Math.max(cradleActual.forwardCells - (cradlePotential.forwardCells - tailCellOffset),0),
-            backwardCellsToRemoveCount = Math.max(cradleActual.backwardCells - cradlePotential.backwardCells,0)
+            forwardAnchor = runAnchorIndex('forward'),
+            backwardAnchor = runAnchorIndex('backward'),
+            forwardCellsToRemoveCount = Math.min(
+                Math.max(cradleActual.forwardCells - (cradlePotential.forwardCells - tailCellOffset),0),
+                (backwardAnchor == -1)?Infinity:(portalIDListRef.current.length - 1 - backwardAnchor)),
+            backwardCellsToRemoveCount = Math.min(
+                Math.max(cradleActual.backwardCells - cradlePotential.backwardCells,0),
+                (forwardAnchor == -1)?Infinity:forwardAnchor)
 
         removeCells({
             forwardCellsToRemoveCount,
-            forwardBandsToRemoveCount,
             backwardCellsToRemoveCount,
-            backwardBandsToRemoveCount,
         })
 
     },[])
@@ -476,7 +480,7 @@ const Viewport = (props) =>{
     // ===================[ breakout code to use* modules ]======================
 
     const 
-        {getCells, withdrawPlaceholders, abortFetches, clearPlaceholders, isFetchOpenAt, markQuiet, isQuietAt, clearQuietMarks, clearQuietAt, rebuildPlaceholderPortals, placeholderReport} = useCells({
+        {getCells, withdrawPlaceholders, abortFetches, clearPlaceholders, isFetchOpenAt, markQuiet, isQuietAt, clearQuietMarks, clearQuietAt, runAnchorIndex, rebuildPlaceholderPortals, placeholderReport} = useCells({
 
             scrollerName,
 
@@ -526,6 +530,8 @@ const Viewport = (props) =>{
 
             headBandListRef,
             tailBandListRef,
+            leadHeadblockBandRef,
+            leadTailblockBandRef,
 
             cradleActualRef,
             placeholdersRef,

@@ -10,6 +10,8 @@
 
 import React from 'react'
 
+import { removeEmptyBands } from './utilities'
+
 const useRemoveCells = ({
 
     portalIDListRef,
@@ -19,6 +21,8 @@ const useRemoveCells = ({
     
     headBandListRef,
     tailBandListRef,
+    leadHeadblockBandRef,
+    leadTailblockBandRef,
     
     cradleActualRef,
     placeholdersRef,
@@ -29,8 +33,6 @@ const useRemoveCells = ({
     const removeCells = ({
         backwardCellsToRemoveCount,
         forwardCellsToRemoveCount,
-        backwardBandsToRemoveCount,
-        forwardBandsToRemoveCount,
     }) => {
 
         const
@@ -74,23 +76,15 @@ const useRemoveCells = ({
         cradleActual.forwardCells -= forwardCellsToRemoveCount
         cradleActual.totalCells = cradleActual.backwardCells + cradleActual.forwardCells
 
-        // ---remove bands
-        
-        const 
-            headBandsToRemoveList = headBandList.splice(0,backwardBandsToRemoveCount),
-            tailBandsToRemoveList = forwardBandsToRemoveCount?tailBandList.splice(-forwardBandsToRemoveCount):[]
-
-        cradleActual.backwardBands -= backwardBandsToRemoveCount
-        cradleActual.forwardBands -= forwardBandsToRemoveCount
-        cradleActual.totalBands = cradleActual.backwardBands + cradleActual.forwardBands
-
-         headBandsToRemoveList.forEach((band)=>{
-             band.parentElement.removeChild(band)
-         })
-
-         tailBandsToRemoveList.forEach((band)=>{
-             band.parentElement.removeChild(band)
-         })
+        // a band leaves the cradle when it is emptied, never by count: a count taken from the end of a list can name
+        // a band that still holds cells while an emptied band stands elsewhere in it
+        removeEmptyBands({
+            headBandList,
+            tailBandList,
+            leadHeadblockBand: leadHeadblockBandRef.current,
+            leadTailblockBand: leadTailblockBandRef.current,
+            cradleActual,
+        })
 
         // a trimmed placeholder leaves the registry; it was never the host's, so removed does not name it
         const placeholderMap = placeholdersRef.current.map

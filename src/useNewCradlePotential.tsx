@@ -212,20 +212,13 @@ const useCradlePotential = ({
 
             // pending changes:
             const 
-
-                backwardBandsToRemoveCount = Math.max(startingCradleActual.backwardBands - headBandsToFit,0),
                 backwardCellsToRemoveCount = Math.max(startingCradleActual.backwardCells - newBackwardCellCount,0),
-
-                forwardBandsToRemoveCount = Math.max(startingCradleActual.forwardBands - tailBandsToFit,0),
                 forwardCellsToRemoveCount = Math.max(startingCradleActual.forwardCells - newForwardCellCount,0)
 
+            // the bands the fit left empty leave with their cells
             removeCells ({
-
                 backwardCellsToRemoveCount,
                 forwardCellsToRemoveCount,
-                backwardBandsToRemoveCount,
-                forwardBandsToRemoveCount,
-
             })
 
             // catch up

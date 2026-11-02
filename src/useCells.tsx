@@ -348,6 +348,15 @@ const useCells = ({
         return undefined
     }
 
+    // the index of the real row the run standing at an end is anchored on, or -1 where no run stands there. The
+    // trim reads it: that row is never trimmed, because the next ask is made from it and an empty answer leaves
+    // the cradle standing on it
+    const runAnchorIndex = (direction) => {
+        if (!standingAt(direction).length) return -1
+        const anchor = (direction == 'forward')?lastRealID():firstRealID()
+        return (anchor === undefined)?-1:portalIDListRef.current.indexOf(anchor)
+    }
+
     const forwardRoom = () => {
 
         const
@@ -1182,6 +1191,7 @@ const useCells = ({
         isQuietAt,
         clearQuietMarks,
         clearQuietAt,
+        runAnchorIndex,
         rebuildPlaceholderPortals,
         placeholderReport,
     }
