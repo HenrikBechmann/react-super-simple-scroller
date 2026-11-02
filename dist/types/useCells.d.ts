@@ -1,4 +1,4 @@
-declare const useCells: ({ scrollerName, DOMManipulationQueueRef, orientationRef, layoutRef, spacingRef, cradlePotentialRef, cradleActualRef, cellPortalListRef, portalIDListRef, cellDataListRef, portalContainerMapRef, cellDimensionsRef, viewportRef, tailblockRef, tailBandListRef, leadTailblockBandRef, headblockRef, headBandListRef, leadHeadblockBandRef, setPortalRenderList, fetchCellsRef, operationsRef, fetchCeilingRef, placeholdersRef, onRunEndedRef, updateCurrentAxisReferenceID, currentAxisReferenceIDRef, callbacksRef, bandMutationObserverRef, requestIntersectionsConnect, }: {
+declare const useCells: ({ scrollerName, DOMManipulationQueueRef, orientationRef, layoutRef, spacingRef, cradlePotentialRef, cradleActualRef, cellPortalListRef, portalIDListRef, cellDataListRef, portalContainerMapRef, cellDimensionsRef, tailblockRef, tailBandListRef, leadTailblockBandRef, headblockRef, headBandListRef, leadHeadblockBandRef, setPortalRenderList, fetchCellsRef, operationsRef, fetchCeilingRef, placeholdersRef, onRunEndedRef, updateCurrentAxisReferenceID, currentAxisReferenceIDRef, callbacksRef, bandMutationObserverRef, requestIntersectionsConnect, }: {
     scrollerName: any;
     DOMManipulationQueueRef: any;
     orientationRef: any;
@@ -11,7 +11,6 @@ declare const useCells: ({ scrollerName, DOMManipulationQueueRef, orientationRef
     cellDataListRef: any;
     portalContainerMapRef: any;
     cellDimensionsRef: any;
-    viewportRef: any;
     tailblockRef: any;
     tailBandListRef: any;
     leadTailblockBandRef: any;
@@ -35,7 +34,15 @@ declare const useCells: ({ scrollerName, DOMManipulationQueueRef, orientationRef
     abortFetches: () => void;
     clearPlaceholders: () => void;
     isFetchOpenAt: (end: any) => boolean;
+    markQuiet: (direction: any, reason: any) => {
+        reason: any;
+        cradleActual: any;
+        endID: any;
+    };
+    isQuietAt: (direction: any, asMarked?: any) => boolean;
+    clearQuietMarks: () => void;
     clearQuietAt: (end: any) => void;
+    runAnchorIndex: (direction: any) => any;
     rebuildPlaceholderPortals: () => void;
     placeholderReport: () => {
         forwardPlaceholders: number;
