@@ -828,7 +828,9 @@ const useCells = ({
             markQuiet(direction, 'end') // after the snap the host of the hold may have made
         }
 
-        sendNextAsk()
+        // the room at the other end is filled and asked for: a cradle the trim cut to the anchor is under its potential
+        // with nothing standing there, and the next ask alone sends only for what stands
+        fillWithPlaceholders()
 
     }
 
@@ -844,7 +846,7 @@ const useCells = ({
         onRunEndedRef.current && onRunEndedRef.current(direction, 'failed')
         markQuiet(direction, 'failed') // after the snap, as endRun marks
 
-        sendNextAsk()
+        fillWithPlaceholders()
 
     }
 
