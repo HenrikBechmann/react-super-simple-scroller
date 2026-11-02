@@ -41,7 +41,6 @@ const useCells = ({
     portalContainerMapRef,
 
     cellDimensionsRef,
-    viewportRef,
 
     tailblockRef,
     tailBandListRef,
@@ -365,21 +364,21 @@ const useCells = ({
 
     const endID = (direction) => (direction == 'forward')?portalIDListRef.current.at(-1):portalIDListRef.current[0]
 
+    // the one end memory: the host's last answer at this end closed the run, with nothing (end) or with a failure.
+    // The hold reads it too (useIntersections marks through it). It carries no scroll position: the hold's own snap
+    // moves the viewport with no input, and a mark keyed on the position dropped on every shift and asked again
     const markQuiet = (direction, reason) => {
-
-        const viewport = viewportRef.current
 
         placeholderState().quiet[direction] = {
             reason,
             cradleActual: cradleActualRef.current,
             endID: endID(direction),
-            scrollTop: viewport?.scrollTop,
-            scrollLeft: viewport?.scrollLeft,
         }
 
     }
 
-    // the mark stands while nothing has changed since the answer; it is cleared when read otherwise
+    // the mark stands until input reaches its end (clearQuietAt), a structural call or a reset (clearQuietMarks), a new
+    // cradle, or a change of the cell at that end; it is cleared when read otherwise
     const isQuietAt = (direction) => {
 
         const
@@ -388,10 +387,7 @@ const useCells = ({
 
         if (!mark) return false
 
-        const
-            viewport = viewportRef.current,
-            stands = (mark.cradleActual === cradleActualRef.current) && (mark.endID === endID(direction)) &&
-                !!viewport && (mark.scrollTop === viewport.scrollTop) && (mark.scrollLeft === viewport.scrollLeft)
+        const stands = (mark.cradleActual === cradleActualRef.current) && (mark.endID === endID(direction))
 
         if (!stands) state.quiet[direction] = null
 
@@ -1182,6 +1178,9 @@ const useCells = ({
         abortFetches,
         clearPlaceholders,
         isFetchOpenAt,
+        markQuiet,
+        isQuietAt,
+        clearQuietMarks,
         clearQuietAt,
         rebuildPlaceholderPortals,
         placeholderReport,

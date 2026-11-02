@@ -57,6 +57,8 @@ const useIntersections = ({
     updateCurrentAxisReferenceID,
     trimCradle,
     isFetchOpenAt,
+    markQuiet,
+    isQuietAt,
     clearQuietAt,
     onRunEndedRef,
 
@@ -74,7 +76,7 @@ const useIntersections = ({
 
     const lastPositionRecoveryRef = useRef(0)
 
-    const holdRef = useRef({viewport:null, onWheel:null, endOfData:null, endCellID:null, cradle:null, isRecovery:false, lastWheelTime:0, count:0})
+    const holdRef = useRef({viewport:null, onWheel:null, endOfData:null, isRecovery:false, lastWheelTime:0, count:0})
 
     // -------------------------[ shift measurement ]-------------------------
 
@@ -549,26 +551,18 @@ const useIntersections = ({
 
     }
 
-    const endCellID = (end) => (end == 'head')?portalIDListRef.current[0]:portalIDListRef.current.at(-1)
-
+    // the end of the data is the one memory the fill keeps (useCells markQuiet / isQuietAt): the hold names the end it
+    // is held at, and marks and reads the end itself there
     const markEndOfData = (end) => {
 
-        const hold = holdRef.current
-
-        hold.endOfData = end
-        hold.endCellID = endCellID(end)
-        hold.cradle = cradleActualRef.current
+        holdRef.current.endOfData = end
+        markQuiet((end == 'tail')?'forward':'backward', 'end')
 
     }
 
-    // a reset starts a new cradle, and cells that arrive at the held end change which cell it ends on
-    const isEndAsMarked = () => {
-
-        const hold = holdRef.current
-
-        return (cradleActualRef.current === hold.cradle) && (endCellID(hold.endOfData) === hold.endCellID)
-
-    }
+    // a reset starts a new cradle, cells that arrive at the held end change which cell it ends on, and a structural call
+    // changes the data: each drops the mark
+    const isEndAsMarked = () => isQuietAt((holdRef.current.endOfData == 'tail')?'forward':'backward')
 
     // fewer cells at an end of the cradle than it can hold there, counted as the fill counts them
     const isCradleShortAt = (end) => {
@@ -597,7 +591,6 @@ const useIntersections = ({
         hold.viewport?.removeEventListener('wheel', hold.onWheel)
         hold.viewport = null
         hold.endOfData = null
-        hold.cradle = null
         hold.isRecovery = false
 
     }

@@ -476,7 +476,7 @@ const Viewport = (props) =>{
     // ===================[ breakout code to use* modules ]======================
 
     const 
-        {getCells, withdrawPlaceholders, abortFetches, clearPlaceholders, isFetchOpenAt, clearQuietAt, rebuildPlaceholderPortals, placeholderReport} = useCells({
+        {getCells, withdrawPlaceholders, abortFetches, clearPlaceholders, isFetchOpenAt, markQuiet, isQuietAt, clearQuietMarks, clearQuietAt, rebuildPlaceholderPortals, placeholderReport} = useCells({
 
             scrollerName,
 
@@ -495,7 +495,6 @@ const Viewport = (props) =>{
             portalContainerMapRef,
 
             cellDimensionsRef,
-            viewportRef,
 
             tailblockRef,
             tailBandListRef,
@@ -576,6 +575,8 @@ const Viewport = (props) =>{
             fillCradle,
             updateCurrentAxisReferenceID,
             isFetchOpenAt,
+            markQuiet,
+            isQuietAt,
             clearQuietAt,
             onRunEndedRef,
 
@@ -689,6 +690,7 @@ const Viewport = (props) =>{
             bandMutationObserverRef,
             placeholdersRef,
             withdrawPlaceholders,
+            clearQuietMarks,
             placeholderReport,
         })
 

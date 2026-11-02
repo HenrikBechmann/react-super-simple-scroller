@@ -66,6 +66,7 @@ const useCalls = ({
     bandMutationObserverRef,
     placeholdersRef,
     withdrawPlaceholders,
+    clearQuietMarks,
     placeholderReport,
 
 }) => {
@@ -785,8 +786,8 @@ const useCalls = ({
             // withdrawing it would leave the cradle empty
             if (!getCradleIDList().length && placeholdersRef.current.pending) return true
 
-            // an explicit fill asks again, where an end the host answered empty at would otherwise wait
-            withdrawPlaceholders()
+            // an explicit fill asks again at an end the host answered empty at; what stands and what is pending are kept
+            clearQuietMarks()
 
             if (!cellPortalListRef.current.length) {
 
