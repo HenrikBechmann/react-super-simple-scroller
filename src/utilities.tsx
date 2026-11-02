@@ -331,3 +331,27 @@ export const createBand = (orientation, layout, cellsPerBand, spacing, bandMutat
 
     return band
 }
+
+// a band leaves the cradle when it is emptied, wherever it stands. The head list runs far end first and its last band
+// lives in the lead headblock band; the tail list runs axis first and its first band lives in the lead tailblock band,
+// so a removal there moves the next band in. The counts are read back from the lists
+export const removeEmptyBands = ({headBandList, tailBandList, leadHeadblockBand, leadTailblockBand, cradleActual}) => {
+
+    const
+        headLast = headBandList.at(-1),
+        tailFirst = tailBandList[0]
+
+    for (const bandList of [headBandList, tailBandList]) {
+        for (let index = bandList.length - 1; index >= 0; index--) {
+            if (!bandList[index].childElementCount) bandList.splice(index, 1)[0].remove()
+        }
+    }
+
+    if (headBandList.length && headBandList.at(-1) !== headLast) leadHeadblockBand?.append(headBandList.at(-1))
+    if (tailBandList.length && tailBandList[0] !== tailFirst) leadTailblockBand?.append(tailBandList[0])
+
+    cradleActual.backwardBands = headBandList.length
+    cradleActual.forwardBands = tailBandList.length
+    cradleActual.totalBands = headBandList.length + tailBandList.length
+
+}

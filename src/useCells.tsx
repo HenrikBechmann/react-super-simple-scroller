@@ -4,7 +4,7 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 
-import { createBand, createContainer, isValidID, reportError, reportFailed, reportWarning, errorMessage } from './utilities'
+import { createBand, createContainer, removeEmptyBands, isValidID, reportError, reportFailed, reportWarning, errorMessage } from './utilities'
 import { DefaultPlaceholder, placeholderID } from './placeholders'
 
 // Two ways to grow the cradle, chosen by operations.placeholderCap.
@@ -893,23 +893,15 @@ const useCells = ({
 
         })
 
-        // the bands the placeholders emptied, at the ends they stood at
-        const
-            tailBandList = tailBandListRef.current,
-            headBandList = headBandListRef.current
-
-        while (tailBandList.length && !tailBandList.at(-1).childElementCount) {
-            tailBandList.pop().remove()
-            cradleActual.forwardBands--
-        }
-
-        while (headBandList.length && !headBandList[0].childElementCount) {
-            headBandList.shift().remove()
-            cradleActual.backwardBands--
-        }
-
         cradleActual.totalCells = cradleActual.backwardCells + cradleActual.forwardCells
-        cradleActual.totalBands = cradleActual.backwardBands + cradleActual.forwardBands
+
+        removeEmptyBands({
+            headBandList: headBandListRef.current,
+            tailBandList: tailBandListRef.current,
+            leadHeadblockBand: leadHeadblockBandRef.current,
+            leadTailblockBand: leadTailblockBandRef.current,
+            cradleActual,
+        })
 
     }
 
