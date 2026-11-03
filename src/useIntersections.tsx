@@ -336,15 +336,25 @@ const useIntersections = ({
 
             } 
 
+            const forwardTrigger = leadTailblockBandForwardTrigger?.target
+
             const executeTailOverflow = async () => {
 
                 assertIntersectionsDisconnect()
 
                 try {
 
-                    await adjustForTailOverflow() // now async; fillCradle moved inside
+                    const settled = await adjustForTailOverflow()
 
-                    // await fillCradle() // moved into adjustForTailOverflow
+                    // this branch precedes the shift branch and returns, so while the tail's fetch stayed open a shift
+                    // the scroll owed was deferred past the answer, and landed under whatever input followed it
+                    if (!settled) {
+
+                        const count = measureForwardShiftCount(forwardTrigger)
+
+                        if (count) shiftAxis('forward', count)
+
+                    }
 
                 } finally {
 
@@ -641,7 +651,8 @@ const useIntersections = ({
 
     }
 
-    const adjustForTailOverflow = async () => {
+    // true when the overflow was the end of the data and the viewport was snapped and held there
+    const adjustForTailOverflow = async (): Promise<boolean> => {
 
         // Original approach: nudge axis down to make room, then fillCradle added cells into
         // the newly created scrollable space. Replaced by the approach below.
@@ -681,7 +692,7 @@ const useIntersections = ({
         // new cells arrived, so the tailblock grew and the trigger returns to 'after' on its own; or the host has
         // been asked, and the placeholders standing there already size the tailblock, so the answer fills in place
         // and neither a snap on the stale layout nor a hold is owed
-        if (cradleActualRef.current.forwardCells > forwardCellsBefore || isFetchOpenAt('tail')) return
+        if (cradleActualRef.current.forwardCells > forwardCellsBefore || isFetchOpenAt('tail')) return false
 
         // No new cells: snap to boundary (last item bottom = viewport bottom).
         snapToTailBoundary()
@@ -690,6 +701,8 @@ const useIntersections = ({
         // the end of the data. A full cradle that the scroll has outrun is not, and nor is one whose fetch
         // is still out: the answer, when it comes, says
         holdScrolling((isCradleShortAt('tail') && !isFetchOpenAt('tail'))?'tail':null)
+
+        return true
 
     }
 

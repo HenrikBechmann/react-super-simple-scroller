@@ -409,14 +409,19 @@ const Viewport = (props) =>{
         }
 
         // the trim never removes the real row a standing placeholder run is anchored on: the head trim stops short
-        // of the forward run's anchor, the tail trim of the backward run's
+        // of the forward run's anchor, the tail trim of the backward run's. An axis standing inside a run is a
+        // shift onto rows not yet answered for: the trim behind it waits for the answer, because an empty one
+        // brings the viewport back to the anchor, and the rows behind the anchor are what it then shows
         const
             forwardAnchor = runAnchorIndex('forward'),
             backwardAnchor = runAnchorIndex('backward'),
-            forwardCellsToRemoveCount = Math.min(
+            axisIndex = portalIDListRef.current.length - cradleActual.forwardCells,
+            axisInForwardRun = (forwardAnchor != -1) && (axisIndex > forwardAnchor),
+            axisInBackwardRun = (backwardAnchor != -1) && (axisIndex < backwardAnchor),
+            forwardCellsToRemoveCount = axisInBackwardRun?0:Math.min(
                 Math.max(cradleActual.forwardCells - (cradlePotential.forwardCells - tailCellOffset),0),
                 (backwardAnchor == -1)?Infinity:(portalIDListRef.current.length - 1 - backwardAnchor)),
-            backwardCellsToRemoveCount = Math.min(
+            backwardCellsToRemoveCount = axisInForwardRun?0:Math.min(
                 Math.max(cradleActual.backwardCells - cradlePotential.backwardCells,0),
                 (forwardAnchor == -1)?Infinity:forwardAnchor)
 
