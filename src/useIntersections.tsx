@@ -365,7 +365,10 @@ const useIntersections = ({
 
         // shift axis backward
 
-        if ( leadHeadblockBandBackwardTrigger.rs3position == 'in' ) {
+        // 'after' is the trigger past the viewport's end with the viewport inside the head block: a crossing that
+        // ran while the observers were disconnected (a resize debounce, a queued task) reconnects in that state,
+        // with no trigger 'in', and the forward side already fires on its own past state ('before')
+        if ( leadHeadblockBandBackwardTrigger.rs3position == 'in' || leadHeadblockBandBackwardTrigger.rs3position == 'after' ) {
 
             assertIntersectionsDisconnect()
 
