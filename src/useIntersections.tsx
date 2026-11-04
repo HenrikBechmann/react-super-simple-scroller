@@ -297,13 +297,18 @@ const useIntersections = ({
             // a crossing with the cradle full at that end is a shift, and is never held: the hold is for an end that
             // may be the end of the data, which the fill below finds out. On real input it costs the fade in
             // cancelled wheels, so a fling across a full block stalled at every crossing
-            if (isScrollInputRecent() && isCradleShortAt('head')) {
+            if (isScrollInputRecent()) {
 
                 clearQuietAt('head')
-                headHold = holdScrolling()
-                holdRef.current.heldAt = 'head'
-                scrollTopRef.current = viewportRef.current.scrollTop
-                scrollLeftRef.current = viewportRef.current.scrollLeft
+
+                if (isCradleShortAt('head')) {
+
+                    headHold = holdScrolling()
+                    holdRef.current.heldAt = 'head'
+                    scrollTopRef.current = viewportRef.current.scrollTop
+                    scrollLeftRef.current = viewportRef.current.scrollLeft
+
+                }
 
             }
 
@@ -356,13 +361,18 @@ const useIntersections = ({
 
             assertIntersectionsDisconnect()
 
-            if (isScrollInputRecent() && isCradleShortAt('tail')) { // as at the head
+            if (isScrollInputRecent()) { // as at the head
 
                 clearQuietAt('tail')
-                tailHold = holdScrolling()
-                holdRef.current.heldAt = 'tail'
-                scrollTopRef.current = viewportRef.current.scrollTop
-                scrollLeftRef.current = viewportRef.current.scrollLeft
+
+                if (isCradleShortAt('tail')) {
+
+                    tailHold = holdScrolling()
+                    holdRef.current.heldAt = 'tail'
+                    scrollTopRef.current = viewportRef.current.scrollTop
+                    scrollLeftRef.current = viewportRef.current.scrollLeft
+
+                }
 
             } 
 
