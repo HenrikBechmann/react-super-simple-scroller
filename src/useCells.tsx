@@ -756,7 +756,6 @@ const useCells = ({
 
         setPortalRenderList([...cellPortalListRef.current])
         updateCurrentAxisReferenceID()
-        onRunEndedRef.current && onRunEndedRef.current(direction, 'rows')
 
         fillWithPlaceholders()
 

@@ -422,12 +422,56 @@ const Viewport = (props) =>{
             backwardAnchor = runAnchorIndex('backward'),
             axisIndex = portalIDListRef.current.length - cradleActual.forwardCells,
             axisInForwardRun = (forwardAnchor != -1) && (axisIndex > forwardAnchor),
-            axisInBackwardRun = (backwardAnchor != -1) && (axisIndex < backwardAnchor),
+            axisInBackwardRun = (backwardAnchor != -1) && (axisIndex < backwardAnchor)
+
+        // the trim behind the axis also keeps the rows a put-back would stand on. A viewport whose forward edge stands
+        // past the real rows ahead of the axis (a crossing on a full cradle, an outrun) is a bet that rows are coming;
+        // an empty answer brings it back so that the last row ends at its forward edge, and what it then shows behind
+        // the axis is the span it is short by, so the bands covering that span stay. Bounded by the viewport's own
+        // span. At the head the put-back rests the viewport on the axis, which the tail's potential already covers
+        const putBackKeep = () => {
+
+            const viewport = viewportRef.current
+
+            if (!viewport || axisInForwardRun) return 0
+
+            const
+                isH = orientationRef.current === 'horizontal',
+                size = (band) => isH ? band.offsetWidth : band.offsetHeight,
+                vpDim = isH ? viewport.clientWidth : viewport.clientHeight,
+                lastRealIndex = (forwardAnchor == -1) ? (portalIDListRef.current.length - 1) : forwardAnchor,
+                headBandList = headBandListRef.current
+
+            let realAhead = lastRealIndex - axisIndex + 1, span = 0
+
+            for (const band of tailBandList) {
+                if (realAhead <= 0) break
+                span += size(band)
+                realAhead -= band.childElementCount
+            }
+
+            const shortfall = vpDim - span
+
+            if (!(shortfall > 0)) return 0
+
+            let kept = 0, covered = 0
+
+            for (let index = headBandList.length - 1; index >= 0; index--) {
+                if (!(covered < shortfall)) break
+                covered += size(headBandList[index])
+                kept += headBandList[index].childElementCount
+            }
+
+            return kept
+
+        }
+
+        const
             forwardCellsToRemoveCount = axisInBackwardRun?0:Math.min(
                 Math.max(cradleActual.forwardCells - (cradlePotential.forwardCells - tailCellOffset),0),
                 (backwardAnchor == -1)?Infinity:(portalIDListRef.current.length - 1 - backwardAnchor)),
             backwardCellsToRemoveCount = axisInForwardRun?0:Math.min(
-                Math.max(cradleActual.backwardCells - cradlePotential.backwardCells,0),
+                Math.max(cradleActual.backwardCells - cradlePotential.backwardCells - putBackKeep(),0),
                 (forwardAnchor == -1)?Infinity:forwardAnchor)
 
         removeCells({

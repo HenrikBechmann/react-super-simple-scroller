@@ -81,13 +81,13 @@ export default class Queue {
 
   armStall() {
     if (this.stopped || !this.onStall || this.stallTimer || this.stallWarnedSerial == this.runSerial) return;
-    const serial = this.runSerial, armedAt = Date.now();
+    const serial = this.runSerial, armedAt = performance.now();
     this.stallTimer = setTimeout(() => {
       this.stallTimer = null;
       if (!this.pendingPromise || this.runSerial != serial) return;
       this.stallWarnedSerial = serial;
       try {
-        this.onStall({ waitedMs: Date.now() - armedAt, waiting: this.queue.length });
+        this.onStall({ waitedMs: performance.now() - armedAt, waiting: this.queue.length });
       } catch (err) {
         // a reporter that throws must not take the queue down
       }

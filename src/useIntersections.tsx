@@ -74,7 +74,7 @@ const useIntersections = ({
     const isScrollInputRecent = () =>
         immediateIsScrollingRef.current || ((performance.now() - lastScrollEventTimeRef.current) < standardMomentumFadeRef.current)
 
-    const holdRef = useRef({viewport:null, onWheel:null, endOfData:null, mark:null, heldAt:null, lastWheelTime:0, count:0})
+    const holdRef = useRef({viewport:null, onWheel:null, endOfData:null, mark:null, lastWheelTime:0, count:0})
 
     // -------------------------[ shift measurement ]-------------------------
 
@@ -292,25 +292,9 @@ const useIntersections = ({
 
             assertIntersectionsDisconnect()
 
-            let headHold = 0
-
-            // a crossing with the cradle full at that end is a shift, and is never held: the hold is for an end that
-            // may be the end of the data, which the fill below finds out. On real input it costs the fade in
-            // cancelled wheels, so a fling across a full block stalled at every crossing
-            if (isScrollInputRecent()) {
-
-                clearQuietAt('head')
-
-                if (isCradleShortAt('head')) {
-
-                    headHold = holdScrolling()
-                    holdRef.current.heldAt = 'head'
-                    scrollTopRef.current = viewportRef.current.scrollTop
-                    scrollLeftRef.current = viewportRef.current.scrollLeft
-
-                }
-
-            }
+            // no hold is taken here: the end of the data is found by the host's answer, and the answer's handler
+            // (onRunEndedRef) takes the end hold with the viewport at that end
+            if (isScrollInputRecent()) clearQuietAt('head')
 
             const executeHeadOverflow = async () => {
     
@@ -321,22 +305,6 @@ const useIntersections = ({
                     adjustForHeadOverflow()
 
                     await fillCradle()
-
-                    // asked for cells before the first one and none came: the hold begun above, if it is
-                    // still the one in force, is at the head of the data
-                    if (headHold && holdRef.current.viewport && (holdRef.current.count == headHold) &&
-                        isCradleShortAt('head') && !isFetchOpenAt('head')) {
-
-                        markEndOfData('head')
-
-                    } else if (headHold && holdRef.current.viewport && (holdRef.current.count == headHold) &&
-                        !isCradleShortAt('head') && !isFetchOpenAt('head')) {
-
-                        // rows came, and the hold begun above has nothing to hold for: it lets go now rather than
-                        // refusing the rest of the fade, so the scroll goes on into them
-                        releaseHold()
-
-                    }
 
                 } finally {
 
@@ -357,24 +325,9 @@ const useIntersections = ({
 
             // console.log('TAIL OVERFLOW')
 
-            let tailHold = 0
-
             assertIntersectionsDisconnect()
 
-            if (isScrollInputRecent()) { // as at the head
-
-                clearQuietAt('tail')
-
-                if (isCradleShortAt('tail')) {
-
-                    tailHold = holdScrolling()
-                    holdRef.current.heldAt = 'tail'
-                    scrollTopRef.current = viewportRef.current.scrollTop
-                    scrollLeftRef.current = viewportRef.current.scrollLeft
-
-                }
-
-            } 
+            if (isScrollInputRecent()) clearQuietAt('tail') // as at the head
 
             const forwardTrigger = leadTailblockBandForwardTrigger?.target
 
@@ -385,14 +338,6 @@ const useIntersections = ({
                 try {
 
                     const settled = await adjustForTailOverflow()
-
-                    // as at the head: rows came, and the hold begun above lets go
-                    if (!settled && tailHold && holdRef.current.viewport && (holdRef.current.count == tailHold) &&
-                        !isCradleShortAt('tail') && !isFetchOpenAt('tail')) {
-
-                        releaseHold()
-
-                    }
 
                     // this branch precedes the shift branch and returns, so while the tail's fetch stayed open a shift
                     // the scroll owed was deferred past the answer, and landed under whatever input followed it
@@ -540,7 +485,6 @@ const useIntersections = ({
         immediateStopScrollingRef.current = true
         hold.endOfData = null
         hold.mark = null
-        hold.heldAt = null
         endOfData && markEndOfData(endOfData)
         hold.count++
 
@@ -655,7 +599,6 @@ const useIntersections = ({
         hold.viewport = null
         hold.endOfData = null
         hold.mark = null
-        hold.heldAt = null
 
     }
 
@@ -779,7 +722,7 @@ const useIntersections = ({
 
     // The host answered an ask at an end with nothing, or failed to answer it, after the fill that asked had
     // returned: the placeholders there are gone. A viewport that had scrolled onto them is brought back to the last
-    // row, and the hold the fill began, or one a scroll still in progress earns, is told it is at the end of the
+    // row, and a hold already standing, or one a scroll still in progress earns, is told it is at the end of the
     // data when the answer was empty. A failed answer holds without marking the end: the host may answer next time
     onRunEndedRef.current = (direction, reason) => {
 
@@ -788,14 +731,6 @@ const useIntersections = ({
         const
             end = (direction == 'forward')?'tail':'head',
             hold = holdRef.current
-
-        // rows came at that end: the hold taken there at the crossing, on a cradle short of its potential, has nothing
-        // left to hold for, and lets go now rather than at its fade. The task that took it checks the same thing, but
-        // an asked-for answer lands after that check, on placeholders the fill left standing
-        if (reason == 'rows') {
-            if (hold.viewport && !hold.endOfData && (hold.heldAt == end)) releaseHold()
-            return
-        }
 
         if (end == 'tail') snapToTailBoundary(true)
 
