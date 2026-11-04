@@ -373,6 +373,11 @@ const Viewport = (props) =>{
     },[])
 
     const updateCurrentAxisReferenceID = useCallback(() => {
+
+        // an empty tail has no row at the axis (at(-0) would name the cradle's first), and the fill that follows
+        // names the row it stands there: the reference stands until then
+        if (!cradleActualRef.current.forwardCells) return
+
         const
             currentAxisReferenceID = portalIDListRef.current.at(-cradleActualRef.current.forwardCells)
 
