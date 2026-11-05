@@ -63,6 +63,7 @@ export type ReactSuperSimpleScrollerProps = {
         runway?: number;
         crossAxisChaining?: boolean;
         placeholderCap?: number;
+        placeholderSpreadRatio?: number | null;
         placeholder?: React.ComponentType<PlaceholderProps>;
         placeholderContext?: any;
     };

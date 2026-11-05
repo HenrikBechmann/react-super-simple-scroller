@@ -723,10 +723,12 @@ const useIntersections = ({
 
     }
 
-    // The host answered an ask at an end with nothing, or failed to answer it, after the fill that asked had
-    // returned: the placeholders there are gone. A viewport that had scrolled onto them is brought back to the last
-    // row, and a hold already standing, or one a scroll still in progress earns, is told it is at the end of the
-    // data when the answer was empty. A failed answer holds without marking the end: the host may answer next time
+    // The host answered an ask at an end with nothing, or failed to answer it. Two callers: a placeholder run's
+    // answer, which arrives after the fill that asked had returned and takes that end's placeholders with it, and,
+    // with placeholders off, the inline fill's empty answer to 'before'. A viewport that had scrolled past the
+    // last tail row is brought back to it, and a hold already standing, or one a scroll still in progress earns,
+    // is told it is at the end of the data when the answer was empty. A failed answer holds without marking the
+    // end: the host may answer next time
     onRunEndedRef.current = (direction, reason) => {
 
         if (!viewportRef.current) return

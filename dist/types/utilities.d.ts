@@ -51,6 +51,8 @@ export declare const validateCellDimensions: (cellDimensions: any, lastGood?: an
     problems: any[];
 };
 export declare const createContainer: (id: any, cellDimensions: any, cellsPerBand: any, orientation: any, layout: any) => HTMLDivElement;
+export declare const setPlaceholderSpread: (container: any, cellDimensions: any, orientation: any, layout: any, ratio: any) => void;
+export declare const clearPlaceholderSpread: (container: any, orientation: any, layout: any) => void;
 export declare const createBand: (orientation: any, layout: any, cellsPerBand: any, spacing: any, bandMutationObserver: any) => HTMLDivElement;
 export declare const removeEmptyBands: ({ headBandList, tailBandList, leadHeadblockBand, leadTailblockBand, cradleActual }: {
     headBandList: any;

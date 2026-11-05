@@ -4,7 +4,7 @@
 import React from 'react'
 import { createPortal } from 'react-dom'
 
-import { createBand, createContainer, removeEmptyBands, isValidID, reportError, reportFailed, reportWarning, errorMessage } from './utilities'
+import { createBand, createContainer, setPlaceholderSpread, clearPlaceholderSpread, removeEmptyBands, isValidID, reportError, reportFailed, reportWarning, errorMessage } from './utilities'
 import { DefaultPlaceholder, placeholderID } from './placeholders'
 
 // Two ways to grow the cradle, chosen by operations.placeholderCap.
@@ -89,6 +89,20 @@ const useCells = ({
         reportBadOption('operations.placeholderCap', cap, 'must be a number of 0 or more; the default is used')
 
         return Math.ceil(1.5 * cradlePotential.cellsPerBand * cradlePotential.visibleBands)
+
+    }
+
+    const placeholderSpreadRatio = () => {
+
+        const ratio = operationsRef.current?.placeholderSpreadRatio
+
+        if (ratio === undefined || ratio === null) return 0
+
+        if ((typeof ratio == 'number') && Number.isFinite(ratio) && (ratio >= 0) && (ratio <= 1)) return ratio
+
+        reportBadOption('operations.placeholderSpreadRatio', ratio, 'must be a number from 0 to 1; the default is used')
+
+        return 0
 
     }
 
@@ -776,6 +790,8 @@ const useCells = ({
             {id, component} = cellPack
 
         container.setAttribute('data-id', id)
+        // the container is the row's from here: a spread size left on it would stand the row at the placeholder's
+        clearPlaceholderSpread(container, orientationRef.current, layoutRef.current)
 
         portalIDList[index] = id
         cellDataListRef.current[index] = cellPack
@@ -1066,6 +1082,7 @@ const useCells = ({
             portalIDListRef.current.push(id)
             const container = createContainer(id, cellDimensionsRef.current, cradleActual.cellsPerBand,
                 orientationRef.current,layoutRef.current)
+            if (item.entry) setPlaceholderSpread(container, cellDimensionsRef.current, orientationRef.current, layoutRef.current, placeholderSpreadRatio())
             portalContainerMapRef.current.set(id, container)
             incomingPortalList.push(makePortal(id, item.entry ?? item))
 
@@ -1123,6 +1140,7 @@ const useCells = ({
 
             const container = createContainer(id, cellDimensionsRef.current, cradleActualRef.current.cellsPerBand,
                 orientationRef.current, layoutRef.current)
+            if (item.entry) setPlaceholderSpread(container, cellDimensionsRef.current, orientationRef.current, layoutRef.current, placeholderSpreadRatio())
 
             portalContainerMapRef.current.set(id, container)
             incomingPortalList.unshift(makePortal(id, item.entry ?? item))

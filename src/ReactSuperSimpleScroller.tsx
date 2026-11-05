@@ -1474,6 +1474,7 @@ export type ReactSuperSimpleScrollerProps = {
         runway?: number,
         crossAxisChaining?: boolean, // default true
         placeholderCap?: number, // placeholders at each end; 0 turns them off; default 1.5 × a viewport's cells
+        placeholderSpreadRatio?: number | null, // variable layout: a placeholder's axis size, from min (0) to max (1); default 0
         placeholder?: React.ComponentType<PlaceholderProps>, // the host's placeholder; default a gray "searching…"
         placeholderContext?: any, // passed to each placeholder untouched; memoize it
     },

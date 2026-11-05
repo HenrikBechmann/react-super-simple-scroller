@@ -285,6 +285,32 @@ export const createContainer = (id, cellDimensions,cellsPerBand, orientation, la
     return container
 }
 
+// operations.placeholderSpreadRatio: in variable layout a placeholder stands between the cell's min and max on the axis
+export const setPlaceholderSpread = (container, cellDimensions, orientation, layout, ratio) => {
+
+    if ((layout != 'variable') || !ratio) return
+
+    if (orientation == 'vertical') {
+        container.style.height = (cellDimensions.minHeight + ratio * (cellDimensions.maxHeight - cellDimensions.minHeight)) + 'px'
+    } else {
+        container.style.width = (cellDimensions.minWidth + ratio * (cellDimensions.maxWidth - cellDimensions.minWidth)) + 'px'
+    }
+
+}
+
+// a uniform container's axis size is createContainer's own, and stays
+export const clearPlaceholderSpread = (container, orientation, layout) => {
+
+    if (layout != 'variable') return
+
+    if (orientation == 'vertical') {
+        container.style.height = ''
+    } else {
+        container.style.width = ''
+    }
+
+}
+
 export const createBand = (orientation, layout, cellsPerBand, spacing, bandMutationObserver) => {
 
     const 
