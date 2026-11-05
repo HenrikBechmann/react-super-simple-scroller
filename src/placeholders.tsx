@@ -43,7 +43,7 @@ const defaultStyles = {
 // operations.placeholderContext, passed untouched; context.text replaces the default text, and '' shows none.
 export const DefaultPlaceholder = ({ context }) => {
 
-    const text = (context && typeof context.text == 'string') ? context.text : 'fetching…'
+    const text = (context && typeof context.text == 'string') ? context.text : 'searching…'
 
     if (text === '') return null
 
