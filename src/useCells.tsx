@@ -284,6 +284,11 @@ const useCells = ({
 
                     moreExpected = false
 
+                    // the head's end of the data, as the host answered it: the handler that takes the end hold hears
+                    // it here as it hears a run's empty answer. Unheard, each scroll into the end showed the space
+                    // past the first row and asked again
+                    onRunEndedRef.current && onRunEndedRef.current('backward', 'end')
+
                 } else {
 
                     const newPortalList = setBackwardCells(newCells)
