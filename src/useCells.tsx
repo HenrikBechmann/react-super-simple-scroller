@@ -230,7 +230,9 @@ const useCells = ({
                 offset = cradleActual.cellsPerBand - tailBandList[0].childElementCount
             }
 
-            let moreExpected = true
+            // the end memory gates the ask here as it gates the placeholder fill: an end the host has answered is asked
+            // again only once input reaches it (clearQuietAt), not on every shift into the room past the last row
+            let moreExpected = !isQuietAt('forward')
             while ((cradleActual.forwardCells < (cradlePotential.forwardCells - offset)) && moreExpected) {
 
                 const
@@ -275,7 +277,7 @@ const useCells = ({
 
         } else if (startCode == 'before') {
 
-            let moreExpected = true
+            let moreExpected = !isQuietAt('backward')
             while ((cradleActual.backwardCells < cradlePotential.backwardCells) && moreExpected) {
 
                 const

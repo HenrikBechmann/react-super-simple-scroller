@@ -1,9 +1,11 @@
-declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, AXIS_START_POSITION, DOMManipulationQueueRef, orientationRef, viewportRef, headblockRef, leadHeadblockBandRef, headblockOverflowTriggerRef, tailblockRef, tailblockOverflowTriggerRef, leadTailblockBandRef, cradleActualRef, cradlePotentialRef, headBandListRef, tailBandListRef, intersectionsMapRef, scrollTopRef, scrollLeftRef, axisPositionRef, portalIDListRef, immediateIsScrollingRef, lastScrollEventTimeRef, immediateStopScrollingRef, restoreScrollingTimeoutIDRef, callbacksRef, setAxisPosition, assertIntersectionsDisconnect, requestIntersectionsConnect, fillCradle, updateCurrentAxisReferenceID, trimCradle, isFetchOpenAt, markQuiet, isQuietAt, clearQuietAt, onRunEndedRef, }: {
+declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortMomentumFadeRef, AXIS_START_POSITION, DOMManipulationQueueRef, orientationRef, layoutRef, viewportRef, headblockRef, leadHeadblockBandRef, headblockOverflowTriggerRef, tailblockRef, tailblockOverflowTriggerRef, leadTailblockBandRef, cradleActualRef, cradlePotentialRef, headBandListRef, tailBandListRef, intersectionsMapRef, scrollTopRef, scrollLeftRef, axisPositionRef, portalIDListRef, immediateIsScrollingRef, lastScrollEventTimeRef, immediateStopScrollingRef, restoreScrollingTimeoutIDRef, callbacksRef, setAxisPosition, assertIntersectionsDisconnect, requestIntersectionsConnect, fillCradle, updateCurrentAxisReferenceID, trimCradle, isFetchOpenAt, markQuiet, isQuietAt, clearQuietAt, onRunEndedRef, }: {
     scrollerName: any;
     standardMomentumFadeRef: any;
+    shortMomentumFadeRef: any;
     AXIS_START_POSITION: any;
     DOMManipulationQueueRef: any;
     orientationRef: any;
+    layoutRef: any;
     viewportRef: any;
     headblockRef: any;
     leadHeadblockBandRef: any;
@@ -36,5 +38,20 @@ declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, AXIS_S
     isQuietAt: any;
     clearQuietAt: any;
     onRunEndedRef: any;
-}) => any;
+}) => {
+    evaluateIntersections: any;
+    onTailEndScroll: () => void;
+    onTailEndScrollingModeEnd: () => void;
+    tailEndStateReport: () => {
+        inside: boolean;
+        mark: any;
+        slack: number;
+        contentBottom: any;
+    } | {
+        inside: true;
+        mark: any;
+        slack: number;
+        contentBottom: any;
+    };
+};
 export default useIntersections;
