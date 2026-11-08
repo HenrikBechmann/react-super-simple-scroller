@@ -63,14 +63,16 @@ const useCells = ({
 
 }) => {
 
-    const
-        placeholderState = () => placeholdersRef.current,
-        badOptionsReported = new Set()
+    const placeholderState = () => placeholdersRef.current
 
-    // an option that cannot be used is reported once per value, and the default stands in for it
+    // an option that cannot be used is reported once per option and value for the scroller's life, and the default
+    // stands in for it. The record lives in the placeholder state, not the render, so a re-render does not report again
     const reportBadOption = (name, value, message) => {
-        if (badOptionsReported.has(value)) return
-        badOptionsReported.add(value)
+        const
+            badOptions = placeholderState().badOptions,
+            reported = badOptions.get(name) ?? badOptions.set(name, new Set()).get(name)
+        if (reported.has(value)) return
+        reported.add(value)
         reportError(callbacksRef, name, message, [value])
     }
 
@@ -1089,6 +1091,19 @@ const useCells = ({
             // allocate cell data
             let band
             const latestband = tailBandListRef.current.at(-1)
+
+            if (!latestband) {
+                // a shift that took every tail band can leave the head's last band partial; it is the cradle's last
+                // band, so the room in it is taken before a new band is opened, or the partial band is left mid-cradle
+                const lastband = headBandListRef.current.at(-1)
+                if (lastband && lastband.childElementCount < cradleActual.cellsPerBand) {
+                    band = lastband
+                    band.append(container)
+                    cradleActual.backwardCells++
+                    cradleActual.totalCells++
+                    return
+                }
+            }
 
             if (latestband && latestband.childElementCount < cradleActual.cellsPerBand) {
 

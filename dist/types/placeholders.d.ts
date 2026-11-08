@@ -8,6 +8,7 @@ export declare const createPlaceholderState: () => {
     map: Map<any, any>;
     pending: any;
     inlineController: any;
+    badOptions: Map<any, any>;
     quiet: {
         forward: any;
         backward: any;

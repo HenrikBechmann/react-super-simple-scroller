@@ -23,6 +23,7 @@ export const createPlaceholderState = () => ({
     map: new Map(), // placeholder id -> {direction, referenceID, askID, index}
     pending: null, // the one fetch out at a time: {startCode, direction, referenceID, count, attempt, controller, ceilingTimer, cradleActual, askID, ids}
     inlineController: null, // the signal given to fetches made with placeholders off
+    badOptions: new Map(), // option name -> Set of the values reported for it, so each is reported once
     // an end the host answered empty at, or failed to answer: {reason: 'end' | 'failed', cradleActual, endID,
     // scrollTop, scrollLeft}. While the cradle, the row at that end and the scroll position are as they were, a fill
     // places nothing there, so an empty or failed answer cannot start a loop of placing, asking and removing. A
