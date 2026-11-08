@@ -369,9 +369,11 @@ The following three are queries of the state of the cradle.
   backwardPlaceholders // placeholders standing before the host's first cell
   firstPlaceholderReferenceID // the first cell in the cradle, when it is a placeholder; otherwise null
   lastPlaceholderReferenceID // the last cell in the cradle, when it is a placeholder; otherwise null
+  quiet // {forward, backward}: the scroller's end marks, read-only. 'end' when the host's last answer at that end
+        // returned nothing, 'failed' when it failed, null when the end is open (not answered, or asked again)
 }
 ```
-The counts (`forwardCells`, `backwardCells`, `totalCells`) are of the host's cells; the placeholders at each end are counted beside them.
+The counts (`forwardCells`, `backwardCells`, `totalCells`) are of the host's cells; the placeholders at each end are counted beside them. `quiet` is the memory the scroller itself stops asking on: an end marked `'end'` or `'failed'` is not asked again until input reaches it, a structural call or a reset, a new cradle, or a change of the cell standing there.
 In a nutshell, RS3 tries to make the actual look like the potential, anchored by the axis.
 
 A call made after the scroller is unmounted does nothing and answers with the empty value of its kind: `insert`, `remove`, `move`, `replace`, `fetchCradleCells` and `restoreScrollPositions` resolve `false`, `getCradleIDList` answers `[]`, `getCradleSpecs` `null`, and every other call `false`. The first such call is reported once through the `warning` callback (`source` is the call's name), or to `console.warn` when no `warning` callback is given; later ones on the same instance are silent. A call still waiting in the queue when the scroller is unmounted is answered in the same way without being run, and is reported under the same once-only warning, which then lists every dropped call's name in `dropped`. The scroller mounts under `React.StrictMode`.

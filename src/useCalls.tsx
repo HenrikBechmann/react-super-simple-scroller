@@ -753,6 +753,7 @@ const useCalls = ({
                 backwardPlaceholders: report.backwardPlaceholders,
                 firstPlaceholderReferenceID: report.firstPlaceholderReferenceID,
                 lastPlaceholderReferenceID: report.lastPlaceholderReferenceID,
+                quiet: report.quiet,
             },
             cradlePotential: {
                 runway: runwayBandsRef.current,

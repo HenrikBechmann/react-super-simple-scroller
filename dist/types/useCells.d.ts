@@ -51,6 +51,10 @@ declare const useCells: ({ scrollerName, DOMManipulationQueueRef, orientationRef
         lastPlaceholderReferenceID: any;
         firstRealReferenceID: any;
         lastRealReferenceID: any;
+        quiet: {
+            forward: any;
+            backward: any;
+        };
     };
 };
 export default useCells;

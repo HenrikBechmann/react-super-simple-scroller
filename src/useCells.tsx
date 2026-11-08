@@ -965,13 +965,19 @@ const useCells = ({
 
     }
 
-    // the cradle's real rows, and its placeholders, as the host reads them
+    // the cradle's real rows, and its placeholders, as the host reads them. quiet reads the end marks as isQuietAt
+    // tests them, but never clears one: a report is a read, and a mark that no longer stands is the hold's to drop
     const placeholderReport = () => {
 
         const
             portalIDList = portalIDListRef.current,
             cradleActual = cradleActualRef.current,
-            map = placeholderState().map
+            state = placeholderState(),
+            map = state.map,
+            quietReason = (direction) => {
+                const mark = state.quiet[direction]
+                return (mark && (mark.cradleActual === cradleActual) && (mark.endID === endID(direction)))?mark.reason:null
+            }
 
         let forwardPlaceholders = 0, backwardPlaceholders = 0
 
@@ -992,6 +998,7 @@ const useCells = ({
             lastPlaceholderReferenceID: map.has(lastID)?lastID:null,
             firstRealReferenceID: firstRealID(),
             lastRealReferenceID: lastRealID(),
+            quiet: { forward: quietReason('forward'), backward: quietReason('backward') },
         }
 
     }
