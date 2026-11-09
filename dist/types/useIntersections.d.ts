@@ -40,7 +40,7 @@ declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortM
     onRunEndedRef: any;
 }) => {
     evaluateIntersections: any;
-    onTailEndScroll: () => void;
+    onTailEndScroll: (ask?: boolean) => void;
     onTailEndScrollingModeEnd: () => void;
     tailEndStateReport: () => {
         inside: boolean;

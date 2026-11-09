@@ -698,6 +698,15 @@ const useIntersections = ({
     // for any other reason, so a mark still held after it is read is the state's or its re-ask's
     const tailEndStands = () => insideTailEndState() || (tailEndRef.current.markFromAxis !== null)
 
+    // an empty headblock still measures a pixel: with no head row the head's dimension is nothing
+    const headRowsDimension = () => {
+
+        if (!cradleActualRef.current.backwardCells) return 0
+
+        return (orientationRef.current == 'horizontal') ? headblockRef.current.offsetWidth : headblockRef.current.offsetHeight
+
+    }
+
     const tailGeometry = () => {
 
         const
@@ -707,6 +716,7 @@ const useIntersections = ({
         return {
             isH,
             axis: isH ? axisPositionRef.current.x : axisPositionRef.current.y,
+            headDim: headRowsDimension(),
             tailDim: isH ? tailblockRef.current.offsetWidth : tailblockRef.current.offsetHeight,
             viewportDim: isH ? viewport.clientWidth : viewport.clientHeight,
             scrollPos: isH ? viewport.scrollLeft : viewport.scrollTop,
@@ -716,13 +726,20 @@ const useIntersections = ({
 
     // the mark is the content's bottom plus the slack, or the previous mark where that is further: growth moves it on,
     // and a shrink leaves the room the viewport had shown. A viewport whose forward edge is above the content's bottom
-    // has scrolled up to see the content's end, and the mark is reset to it. Read only inside the state, or on entry
+    // has scrolled up to see the content's end, and the mark is reset to it. Read only inside the state, or on entry.
+    // Where the head stands, the mark is never short of the viewport's own forward edge with its leading edge at the
+    // head's rest (a pixel past the first row's edge, as isViewportAtEnd reads it): a content shorter than the
+    // viewport is at its head and its tail at once, and a mark the viewport could reach only by crossing the head
+    // would have the head re-seat the viewport and the tail bring it back, in turns, for as long as the list stood.
+    // The head stands with no backward cell (the head overflow re-seats the viewport there) or on the host's empty
+    // answer; a cradle with rows above still to come is crossed, which is how the head is asked for them
     const tailEndMark = () => {
 
         const
             state = tailEndRef.current,
-            { axis, tailDim, viewportDim, scrollPos } = tailGeometry(),
-            floor = tailDim + tailSlack(),
+            { axis, headDim, tailDim, viewportDim, scrollPos } = tailGeometry(),
+            headStands = !cradleActualRef.current.backwardCells || isQuietAt('backward'),
+            floor = Math.max(tailDim + tailSlack(), headStands ? (1 - headDim + viewportDim) : 0),
             viewportEndFromAxis = scrollPos + viewportDim - axis
 
         state.markFromAxis = (viewportEndFromAxis < tailDim) ? floor : Math.max(state.markFromAxis ?? floor, floor)
@@ -763,14 +780,21 @@ const useIntersections = ({
     // nothing, and the trigger's inference from a cradle still short after the fill is the end). The viewport is
     // snapped to the mark and, under input, held to stop its momentum: the plain hold, with no quiet window and no
     // wheel cancelling, since the state does from here what the hold's extensions did. A re-entry during a bring-back
-    // neither snaps nor holds: the smooth scroll is already taking the viewport to the mark
+    // neither snaps nor holds: the smooth scroll is already taking the viewport to the mark. An answer that stands
+    // the state up again on a kept mark reads the viewport against it: nothing read it while the re-ask was out, and
+    // a gesture in that time may have left it past the mark
     const enterTailEndState = (onlyIfPast) => {
 
         const state = tailEndRef.current
 
         if (!isQuietAt('forward')) markQuiet('forward', 'end')
 
-        if (insideTailEndState()) return
+        if (insideTailEndState()) {
+
+            onTailEndScroll(false)
+            return
+
+        }
 
         const mark = tailEndMark()
 
@@ -786,12 +810,16 @@ const useIntersections = ({
     // brought back once the input has faded (SHORT_MOMENTUM_FADE from the last scroll event), not fought while it
     // runs; a gesture that comes back above the mark by itself owes nothing. The bring-back's own scroll events, and
     // a held viewport's, are not gestures and are not read here: the mode's end re-reads the viewport for them
-    // (onTailEndScrollingModeEnd), so no reading is dropped
-    const onTailEndScroll = () => {
+    // (onTailEndScrollingModeEnd), so no reading is dropped. The same reading is taken when an answer stands the
+    // state up again (enterTailEndState), without the ask: the answer that has just arrived is that gesture's, and
+    // a bring-back a gesture has already scheduled stands, with its ask
+    const onTailEndScroll = (ask = true) => {
 
         const state = tailEndRef.current
 
         if (!insideTailEndState() || state.bringingBack || holdRef.current.viewport) return
+
+        if (!ask && (state.gestureTimeoutID !== null)) return
 
         const
             mark = tailEndMark(),
@@ -802,7 +830,7 @@ const useIntersections = ({
 
         if ((scrollPos + viewportDim) <= mark) return
 
-        state.gestureTimeoutID = setTimeout(bringBackToTailEndMark, shortMomentumFadeRef.current)
+        state.gestureTimeoutID = setTimeout(() => bringBackToTailEndMark(ask), shortMomentumFadeRef.current)
 
     }
 
@@ -814,11 +842,12 @@ const useIntersections = ({
 
     }
 
-    // The viewport past the mark is brought back to it with a smooth scroll, and the tail is asked once more: the
-    // gesture into the end is the user asking for more, and the placeholders that stand for the ask are the feedback.
-    // Rows answered extend the content and leave the state (the end memory goes with the end cell); an empty answer
-    // stands the state up again on the same mark, and the viewport stays where the bring-back left it
-    const bringBackToTailEndMark = () => {
+    // The viewport past the mark is brought back to it with a smooth scroll, and a gesture's bring-back asks the tail
+    // once more: the gesture into the end is the user asking for more, and the placeholders that stand for the ask
+    // are the feedback. Rows answered extend the content and leave the state (the end memory goes with the end cell);
+    // an empty answer stands the state up again on the same mark and reads the viewport against it, since a gesture
+    // made while the ask was out was read by nothing: that bring-back does not ask again
+    const bringBackToTailEndMark = (ask) => {
 
         const state = tailEndRef.current
 
@@ -837,7 +866,7 @@ const useIntersections = ({
 
         }
 
-        reaskTail()
+        if (ask) reaskTail()
 
     }
 
@@ -968,11 +997,9 @@ const useIntersections = ({
 
         if (end == 'head') {
 
-            // an empty headblock still measures a pixel, and the head repositioning rests the viewport a pixel past
-            // the axis: with no head row the boundary is the axis itself
-            const headDim = cradleActualRef.current.backwardCells ? (isH ? headblockRef.current.offsetWidth : headblockRef.current.offsetHeight) : 0
-
-            return scrollPos <= (axis - headDim + 1)
+            // the head repositioning rests the viewport a pixel past the axis: with no head row the boundary is the
+            // axis itself
+            return scrollPos <= (axis - headRowsDimension() + 1)
 
         }
 
