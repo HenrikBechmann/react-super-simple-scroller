@@ -8,6 +8,21 @@ const SCROLLBLOCK_SPAN = 1000000
 // technicals
 export { SCROLLBLOCK_SPAN }
 
+// --- trigger geometry, one for both orientations
+
+// how far into its band the forward trigger stands: the viewport travels this far past the band's start before a
+// forward shift, and about as far back before the backward trigger (at the band's edge) shifts it back, so it is the
+// dead band that keeps a small reversal from shifting a band out and in again
+const FORWARD_TRIGGER_INSET = 5
+
+// thicker than the 1 px edge triggers: a 1 px trigger at a fractional scroll position could read as past the
+// viewport's start before the viewport had reached it (thickened from 1 with the fresh reset's 1 px axis offset)
+const FORWARD_TRIGGER_THICKNESS = 3
+
+// the tail overflow trigger stands this far past the tail block's end: the tail is asked for more once the viewport
+// reaches a few px beyond its last row, not while it rests on that row's edge
+const TAIL_OVERFLOW_TRIGGER_OFFSET = 4
+
 // --- viewport styles
 
 // overscroll is contained on the axis the scroller scrolls along: a scroll that reaches the end of the list
@@ -117,7 +132,7 @@ const verticalTailblockStyles = {
 const verticalTailblockOverflowTriggerStyles = { // observed for tail overflow
     zIndex: -1,
     position: 'absolute',
-    bottom: '-4px', // PIXEL
+    bottom: -TAIL_OVERFLOW_TRIGGER_OFFSET,
     right:0,
     height: '1px',
     width: '100%',
@@ -133,9 +148,9 @@ const verticalLeadTailblockBandStyles = { // observed for intersection
 const verticalLeadTailblockBandForwardTriggerStyles = { // observed for shift forward
     zIndex: -1,
     position: 'absolute',
-    top:'5px',
+    top: FORWARD_TRIGGER_INSET,
     right:0,
-    height: '3px',
+    height: FORWARD_TRIGGER_THICKNESS,
     width: '100%',
 } as CSSProperties
 
@@ -214,7 +229,7 @@ const horizontalTailblockStyles = {
 const horizontalTailblockOverflowTriggerStyles = { // observed for tail overflow
     zIndex: -1,
     position: 'absolute',
-    right: '-4px',
+    right: -TAIL_OVERFLOW_TRIGGER_OFFSET,
     top:0,
     height: '100%',
     width: '1px',
@@ -231,9 +246,9 @@ const horizontalLeadTailblockBandForwardTriggerStyles = { // observed for forwar
     zIndex: -1,
     position: 'absolute',
     top: 0,
-    left:0,
+    left: FORWARD_TRIGGER_INSET,
     height: '100%',
-    width: '3px',
+    width: FORWARD_TRIGGER_THICKNESS,
 } as CSSProperties
 
 const horizontalLeadTailblockBandEndTriggerStyles = { // observed as mirror of leadHeadblockBandBackwardTrigger
