@@ -85,6 +85,21 @@ const useIntersections = ({
 
     // -------------------------[ shift measurement ]-------------------------
 
+    // An element's span on the scroll axis from the viewport's start, read from layout as a queued task runs. The
+    // observation that queued the task was taken earlier: a task ahead of it, or an answer applied since, may have
+    // stood or moved bands, so a task acts on the cradle as it stands then, not as the observation saw it
+    const spanFromViewportStart = (element) => {
+
+        const
+            rect = element.getBoundingClientRect(),
+            viewportBounds = viewportRef.current.getBoundingClientRect()
+
+        return (orientationRef.current == 'vertical')
+            ? {start: rect.top - viewportBounds.top, end: rect.bottom - viewportBounds.top, viewportSpan: viewportBounds.height}
+            : {start: rect.left - viewportBounds.left, end: rect.right - viewportBounds.left, viewportSpan: viewportBounds.width}
+
+    }
+
     // Both counts are read as the shift runs, from the bands and the viewport as they stand then: a task
     // queued ahead of the shift may have moved bands, and the viewport may have gone on scrolling, since the
     // trigger crossing was observed. A count taken at the crossing and carried into the task ran against bands
@@ -230,14 +245,12 @@ const useIntersections = ({
                     const
                         viewport = viewportRef.current,
                         vertical = orientationRef.current == 'vertical',
-                        viewportRect = viewport.getBoundingClientRect(),
-                        headRect = headblockRef.current.getBoundingClientRect(),
-                        tailRect = tailblockRef.current.getBoundingClientRect(),
                         // measured again as the task runs: a fill queued ahead of it may have stood rows under
                         // the viewport, and a cradle the viewport is back inside is left to the observers
+                        block = spanFromViewportStart(outrunEnd == 'tail' ? tailblockRef.current : headblockRef.current),
                         stillOutrun = outrunEnd == 'tail'
-                            ? (vertical ? tailRect.bottom <= viewportRect.top : tailRect.right <= viewportRect.left)
-                            : (vertical ? headRect.top >= viewportRect.bottom : headRect.left >= viewportRect.right)
+                            ? block.end <= 0
+                            : block.start >= block.viewportSpan
 
                     if (!stillOutrun) return
 
@@ -306,13 +319,29 @@ const useIntersections = ({
             // (onRunEndedRef) takes the end hold with the viewport at that end
             if (isScrollInputRecent()) clearQuietAt('head')
 
+            const backwardTrigger = leadHeadblockBandBackwardTrigger?.target
+
             const executeHeadOverflow = async () => {
     
                 assertIntersectionsDisconnect()
 
                 try {
 
-                    adjustForHeadOverflow()
+                    // measured again as the task runs, as the outrun's cradle is: an answer applied after the crossing
+                    // was observed may have stood rows in the head and put its edge back before the viewport. The
+                    // overflow is then over, and the bands standing past the viewport's start are the backward
+                    // shift's, counted as that shift counts them: none while its trigger is before the viewport too
+                    if (spanFromViewportStart(headblockOverflowTriggerRef.current).end >= 0) {
+
+                        adjustForHeadOverflow()
+
+                    } else {
+
+                        const count = measureBackwardShiftCount(backwardTrigger)
+
+                        if (count) shiftAxis('backward', count)
+
+                    }
 
                     await fillCradle()
 
