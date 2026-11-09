@@ -60,6 +60,7 @@ const useCells = ({
     callbacksRef,
     bandMutationObserverRef,
     requestIntersectionsConnect,
+    trimCradle,
 
 }) => {
 
@@ -777,6 +778,10 @@ const useCells = ({
 
         reanchor(direction)
 
+        // the trim a shift left behind an axis standing inside this run (trimCradle) is taken on the answer: an axis
+        // still inside what is left of the run waits again. No ask is out, and the fill reads the room after it
+        trimCradle()
+
         setPortalRenderList([...cellPortalListRef.current])
         updateCurrentAxisReferenceID()
 
@@ -832,6 +837,8 @@ const useCells = ({
 
         removePlaceholderCells(standingAt(direction))
 
+        trimCradle() // the run has answered: the trim it deferred, as applyAnswer takes it
+
         setPortalRenderList([...cellPortalListRef.current])
 
         if (!portalIDListRef.current.length) {
@@ -865,6 +872,8 @@ const useCells = ({
     const withdrawRun = (direction) => {
 
         removePlaceholderCells(standingAt(direction))
+
+        trimCradle() // the run has answered: the trim it deferred, as applyAnswer takes it
 
         setPortalRenderList([...cellPortalListRef.current])
         updateCurrentAxisReferenceID()

@@ -572,6 +572,7 @@ const Viewport = (props) =>{
             callbacksRef,
             bandMutationObserverRef,
             requestIntersectionsConnect,
+            trimCradle,
 
         }),
 

@@ -1,4 +1,4 @@
-declare const useCells: ({ scrollerName, DOMManipulationQueueRef, orientationRef, layoutRef, spacingRef, cradlePotentialRef, cradleActualRef, cellPortalListRef, portalIDListRef, cellDataListRef, portalContainerMapRef, cellDimensionsRef, tailblockRef, tailBandListRef, leadTailblockBandRef, headblockRef, headBandListRef, leadHeadblockBandRef, setPortalRenderList, fetchCellsRef, operationsRef, fetchCeilingRef, placeholdersRef, onRunEndedRef, updateCurrentAxisReferenceID, currentAxisReferenceIDRef, callbacksRef, bandMutationObserverRef, requestIntersectionsConnect, }: {
+declare const useCells: ({ scrollerName, DOMManipulationQueueRef, orientationRef, layoutRef, spacingRef, cradlePotentialRef, cradleActualRef, cellPortalListRef, portalIDListRef, cellDataListRef, portalContainerMapRef, cellDimensionsRef, tailblockRef, tailBandListRef, leadTailblockBandRef, headblockRef, headBandListRef, leadHeadblockBandRef, setPortalRenderList, fetchCellsRef, operationsRef, fetchCeilingRef, placeholdersRef, onRunEndedRef, updateCurrentAxisReferenceID, currentAxisReferenceIDRef, callbacksRef, bandMutationObserverRef, requestIntersectionsConnect, trimCradle, }: {
     scrollerName: any;
     DOMManipulationQueueRef: any;
     orientationRef: any;
@@ -28,6 +28,7 @@ declare const useCells: ({ scrollerName, DOMManipulationQueueRef, orientationRef
     callbacksRef: any;
     bandMutationObserverRef: any;
     requestIntersectionsConnect: any;
+    trimCradle: any;
 }) => {
     getCells: (startCode: any, seedReferenceID?: any) => Promise<void>;
     withdrawPlaceholders: () => boolean;
