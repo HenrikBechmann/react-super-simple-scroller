@@ -40,7 +40,7 @@ declare const useCells: ({ scrollerName, DOMManipulationQueueRef, orientationRef
         cradleActual: any;
         endID: any;
     };
-    isQuietAt: (direction: any, asMarked?: any) => boolean;
+    isQuietAt: (direction: any) => boolean;
     clearQuietMarks: () => void;
     clearQuietAt: (end: any) => void;
     runAnchorIndex: (direction: any) => any;

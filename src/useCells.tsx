@@ -303,7 +303,7 @@ const useCells = ({
 
                     moreExpected = false
 
-                    // the head's end of the data, as the host answered it: the handler that takes the end hold hears
+                    // the head's end of the data, as the host answered it: the handler that enters the end state hears
                     // it here as it hears a run's empty answer. Unheard, each scroll into the end showed the space
                     // past the first row and asked again
                     onRunEndedRef.current && onRunEndedRef.current('backward', 'end')
@@ -398,7 +398,7 @@ const useCells = ({
     const endID = (direction) => (direction == 'forward')?portalIDListRef.current.at(-1):portalIDListRef.current[0]
 
     // the one end memory: the host's last answer at this end closed the run, with nothing (end) or with a failure.
-    // The hold reads it too (useIntersections marks through it). It carries no scroll position: the hold's own snap
+    // The end state reads it too (useIntersections marks through it). It carries no scroll position: the state's snap
     // moves the viewport with no input, and a mark keyed on the position dropped on every shift and asked again
     const markQuiet = (direction, reason) => {
 
@@ -410,12 +410,9 @@ const useCells = ({
 
     }
 
-    // the mark stands until input reaches its end (clearQuietAt), a structural call or a reset (clearQuietMarks), a new
-    // cradle, or a change of the cell at that end; it is cleared when read otherwise. A reader that keeps the mark it
-    // was given (the hold) asks whether the end is still as that mark had it, the same cell on the same cradle: an
-    // answer that marks the end again after rows arrived or a reset is a later answer, and an answer that marks it as
-    // it was is the same one
-    const isQuietAt = (direction, asMarked = undefined) => {
+    // the mark stands until the end state asks its end again (clearQuietAt), a structural call or a reset
+    // (clearQuietMarks), a new cradle, or a change of the cell at that end; it is cleared when read otherwise
+    const isQuietAt = (direction) => {
 
         const
             state = placeholderState(),
@@ -427,7 +424,7 @@ const useCells = ({
 
         if (!stands) state.quiet[direction] = null
 
-        return stands && ((asMarked === undefined) || ((mark.cradleActual === asMarked.cradleActual) && (mark.endID === asMarked.endID)))
+        return stands
 
     }
 
@@ -437,7 +434,7 @@ const useCells = ({
         state.quiet.backward = null
     }
 
-    // a scroll into an end asks there again, whatever the hold at that end did to the scroll position
+    // a gesture past an end's mark asks there again (the end state's re-ask)
     const clearQuietAt = (end) => {
         placeholderState().quiet[(end == 'tail')?'forward':'backward'] = null
     }
@@ -832,7 +829,7 @@ const useCells = ({
 
     }
 
-    // an empty answer: the positions at that end are taken down, and the hold, if one is in force, is told
+    // an empty answer: the positions at that end are taken down, and the end state is told
     const endRun = (direction, startCode) => {
 
         removePlaceholderCells(standingAt(direction))
@@ -857,7 +854,7 @@ const useCells = ({
 
         if (startCode != 'at') {
             onRunEndedRef.current && onRunEndedRef.current(direction, 'end')
-            markQuiet(direction, 'end') // after the snap the host of the hold may have made
+            markQuiet(direction, 'end') // after the snap the entry may have made
         }
 
         // the room at the other end is filled and asked for: a cradle the trim cut to the anchor is under its potential
@@ -977,7 +974,7 @@ const useCells = ({
     }
 
     // the cradle's real rows, and its placeholders, as the host reads them. quiet reads the end marks as isQuietAt
-    // tests them, but never clears one: a report is a read, and a mark that no longer stands is the hold's to drop
+    // tests them, but never clears one: a report is a read, and a mark that no longer stands is the end state's to drop
     const placeholderReport = () => {
 
         const

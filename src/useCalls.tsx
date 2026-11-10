@@ -68,7 +68,7 @@ const useCalls = ({
     withdrawPlaceholders,
     clearQuietMarks,
     placeholderReport,
-    tailEndStateReport,
+    endStateReport,
 
 }) => {
 
@@ -755,7 +755,7 @@ const useCalls = ({
                 firstPlaceholderReferenceID: report.firstPlaceholderReferenceID,
                 lastPlaceholderReferenceID: report.lastPlaceholderReferenceID,
                 quiet: report.quiet,
-                endState: tailEndStateReport(),
+                endState: endStateReport(),
             },
             cradlePotential: {
                 runway: runwayBandsRef.current,

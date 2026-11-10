@@ -40,18 +40,31 @@ declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortM
     onRunEndedRef: any;
 }) => {
     evaluateIntersections: any;
-    onTailEndScroll: (ask?: boolean) => void;
-    onTailEndScrollingModeEnd: () => void;
-    tailEndStateReport: () => {
-        inside: boolean;
-        mark: any;
-        slack: number;
-        contentBottom: any;
-    } | {
-        inside: true;
-        mark: any;
-        slack: number;
-        contentBottom: any;
+    onEndScroll: () => void;
+    onEndScrollingModeEnd: () => void;
+    endStateReport: () => {
+        head: {
+            inside: boolean;
+            mark: any;
+            slack: number;
+            contentEdge: any;
+        } | {
+            inside: true;
+            mark: any;
+            slack: number;
+            contentEdge: any;
+        };
+        tail: {
+            inside: boolean;
+            mark: any;
+            slack: number;
+            contentEdge: any;
+        } | {
+            inside: true;
+            mark: any;
+            slack: number;
+            contentEdge: any;
+        };
     };
 };
 export default useIntersections;

@@ -595,7 +595,7 @@ const Viewport = (props) =>{
 
         }),
 
-        { evaluateIntersections, onTailEndScroll, onTailEndScrollingModeEnd, tailEndStateReport } = useIntersections({
+        { evaluateIntersections, onEndScroll, onEndScrollingModeEnd, endStateReport } = useIntersections({
 
             scrollerName,
 
@@ -755,7 +755,7 @@ const Viewport = (props) =>{
             withdrawPlaceholders,
             clearQuietMarks,
             placeholderReport,
-            tailEndStateReport,
+            endStateReport,
         })
 
     // the host's placeholder component or context changed identity: the standing placeholders are drawn again
@@ -1086,7 +1086,7 @@ const Viewport = (props) =>{
 
             scrollTopRef.current = target.scrollTop
             scrollLeftRef.current = target.scrollLeft
-            onTailEndScroll()
+            onEndScroll()
 
         }
 
@@ -1362,7 +1362,7 @@ const Viewport = (props) =>{
         if (!isScrollingMode) {
 
             resetAxisPosition()
-            onTailEndScrollingModeEnd()
+            onEndScrollingModeEnd()
             // reset scrolling control
             immediateIsScrollingRef.current = false
 
