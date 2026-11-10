@@ -262,6 +262,10 @@ const Viewport = (props) =>{
 
         // timeout id's
         scrollMomentumTimeoutIDRef = useRef(null),
+        // the reset of the scroll position, where it moves the viewport, is reported like any scroll, by a scroll
+        // event and a scrollend in the same rendering step: 'scroll' while that scroll event is owed, 'scrollend'
+        // from it until the next event of either kind
+        resetReportRef = useRef(null),
         restoreScrollingTimeoutIDRef = useRef(null),
         resizeTimeoutIDRef = useRef(null),
         reconcileFrameIDRef = useRef(null),
@@ -502,33 +506,48 @@ const Viewport = (props) =>{
 
     },[])
 
+    // The record of the scroll position (scrollTopRef, scrollLeftRef) is what the viewport reported when the scroller
+    // last heard it scroll or last put it somewhere. A viewport found anywhere else has been scrolled since, and the
+    // scroll event that reports it is still to come
+    const isScrollUnheard = useCallback(() => {
+
+        const viewport = viewportRef.current
+
+        return !!viewport && ((viewport.scrollTop !== scrollTopRef.current) || (viewport.scrollLeft !== scrollLeftRef.current))
+
+    },[])
+
     const resetAxisPosition = useCallback((freshReset = false) => {
 
         if (!viewportRef.current) return // error condition
+
+        const { scrollTop, scrollLeft } = viewportRef.current
 
         if (orientationRef.current == 'vertical') {
 
             // freshReset: use offset of 1 to place axis 1px inside the viewport, preventing the
             // intersection observer from seeing the forward trigger as 'before' at the exact boundary.
-            const axisOffset = freshReset ? 1 : (axisPositionRef.current.y - viewportRef.current.scrollTop)
-            const crossAxis = freshReset ? 0 : viewportRef.current.scrollLeft
+            const axisOffset = freshReset ? 1 : (axisPositionRef.current.y - scrollTop)
 
-            scrollTopRef.current = AXIS_START_POSITION
-            scrollLeftRef.current = crossAxis
-            viewportRef.current.scrollTo(crossAxis, AXIS_START_POSITION)
+            viewportRef.current.scrollTo(freshReset ? 0 : scrollLeft, AXIS_START_POSITION)
             setAxisPosition(0, AXIS_START_POSITION + axisOffset, 'stop scrolling')
 
         } else { // 'horizontal'
 
-            const axisOffset = freshReset ? 1 : (axisPositionRef.current.x - viewportRef.current.scrollLeft)
-            const crossAxis = freshReset ? 0 : viewportRef.current.scrollTop
+            const axisOffset = freshReset ? 1 : (axisPositionRef.current.x - scrollLeft)
 
-            scrollLeftRef.current = AXIS_START_POSITION
-            scrollTopRef.current = crossAxis
-            viewportRef.current.scrollTo(AXIS_START_POSITION, crossAxis)
+            viewportRef.current.scrollTo(AXIS_START_POSITION, freshReset ? 0 : scrollTop)
             setAxisPosition(AXIS_START_POSITION + axisOffset, 0)
 
         }
+
+        // a browser may round a position it is given, so the record is what the viewport reports once it is put
+        // there; where that is what it reported before, the reset moved nothing and no scroll event will report it
+        scrollTopRef.current = viewportRef.current.scrollTop
+        scrollLeftRef.current = viewportRef.current.scrollLeft
+
+        if ((scrollTopRef.current !== scrollTop) || (scrollLeftRef.current !== scrollLeft)) resetReportRef.current = 'scroll'
+
     },[])
 
     // ===================[ breakout code to use* modules ]======================
@@ -595,7 +614,7 @@ const Viewport = (props) =>{
 
         }),
 
-        { evaluateIntersections, onEndScroll, onEndScrollingModeEnd, endStateReport } = useIntersections({
+        { evaluateIntersections, onEndScroll, onEndScrollingModeEnd, onEndWheel, onEndTouchStart, isBringingBack, endStateReport } = useIntersections({
 
             scrollerName,
 
@@ -879,6 +898,12 @@ const Viewport = (props) =>{
         scrollendSupportedRef.current = typeof window !== 'undefined' && 'onscrollend' in window
         if (scrollendSupportedRef.current) viewport.addEventListener('scrollend', onViewportScrollEnd, { passive: true })
 
+        // The end state's bring-back stops for the user's input. Native listeners: the cells are portals rendered
+        // beside the viewport, and their React events do not pass through it. Both read the hook's refs alone, so
+        // the mount's closures serve the scroller's life
+        viewport.addEventListener('wheel', onEndWheel, { passive: true })
+        viewport.addEventListener('touchstart', onEndTouchStart, { passive: true })
+
         return () => {
             isMountedRef.current = false
             cancelAnimationFrame(reconcileFrameIDRef.current)
@@ -890,6 +915,8 @@ const Viewport = (props) =>{
             resizeObserverRef.current.disconnect()
             viewport.removeEventListener('rs3restore', handleRs3Restore)
             viewport.removeEventListener('scrollend', onViewportScrollEnd)
+            viewport.removeEventListener('wheel', onEndWheel)
+            viewport.removeEventListener('touchstart', onEndTouchStart)
             abortFetches()
             queue.stop(false)
         }
@@ -1066,7 +1093,16 @@ const Viewport = (props) =>{
     // scrollTo, and each of those sends a scrollend of its own: the fade timer ends the mode once the pin is released
     const onViewportScrollEnd = useCallback(() => {
 
+        // the scrollend that comes with the reset's own scroll event ends the reset, not a bring-back begun since:
+        // ending the mode on it would reset the position under that bring-back and stop it, and its own scrollend
+        // ends the mode
+        const ownReset = (resetReportRef.current == 'scrollend')
+
+        if (ownReset) resetReportRef.current = null
+
         if (immediateStopScrollingRef.current) return
+
+        if (ownReset && isBringingBack()) return
 
         endScrollingMode()
 
@@ -1077,6 +1113,10 @@ const Viewport = (props) =>{
 
         const { target } = event
 
+        const ownReset = (resetReportRef.current == 'scroll')
+
+        resetReportRef.current = ownReset ? 'scrollend' : null
+
         clearTimeout(scrollMomentumTimeoutIDRef.current)
         if (immediateStopScrollingRef.current) {
 
@@ -1084,9 +1124,17 @@ const Viewport = (props) =>{
 
         } else {
 
+            const unheard = isScrollUnheard()
+
             scrollTopRef.current = target.scrollTop
             scrollLeftRef.current = target.scrollLeft
-            onEndScroll()
+
+            // the first scroll event after the scroller's own reset reports that reset. Where it reports nothing
+            // more, the viewport is where the scroller put it and has not moved over the content: no gesture is read
+            // from it, or a list held past an end would ask its host again for a reset
+            const resetAlone = ownReset && !unheard
+
+            if (!resetAlone) onEndScroll()
 
         }
 
@@ -1361,8 +1409,10 @@ const Viewport = (props) =>{
 
         if (!isScrollingMode) {
 
+            // read before the reset takes the viewport's position for the record
+            const scrollUnheard = isScrollUnheard()
             resetAxisPosition()
-            onEndScrollingModeEnd()
+            onEndScrollingModeEnd(scrollUnheard)
             // reset scrolling control
             immediateIsScrollingRef.current = false
 

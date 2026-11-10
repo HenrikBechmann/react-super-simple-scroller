@@ -595,14 +595,14 @@ const useIntersections = ({
 
             if (orientationRef.current == 'vertical') {
 
-                scrollTopRef.current = AXIS_START_POSITION
                 viewportRef.current.scrollTo(scrollLeftRef.current,AXIS_START_POSITION)
+                scrollTopRef.current = viewportRef.current.scrollTop
                 setAxisPosition(0,AXIS_START_POSITION - 1, 'head overflow')
 
             } else { // 'horizontal'
 
                 viewportRef.current.scrollTo(AXIS_START_POSITION, scrollTopRef.current)
-                scrollLeftRef.current = AXIS_START_POSITION
+                scrollLeftRef.current = viewportRef.current.scrollLeft
                 setAxisPosition(AXIS_START_POSITION - 1,0, 'head overflow')
 
             }
@@ -631,11 +631,16 @@ const useIntersections = ({
     // outward: a shift, a reset and a relayout all move the axis with the content, so the mark stays where the content
     // is through them. Being inside the state is the two together: the position mark exists only while the end memory
     // stands, so a trim of the end row, a structural call, a reset, a new cradle or rows at the end leave the state
-    // with the memory, with no flag of its own to keep in step
+    // with the memory, with no flag of its own to keep in step. One viewport has one bring-back at a time, whichever
+    // end it is for: glidingTo is the scroll position a running one is taking the viewport to. The touch that holds
+    // the list, under which none is made, is the fingers that began on the viewport and are still on the screen
+    // (touches, by identifier), and inputAt is the time of the last input that is not a scroll event (quietWindowLeft)
     const endStateRef = useRef({
         head:{markFromAxis:null, reaskOpen:false, gestureTimeoutID:null},
         tail:{markFromAxis:null, reaskOpen:false, gestureTimeoutID:null},
-        bringingBack:false,
+        glidingTo:null,
+        touches:new Set(),
+        inputAt:-Infinity,
     })
 
     const directionAt = (end) => (end == 'tail') ? 'forward' : 'backward'
@@ -644,7 +649,7 @@ const useIntersections = ({
 
     // the position mark is dropped when the end memory is found gone, unless a re-ask is out: the re-ask cleared the
     // memory itself (reaskOpen while the adjustment has the ask, the open fetch after), and an empty answer stands the
-    // state up again on the same mark, so the room it showed stays
+    // state up again on the mark it kept
     const insideEndState = (end) => {
 
         const state = endStateRef.current[end]
@@ -702,11 +707,12 @@ const useIntersections = ({
 
     }
 
-    // The content's edge as the mark reads it, from the axis outward. Placeholders standing at the end are content
-    // as far as their first band: the band nearest the rows is what a bring-back ends on, and the bands of the run
-    // beyond it are not counted, so a run longer than the viewport does not take the rows out of view. A band that
-    // rows and placeholders share is the rows' band
-    const markEdgeAt = (end) => {
+    // An end's two edges as the mark reads them, from the axis outward: the rows' edge, and the edge of what stands
+    // there. Placeholders standing at the end for an ask stand past the rows and count as far as their first band:
+    // the band nearest the rows is what a bring-back ends on, and the bands of the run beyond it are not counted, so
+    // a run longer than the viewport does not take the rows out of view. A band that rows and placeholders share is
+    // the rows' band. With no placeholders standing the two edges are one
+    const markEdgesAt = (end) => {
 
         const
             isH = orientationRef.current == 'horizontal',
@@ -715,7 +721,7 @@ const useIntersections = ({
             block = isTail ? tailblockRef.current : headblockRef.current,
             bands = isTail ? [...tailBandListRef.current].reverse() : headBandListRef.current
 
-        if (!isTail && !cradleActualRef.current.backwardCells) return 0
+        if (!isTail && !cradleActualRef.current.backwardCells) return {rowsEdge:0, standingEdge:0}
 
         let standing = 0
 
@@ -735,21 +741,33 @@ const useIntersections = ({
 
         }
 
-        if (!firstBand) return isH ? block.offsetWidth : block.offsetHeight
+        if (!firstBand) {
+
+            const edge = isH ? block.offsetWidth : block.offsetHeight
+
+            return {rowsEdge:edge, standingEdge:edge}
+
+        }
 
         const blockRect = block.getBoundingClientRect(), bandRect = firstBand.getBoundingClientRect()
 
-        return isTail
-            ? (isH ? bandRect.right - blockRect.left : bandRect.bottom - blockRect.top)
-            : (isH ? blockRect.right - bandRect.left : blockRect.bottom - bandRect.top)
+        if (isTail) return isH
+            ? {rowsEdge:bandRect.left - blockRect.left, standingEdge:bandRect.right - blockRect.left}
+            : {rowsEdge:bandRect.top - blockRect.top, standingEdge:bandRect.bottom - blockRect.top}
+
+        return isH
+            ? {rowsEdge:blockRect.right - bandRect.right, standingEdge:blockRect.right - bandRect.left}
+            : {rowsEdge:blockRect.bottom - bandRect.bottom, standingEdge:blockRect.bottom - bandRect.top}
 
     }
 
-    // The mark is the content's edge (markEdgeAt) plus the slack, or the previous mark where that is further out:
-    // growth moves it on, and the first band of a re-ask's placeholders is content, so a bring-back made once they
-    // stand ends on it; a shrink leaves the room the viewport had shown. A viewport whose edge is short of the
-    // content's edge has scrolled back to see the content's end, and the mark is reset to it. Read only where the end
-    // stands, or on entry.
+    // The mark that is kept (markFromAxis) is the rows' edge plus the slack, or the previous mark where that is
+    // further out: growth moves it on, and a shrink leaves the room the viewport had shown. A viewport whose edge is
+    // short of the rows' edge has scrolled back to see the content's end, and the mark is reset to it. The mark that
+    // is read is the kept one, or the edge of what stands plus the slack where that is further out: the first band of
+    // a re-ask's placeholders is in it while they stand, so a bring-back made then ends on them, and it is never
+    // kept. When an answer takes them down the mark is the rows' again, and a viewport that rested on them is a band
+    // past it. Read only where the end stands, or on entry.
     // A content shorter than the viewport is at its head and its tail at once, and it rests at its head. Where the
     // head stands (its own end state, through its re-ask, or the host's empty answer there), the tail's mark is never
     // short of the viewport's forward edge with its leading edge at the head's rest (a pixel past the first row's
@@ -761,13 +779,13 @@ const useIntersections = ({
         const
             state = endStateRef.current[end],
             { viewportEdge, viewportDim } = endGeometry(end),
-            markEdge = markEdgeAt(end),
+            { rowsEdge, standingEdge } = markEdgesAt(end),
             headStands = (end == 'tail') && (endStands('head') || isQuietAt('backward')),
-            floor = Math.max(markEdge + endSlack(), headStands ? (1 - markEdgeAt('head') + viewportDim) : 0)
+            floor = Math.max(rowsEdge + endSlack(), headStands ? (1 - markEdgesAt('head').rowsEdge + viewportDim) : 0)
 
-        state.markFromAxis = (viewportEdge < markEdge) ? floor : Math.max(state.markFromAxis ?? floor, floor)
+        state.markFromAxis = (viewportEdge < rowsEdge) ? floor : Math.max(state.markFromAxis ?? floor, floor)
 
-        return state.markFromAxis
+        return Math.max(state.markFromAxis, standingEdge + endSlack())
 
     }
 
@@ -791,12 +809,13 @@ const useIntersections = ({
 
         if (onlyIfPast && (viewportEdge <= mark)) return
 
+        // a browser may round the position it is given: the record is what the viewport reports once it is put there
         if (isH) {
-            scrollLeftRef.current = position
             viewportRef.current.scrollTo(position, viewportRef.current.scrollTop)
+            scrollLeftRef.current = viewportRef.current.scrollLeft
         } else {
-            scrollTopRef.current = position
             viewportRef.current.scrollTo(viewportRef.current.scrollLeft, position)
+            scrollTopRef.current = viewportRef.current.scrollTop
         }
 
     }
@@ -807,8 +826,8 @@ const useIntersections = ({
     // on its first row is not moved into the slack) and, under input, held to stop its momentum: the plain hold, with
     // no quiet window and no wheel cancelling, since the state does from here what a longer hold would. A re-entry
     // during a bring-back neither snaps nor holds: the smooth scroll is already taking the viewport to the mark. An
-    // answer that stands the state up again on a kept mark reads the viewport against it: nothing read it while the
-    // re-ask was out, and a gesture in that time may have left it past the mark
+    // answer that stands the state up again on a kept mark reads the viewport against it: the placeholders it took
+    // down were what the viewport rested on
     const enterEndState = (end, onlyIfPast) => {
 
         const direction = directionAt(end)
@@ -824,7 +843,7 @@ const useIntersections = ({
 
         const mark = endMark(end)
 
-        if (endStateRef.current.bringingBack) return
+        if (endStateRef.current.glidingTo !== null) return
 
         snapToEndMark(end, mark, onlyIfPast)
 
@@ -832,18 +851,39 @@ const useIntersections = ({
 
     }
 
+    // What is left of the quiet window. A gesture has ended when no input has arrived for SHORT_MOMENTUM_FADE: a
+    // wheel or a momentum scroll has no event that ends it, so the time since the last input is the only sign. Input
+    // is a scroll event of the list (the component keeps the time of each), a wheel along its axis, a touch's start,
+    // and the last of its fingers lifting (inputAt)
+    const quietWindowLeft = () => {
+
+        const lastInput = Math.max(lastScrollEventTimeRef.current, endStateRef.current.inputAt)
+
+        return shortMomentumFadeRef.current - (performance.now() - lastInput)
+
+    }
+
     // Every unpinned scroll event reads the viewport against the mark of each end it is inside the state at. A
     // gesture past the mark is brought back once the input has faded (SHORT_MOMENTUM_FADE from the last scroll
-    // event), not fought while it runs; a gesture that comes back inside the mark by itself owes nothing. The
-    // bring-back's own scroll events, and a held viewport's, are not gestures and are not read here: the mode's end
-    // re-reads the viewport for them (onEndScrollingModeEnd), so no reading is dropped. The same reading is taken
-    // when an answer stands the state up again (enterEndState), without the ask: the answer that has just arrived is
-    // that gesture's, and a bring-back a gesture has already scheduled stands, with its ask
-    const readViewportAtEnd = (end, ask) => {
+    // event), not fought while it runs; a gesture that comes back inside the mark by itself owes nothing. The ask is
+    // the gesture's, and the scroll events' reading is the only one that carries it. A bring-back's own scroll events
+    // are not a gesture, and a held viewport is read by nothing: the mode's end re-reads the viewport for them
+    // (onEndScrollingModeEnd), so no reading is dropped.
+    //
+    // Every other reading is the same one without the ask: an answer that stands the state up again (enterEndState),
+    // the mode's end, the end of a touch, a bring-back stopped for input, the timer of an earlier one. It is taken
+    // wherever the end stands, so also while a re-ask is out, against the mark as it stands then (the placeholders
+    // are in it). It waits only what is left of the quiet window, and the timer it leaves decides nothing: it takes
+    // the reading again. With none left it returns the viewport (returnToEndMark). During a bring-back there is
+    // nothing to wait out: no hand is on the list while one runs (input ends it), and the mark the scroll is running
+    // to may no longer be the mark. A bring-back a gesture has already scheduled stands, with its ask
+    const readViewportAtEnd = (end, ask, inTask = false) => {
 
         const state = endStateRef.current[end]
 
-        if (!insideEndState(end) || endStateRef.current.bringingBack || holdRef.current.viewport) return
+        if (holdRef.current.viewport || !(ask ? insideEndState(end) : endStands(end))) return
+
+        if (ask && (endStateRef.current.glidingTo !== null)) return
 
         if (!ask && (state.gestureTimeoutID !== null)) return
 
@@ -856,7 +896,42 @@ const useIntersections = ({
 
         if (viewportEdge <= mark) return
 
-        state.gestureTimeoutID = setTimeout(() => bringBackToEndMark(end, ask), shortMomentumFadeRef.current)
+        const wait = ask
+            ? shortMomentumFadeRef.current
+            : (endStateRef.current.glidingTo !== null) ? 0 : quietWindowLeft()
+
+        if (wait > 0) state.gestureTimeoutID = setTimeout(() => bringBackToEndMark(end, ask), wait)
+        else if (inTask) glideToEndMark(end)
+        else returnToEndMark(end)
+
+    }
+
+    // The return of a viewport past a mark without an ask is a task of the queue, like every other act on the list:
+    // a re-ask or an answer waiting its turn ahead of it goes first, and the reading is taken again as the task runs,
+    // against the list as it stands then
+    const returnToEndMark = (end) => {
+
+        const returnTask = async () => {
+
+            try {
+
+                if (viewportRef.current) readViewportAtEnd(end, false, true)
+
+            } finally {
+
+                requestIntersectionsConnect()
+
+            }
+
+        }
+
+        DOMManipulationQueue.enqueue(returnTask).catch((error) => {
+
+            if (!viewportRef.current) return
+
+            reportError(callbacksRef, 'returnToEndMark', errorMessage(error), [end])
+
+        })
 
     }
 
@@ -867,33 +942,49 @@ const useIntersections = ({
 
     }
 
-    const onEndScrollingModeEnd = () => {
+    const rereadEnds = () => {
 
-        endStateRef.current.bringingBack = false
+        readViewportAtEnd('head', false)
+        readViewportAtEnd('tail', false)
 
-        onEndScroll()
+    }
+
+    // the scrolling mode's end is the end of any bring-back, completed or not: a viewport it left past a mark is read
+    // here. A scroll made as the scrolling ended, whose scroll event the reset of the scroll position has left with
+    // nothing to report, is a gesture nothing else will read: it is read first, as its event would have been, so
+    // that during a bring-back it is the bring-back's own
+    const onEndScrollingModeEnd = (scrollUnheard) => {
+
+        if (scrollUnheard) onEndScroll()
+        endStateRef.current.glidingTo = null
+        rereadEnds()
 
     }
 
     // A gesture past the mark asks that end once more, and the viewport is brought back to the mark with a smooth
     // scroll: the gesture into the end is the user asking for more, and the placeholders that stand for the ask are
     // the feedback, so the ask goes first and the bring-back ends on them (reaskEnd). Rows answered fill in place and
-    // leave the state (the end memory goes with the end cell); an empty answer stands the state up again on the same
-    // mark and reads the viewport against it, since a gesture made while the ask was out was read by nothing: that
-    // bring-back does not ask again
+    // leave the state (the end memory goes with the end cell). An empty or failed answer takes the placeholders down
+    // and stands the state up again on the kept mark, which never had their room in it: the viewport is past it by
+    // the band it rested on, the answer's reading finds it there, and a second bring-back takes it to the rows' edge
+    // plus the slack. That one does not ask again. This is the timer's end: a gesture's sends its ask, and any other
+    // takes the reading again
     const bringBackToEndMark = (end, ask) => {
 
         endStateRef.current[end].gestureTimeoutID = null
 
-        if (!viewportRef.current || !insideEndState(end)) return
+        if (!viewportRef.current) return
 
-        if (ask) reaskEnd(end)
-        else glideToEndMark(end)
+        if (!ask) readViewportAtEnd(end, false)
+        else if (insideEndState(end)) reaskEnd(end)
 
     }
 
-    // the smooth scroll of a viewport past the mark back to it, where the end stands. A reading the answer took in
-    // the meantime (enterEndState) would bring the viewport back a second time, so its timer is taken up here
+    // The smooth scroll of a viewport past the mark back to it, where the end stands: made inside a task of the
+    // queue (the re-ask's, the return's). A reading taken in the meantime would bring the viewport back a second
+    // time, so its timer is taken up here, and a bring-back already running to the same position is not started
+    // again. None is made under a held touch: the list stays where the finger holds it, and the touch's end reads the
+    // viewport (onEndTouchEnd)
     const glideToEndMark = (end) => {
 
         const state = endStateRef.current[end]
@@ -901,16 +992,108 @@ const useIntersections = ({
         clearTimeout(state.gestureTimeoutID)
         state.gestureTimeoutID = null
 
-        if (!viewportRef.current || !endStands(end)) return
+        if (!viewportRef.current || !endStands(end) || endStateRef.current.touches.size) return
 
         const
             mark = endMark(end),
-            { isH, viewportEdge, scrollPositionAt } = endGeometry(end)
+            { isH, viewportEdge, scrollPositionAt } = endGeometry(end),
+            position = scrollPositionAt(mark)
 
-        if (viewportEdge <= mark) return
+        if ((viewportEdge <= mark) || (endStateRef.current.glidingTo === position)) return
 
-        endStateRef.current.bringingBack = true
-        viewportRef.current.scrollTo(isH ? {left:scrollPositionAt(mark), behavior:'smooth'} : {top:scrollPositionAt(mark), behavior:'smooth'})
+        endStateRef.current.glidingTo = position
+        viewportRef.current.scrollTo(isH ? {left:position, behavior:'smooth'} : {top:position, behavior:'smooth'})
+
+    }
+
+    // Input during a bring-back. The user's hand has the viewport: the smooth scroll is ended where it is (an
+    // instant scroll to the position it has reached ends it) in the event itself, not on a turn of the queue, since
+    // the hand does not wait. The viewport is read again, so one the input leaves past a mark is brought back when
+    // the input is over
+    const yieldBringBack = () => {
+
+        const
+            state = endStateRef.current,
+            viewport = viewportRef.current
+
+        if ((state.glidingTo === null) || !viewport) return
+
+        viewport.scrollTo(viewport.scrollLeft, viewport.scrollTop)
+        state.glidingTo = null
+
+        rereadEnds()
+
+    }
+
+    const isBringingBack = () => endStateRef.current.glidingTo !== null
+
+    // a wheel along the list's axis; one across it, or a pinch, does not scroll this list
+    const onEndWheel = (event) => {
+
+        const delta = (orientationRef.current == 'vertical') ? event.deltaY : event.deltaX
+
+        if (!delta || event.ctrlKey) return
+
+        endStateRef.current.inputAt = performance.now()
+
+        yieldBringBack()
+
+    }
+
+    // Every touch event lists the fingers on the screen, wherever they began: the viewport's own are kept only
+    // while they are among them, so a finger whose end was never heard is let go at the next touch event heard
+    const keepTouchesOnScreen = (event) => {
+
+        const
+            { touches } = endStateRef.current,
+            onScreen = new Set()
+
+        for (let index = 0; index < event.touches.length; index++) onScreen.add(event.touches[index].identifier)
+
+        for (const identifier of touches) if (!onScreen.has(identifier)) touches.delete(identifier)
+
+    }
+
+    // A touch's events go to the element it began on, and go on going there when that element has left the document
+    // (a cell recycled under the finger), where they no longer pass through the viewport: the end of the touch is
+    // listened for on its own target
+    const onEndTouchStart = (event) => {
+
+        const state = endStateRef.current
+
+        keepTouchesOnScreen(event)
+
+        for (let index = 0; index < event.changedTouches.length; index++) state.touches.add(event.changedTouches[index].identifier)
+
+        state.inputAt = performance.now()
+
+        event.target.addEventListener('touchend', onEndTouchEnd, {passive:true})
+        event.target.addEventListener('touchcancel', onEndTouchEnd, {passive:true})
+
+        yieldBringBack()
+
+    }
+
+    // A finger lifted. The element is listened to until the last finger on it has gone; the touch has ended when
+    // the last of the viewport's fingers has, and that lift is the gesture's last input: the viewport is read now
+    const onEndTouchEnd = (event) => {
+
+        const state = endStateRef.current
+
+        keepTouchesOnScreen(event)
+
+        if (!event.targetTouches.length) {
+
+            event.currentTarget.removeEventListener('touchend', onEndTouchEnd)
+            event.currentTarget.removeEventListener('touchcancel', onEndTouchEnd)
+
+        }
+
+        if (state.touches.size) return
+
+        state.inputAt = performance.now()
+
+        if (viewportRef.current) rereadEnds()
 
     }
 
@@ -919,7 +1102,8 @@ const useIntersections = ({
     // the state between the clearing and the ask; the adjustment closes reaskOpen with its answer. The fill sends the
     // ask and stands its placeholders before it first waits, and the bring-back is made then, before the answer is
     // waited for: the mark it reads has the placeholders in it, and a host slow to answer does not keep the viewport
-    // out past the end
+    // out past the end (a viewport that goes out past the placeholders while the answer is out is read as anywhere
+    // the end stands)
     const reaskEnd = (end) => {
 
         endStateRef.current[end].reaskOpen = true
@@ -1243,7 +1427,7 @@ const useIntersections = ({
 
     }
 
-    return { evaluateIntersections, onEndScroll, onEndScrollingModeEnd, endStateReport }
+    return { evaluateIntersections, onEndScroll, onEndScrollingModeEnd, onEndWheel, onEndTouchStart, isBringingBack, endStateReport }
 
 }
 

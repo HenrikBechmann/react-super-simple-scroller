@@ -41,7 +41,10 @@ declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortM
 }) => {
     evaluateIntersections: any;
     onEndScroll: () => void;
-    onEndScrollingModeEnd: () => void;
+    onEndScrollingModeEnd: (scrollUnheard: any) => void;
+    onEndWheel: (event: any) => void;
+    onEndTouchStart: (event: any) => void;
+    isBringingBack: () => boolean;
     endStateReport: () => {
         head: {
             inside: boolean;
