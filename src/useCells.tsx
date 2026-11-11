@@ -12,21 +12,27 @@ import { DefaultPlaceholder, placeholderID } from './placeholders'
 // With the cap at 0 the host's fetch is awaited where the fill runs: the cradle grows when the answer comes, and
 // nothing shows in the meantime (getCellsInline).
 //
-// With a cap above 0 a fill first places placeholder cells in the positions it would ask for, up to the cap at each
-// end and within the cradle's room there, so the list grows at once and the layout holds while the host answers.
+// With a cap above 0 a fill first places placeholder cells in the positions it would ask for, within the cradle's
+// room at each end, so the list grows at once and the layout holds while the host answers. The cap bounds the
+// placeholders still ahead of the viewport at each end: a fill first withdraws the bands of a run that the scroll
+// has carried wholly behind the viewport (the host never saw them, and no answer is owed on them), and counts
+// what is left.
 // One fetch is out at a time. It is asked for the last real row's id (the first, backward) and the count of the
-// placeholders standing at that end, and its answer fills them by position: item k fills the placeholder that was
-// k-th from the real rows when the ask was sent, in place, in the one container, so a fill moves nothing. A short
-// answer leaves the rest standing, re-anchored on the new last real row for the next ask; an empty answer is the
-// end of the data at that end and takes the rest down. Positions that open while a fetch is out get placeholders
-// and wait for the next ask. A fetch unanswered within technical.FETCH_CEILING is dropped, its signal fired, and
-// the same positions asked for again, once per ceiling, for as long as they stand. A structural call, a reset or
-// the unmount withdraws the standing placeholders and drops the pending answer.
+// placeholders standing at that end, and its answer fills by position, in place, in the one container, so a fill
+// moves nothing: item k fills the placeholder standing k-th from the real rows when the answer lands, so the rows
+// stay in sequence from the row the ask named whichever placeholders the scroll has withdrawn, trimmed or stood
+// since. A short answer leaves the rest standing, re-anchored on the new last real row for the next ask; an empty
+// answer is the end of the data at that end and takes the rest down. Positions past the answer's count wait for
+// the next ask. A fetch unanswered within technical.FETCH_CEILING is dropped, its signal fired, and the same
+// positions asked for again, once per ceiling, for as long as they stand. A structural call, a reset or the
+// unmount withdraws the standing placeholders and drops the pending answer.
 const useCells = ({
 
     scrollerName,
 
     DOMManipulationQueueRef,
+
+    viewportRef,
 
     orientationRef,
     layoutRef,
@@ -469,12 +475,93 @@ const useCells = ({
 
     }
 
-    // places up to count placeholders at the end, within the cap there; answers the number placed
-    const placeAt = (direction, referenceID, count) => {
+    // the bands of the run at an end that the scroll has carried wholly behind the viewport are withdrawn: they are
+    // the cradle's own, the host never saw them, and no answer is owed on them. Only the run's part across the axis
+    // from its end is read. A run crosses the axis on a shift, and no shift runs toward an end whose state stands,
+    // so the placeholders of an end state's re-ask are never among them. Whole bands go, so every band left is as
+    // full as it was: the band the run shares with its anchor row stays, and its placeholders are answered as behind
+    // for the cap to leave out. With no real row standing the run is the opening's, and it stays as it is
+    const withdrawPassed = (direction) => {
+
+        const
+            forward = (direction == 'forward'),
+            run = standingAt(direction),
+            portalIDList = portalIDListRef.current,
+            backwardCells = cradleActualRef.current.backwardCells,
+            crossed = forward
+                ? Math.max(backwardCells - (portalIDList.length - run.length), 0)
+                : Math.max(run.length - backwardCells, 0),
+            none = {withdrawn: 0, behind: 0}
+
+        if (!crossed || ((forward?lastRealID():firstRealID()) === undefined)) return none
+
+        const
+            viewportRect = viewportRef.current.getBoundingClientRect(),
+            vertical = (orientationRef.current == 'vertical')
+
+        // a viewport with no box covers nothing, and nothing stands behind it
+        if (!(vertical?viewportRect.height:viewportRect.width)) return none
+
+        const
+            bandList = forward?headBandListRef.current:tailBandListRef.current,
+            isPassed = (band) => {
+                const rect = band.getBoundingClientRect()
+                return forward
+                    ? (vertical?(rect.bottom <= viewportRect.top):(rect.right <= viewportRect.left))
+                    : (vertical?(rect.top >= viewportRect.bottom):(rect.left >= viewportRect.right))
+            }
+
+        // from the axis outward: the bands holding only this run, then the one it shares with its anchor row. A band
+        // behind the viewport has every band beyond it behind the viewport too
+        let remaining = crossed, kept = 0, withdrawn = 0, sharedBand = null
+
+        for (let n = 0; (n < bandList.length) && remaining; n++) {
+
+            const
+                band = forward?bandList[bandList.length - 1 - n]:bandList[n],
+                size = band.childElementCount
+
+            if (size > remaining) {
+                sharedBand = band
+                break
+            }
+
+            if (withdrawn || isPassed(band)) withdrawn += size
+            else kept += size
+
+            remaining -= size
+
+        }
+
+        const behind = (sharedBand && (withdrawn || isPassed(sharedBand)))?remaining:0
+
+        if (!withdrawn) return {withdrawn, behind}
+
+        const start = forward?(portalIDList.length - run.length + remaining):(backwardCells + kept)
+
+        removePlaceholderCells(portalIDList.slice(start, start + withdrawn))
+
+        // the run has closed up: each placeholder left is told its place in it
+        const map = placeholderState().map
+
+        standingAt(direction).forEach((id, k) => {
+            const entry = map.get(id)
+            if (entry.index === k) return
+            entry.index = k
+            cellPortalListRef.current[portalIDListRef.current.indexOf(id)] = placeholderPortal(id, entry)
+        })
+
+        return {withdrawn, behind}
+
+    }
+
+    // places up to count placeholders at the end, within the cap there; answers the number placed. The cap bounds
+    // what stands ahead of the viewport: behind is the count the fill found standing behind it and left in place
+    const placeAt = (direction, referenceID, count, behind = 0) => {
 
         const
             cap = placeholderCap(),
-            standing = standingAt(direction).length,
+            standing = standingAt(direction).length - behind,
             n = Math.min(count, cap - standing)
 
         if (n <= 0) return 0
@@ -489,10 +576,14 @@ const useCells = ({
 
     }
 
-    // fills the room at both ends with placeholders, within the caps, and sends the next ask if none is out
+    // withdraws what the scroll has passed, fills the room at both ends with placeholders, within the caps, and
+    // sends the next ask if none is out
     const fillWithPlaceholders = () => {
 
-        const state = placeholderState()
+        const
+            state = placeholderState(),
+            passedForward = withdrawPassed('forward'),
+            passedBackward = withdrawPassed('backward')
 
         let placed = 0
 
@@ -504,11 +595,11 @@ const useCells = ({
             forwardAnchor = (last !== undefined)?last:(forwardStanding.length?state.map.get(forwardStanding[0]).referenceID:undefined),
             backwardAnchor = (first !== undefined)?first:(backwardStanding.length?state.map.get(backwardStanding[0]).referenceID:undefined)
 
-        if (forwardAnchor !== undefined && !isQuietAt('forward')) placed += placeAt('forward', forwardAnchor, forwardRoom())
-        if (backwardAnchor !== undefined && !isQuietAt('backward')) placed += placeAt('backward', backwardAnchor, backwardRoom())
+        if (forwardAnchor !== undefined && !isQuietAt('forward')) placed += placeAt('forward', forwardAnchor, forwardRoom(), passedForward.behind)
+        if (backwardAnchor !== undefined && !isQuietAt('backward')) placed += placeAt('backward', backwardAnchor, backwardRoom(), passedBackward.behind)
 
-        if (placed) {
-            setPortalRenderList(cellPortalListRef.current)
+        if (placed || passedForward.withdrawn || passedBackward.withdrawn) {
+            setPortalRenderList([...cellPortalListRef.current])
             updateCurrentAxisReferenceID()
         }
 
@@ -588,7 +679,6 @@ const useCells = ({
             ceilingTimer: null,
             cradleActual: cradleActualRef.current,
             askID,
-            ids,
         }
 
         issueAsk(state.pending)
@@ -664,7 +754,6 @@ const useCells = ({
         reportWarning(callbacksRef, source, message, [pending.startCode, pending.referenceID, pending.count], {attempt})
 
         ids.forEach((id, k) => { state.map.get(id).index = k })
-        pending.ids = ids
         pending.count = ids.length
 
         issueAsk(pending)
@@ -760,14 +849,22 @@ const useCells = ({
         }
 
         // either answer starts nearest the real rows: 'after' is REF+1, REF+2, …, and 'before' is REF-1, REF-2, …,
-        // as the inline path takes them. A short answer fills the nearest positions and leaves the far ones standing.
-        // A position trimmed while the ask was out takes nothing: the scroll has moved past it, and the row is
-        // asked for again if the cradle comes back to it
-        cells.forEach((cellPack, k) => {
+        // as the inline path takes them. Its rows fill the run as it stands now, nearest the rows first: a position
+        // is counted from the row the ask named, whichever placeholder stood on it when the ask was sent, so the
+        // rows stay in sequence though the scroll has withdrawn or trimmed placeholders and stood others since. A
+        // short answer fills the nearest positions and leaves the far ones standing; a row past the run's end takes
+        // nothing, and is asked for again if the cradle comes back to it. A run that no longer stands on the row
+        // the ask named takes nothing: the answer's rows are not its positions'
+        const
+            ids = standingAt(direction),
+            anchor = (direction == 'forward')?lastRealID():firstRealID(),
+            runReferenceID = (anchor !== undefined)?anchor:state.map.get(ids[0])?.referenceID
 
-            const id = pending.ids[k]
+        if (runReferenceID === referenceID) cells.forEach((cellPack, k) => {
 
-            if (id === undefined || !state.map.has(id)) return
+            const id = ids[k]
+
+            if (id === undefined) return
 
             fillInPlace(id, cellPack)
 

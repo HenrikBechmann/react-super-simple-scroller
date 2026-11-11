@@ -21,7 +21,7 @@ export const createPlaceholderState = () => ({
     serial: 0,
     askSerial: 0,
     map: new Map(), // placeholder id -> {direction, referenceID, askID, index}
-    pending: null, // the one fetch out at a time: {startCode, direction, referenceID, count, attempt, controller, ceilingTimer, cradleActual, askID, ids}
+    pending: null, // the one fetch out at a time: {startCode, direction, referenceID, count, attempt, controller, ceilingTimer, cradleActual, askID}
     inlineController: null, // the signal given to fetches made with placeholders off
     badOptions: new Map(), // option name -> Set of the values reported for it, so each is reported once
     // an end the host answered empty at, or failed to answer: {reason: 'end' | 'failed', cradleActual, endID,

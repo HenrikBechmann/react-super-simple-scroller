@@ -1,6 +1,7 @@
-declare const useCells: ({ scrollerName, DOMManipulationQueueRef, orientationRef, layoutRef, spacingRef, cradlePotentialRef, cradleActualRef, cellPortalListRef, portalIDListRef, cellDataListRef, portalContainerMapRef, cellDimensionsRef, tailblockRef, tailBandListRef, leadTailblockBandRef, headblockRef, headBandListRef, leadHeadblockBandRef, setPortalRenderList, fetchCellsRef, operationsRef, fetchCeilingRef, placeholdersRef, onRunEndedRef, updateCurrentAxisReferenceID, currentAxisReferenceIDRef, callbacksRef, bandMutationObserverRef, requestIntersectionsConnect, trimCradle, }: {
+declare const useCells: ({ scrollerName, DOMManipulationQueueRef, viewportRef, orientationRef, layoutRef, spacingRef, cradlePotentialRef, cradleActualRef, cellPortalListRef, portalIDListRef, cellDataListRef, portalContainerMapRef, cellDimensionsRef, tailblockRef, tailBandListRef, leadTailblockBandRef, headblockRef, headBandListRef, leadHeadblockBandRef, setPortalRenderList, fetchCellsRef, operationsRef, fetchCeilingRef, placeholdersRef, onRunEndedRef, updateCurrentAxisReferenceID, currentAxisReferenceIDRef, callbacksRef, bandMutationObserverRef, requestIntersectionsConnect, trimCradle, }: {
     scrollerName: any;
     DOMManipulationQueueRef: any;
+    viewportRef: any;
     orientationRef: any;
     layoutRef: any;
     spacingRef: any;
