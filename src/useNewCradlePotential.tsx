@@ -34,6 +34,7 @@ const useCradlePotential = ({
     requestIntersectionsConnect,
     setPortalRenderList,
     removeCells,
+    trimCradle,
     getSeed,
     fillCradle,
     updateCurrentAxisReferenceID,
@@ -248,6 +249,15 @@ const useCradlePotential = ({
             requestIntersectionsConnect()
 
         } else {
+
+            // a potential that shrank along the axis leaves the cradle over it, and the fill removes nothing: the trim
+            // a shift takes is taken here, before the fill, so that the fill reads the room the trim left. It waits,
+            // as a shift's does, behind an axis standing inside a placeholder run
+            const cellCount = cellPortalList.length
+
+            trimCradle()
+
+            if (cellPortalList.length != cellCount) setPortalRenderList([...cellPortalList])
 
             await fillCradle()
 

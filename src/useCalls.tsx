@@ -74,6 +74,19 @@ const useCalls = ({
 
     const DOMManipulationQueue = DOMManipulationQueueRef.current
 
+    // a structural call takes down every placeholder run before its edit, and with them the reason an axis standing
+    // inside a run deferred its trim. The trim is taken once the call's rows have moved, so that the edit reads the
+    // cradle the host sees, and before the call's fill; the rows it takes leave the render with it
+    const trimAfterCall = () => {
+
+        const cellCount = cellPortalListRef.current.length
+
+        trimCradle()
+
+        if (cellPortalListRef.current.length != cellCount) setPortalRenderList([...cellPortalListRef.current])
+
+    }
+
     const insert = async (cellPack: {id:any, component:FC }, targetReferenceID: any, position: 'before' | 'after' = 'before') => {
 
         const doInsert = async (cellPack, targetReferenceID, position) => {
@@ -260,6 +273,8 @@ const useCalls = ({
 
                 const result = await doInsert(cellPack, targetReferenceID, position)
 
+                trimAfterCall()
+
                 updateCurrentAxisReferenceID()
 
                 return result
@@ -383,6 +398,8 @@ const useCalls = ({
             try {
 
                 result = await doRemove(targetReferenceID)
+
+                trimAfterCall()
 
                 if (result) await fillCradle()
 
@@ -706,6 +723,8 @@ const useCalls = ({
 
                 result = await doMove(sourceReferenceID, targetReferenceID, position)
 
+                trimAfterCall()
+
                 if (result) await fillCradle()
 
             } finally {
@@ -944,6 +963,8 @@ const useCalls = ({
             try {
             
                 const result = await doReplace(referenceID, cellPack)
+
+                trimAfterCall()
 
                 updateCurrentAxisReferenceID()
 

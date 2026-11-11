@@ -720,6 +720,7 @@ const Viewport = (props) =>{
             requestIntersectionsConnect,
             setPortalRenderList,
             removeCells,
+            trimCradle,
             getSeed,
             fillCradle,
             updateCurrentAxisReferenceID,
