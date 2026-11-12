@@ -59,6 +59,7 @@ const useCalls = ({
     updateCurrentAxisReferenceID,
     trimCradle,
     fillCradle,
+    followViewport,
     reset,
     callbacksRef,
     assertIntersectionsDisconnect,
@@ -76,7 +77,9 @@ const useCalls = ({
 
     // a structural call takes down every placeholder run before its edit, and with them the reason an axis standing
     // inside a run deferred its trim. The trim is taken once the call's rows have moved, so that the edit reads the
-    // cradle the host sees, and before the call's fill; the rows it takes leave the render with it
+    // cradle the host sees, and before the call's fill; the rows it takes leave the render with it. The call then ends
+    // as every task that moves the cradle does (followViewport), whatever its edit answered: the withdrawal and the
+    // trim leave room at the ends whether or not a row moved
     const trimAfterCall = () => {
 
         const cellCount = cellPortalListRef.current.length
@@ -275,6 +278,8 @@ const useCalls = ({
 
                 trimAfterCall()
 
+                await followViewport()
+
                 updateCurrentAxisReferenceID()
 
                 return result
@@ -401,7 +406,7 @@ const useCalls = ({
 
                 trimAfterCall()
 
-                if (result) await fillCradle()
+                await followViewport()
 
             } finally {
 
@@ -725,7 +730,7 @@ const useCalls = ({
 
                 trimAfterCall()
 
-                if (result) await fillCradle()
+                await followViewport()
 
             } finally {
 
@@ -965,6 +970,8 @@ const useCalls = ({
                 const result = await doReplace(referenceID, cellPack)
 
                 trimAfterCall()
+
+                await followViewport()
 
                 updateCurrentAxisReferenceID()
 

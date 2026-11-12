@@ -40,6 +40,7 @@ declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortM
     onRunEndedRef: any;
 }) => {
     evaluateIntersections: any;
+    followViewport: (shift?: any) => Promise<void>;
     onEndScroll: () => void;
     onEndScrollingModeEnd: (scrollUnheard: any) => void;
     onEndWheel: (event: any) => void;

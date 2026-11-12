@@ -165,6 +165,54 @@ const useIntersections = ({
 
     }
 
+    // At every task boundary the cradle agrees with the viewport: no run stands wholly behind it, and the room
+    // ahead is stood. A queued task that moves the cradle ends here, inside its own turn of the queue. A second
+    // task would wait behind an answer already queued, and that answer filled its rows where the first task had
+    // left the cradle, behind the viewport.
+    // The outrun is read from layout as the task runs, and before the task's own shift: that shift takes bands out
+    // of the block the scroll is leaving, and a block it left short would read as an end the host had answered
+    // empty at (evaluate's gate, below, which is this one). An outrun cradle is brought whole: every band goes to
+    // the side the scroll came from, the axis is written under the viewport's own position, and the fill takes
+    // down what the scroll carried behind and stands the rows ahead. A fill alone stood them from the old axis.
+    // Otherwise the caller's shift is taken as it measures it. A viewport with no box (a hidden scroller measures
+    // nothing) is at no position, and is past nothing
+    const followViewport = async (shift = null) => {
+
+        const
+            viewport = viewportRef.current,
+            vertical = orientationRef.current == 'vertical',
+            tail = viewport && spanFromViewportStart(tailblockRef.current),
+            outrunEnd = !tail?.viewportSpan ? null
+                : (tail.end <= 0) ? 'tail'
+                : (spanFromViewportStart(headblockRef.current).start >= tail.viewportSpan) ? 'head'
+                : null
+
+        if (outrunEnd && !endStands(outrunEnd) && (!isCradleShortAt(outrunEnd) || isFetchOpenAt(outrunEnd))) {
+
+            if (outrunEnd == 'tail') {
+
+                shiftAxis('forward', tailBandListRef.current.length)
+                if (vertical) setAxisPosition(0, viewport.scrollTop + 1, 'outrun')
+                else setAxisPosition(viewport.scrollLeft + 1, 0, 'outrun')
+
+            } else {
+
+                shiftAxis('backward', headBandListRef.current.length)
+                if (vertical) setAxisPosition(0, viewport.scrollTop + viewport.clientHeight - 1, 'outrun')
+                else setAxisPosition(viewport.scrollLeft + viewport.clientWidth - 1, 0, 'outrun')
+
+            }
+
+        } else if (shift) {
+
+            shift()
+
+        }
+
+        await fillCradle()
+
+    }
+
     // -------------------------[ intersection observations controller ]-------------------------
 
     const evaluate = useCallback( async (source) => {
@@ -239,8 +287,6 @@ const useIntersections = ({
                 try {
 
                     const
-                        viewport = viewportRef.current,
-                        vertical = orientationRef.current == 'vertical',
                         // measured again as the task runs: a fill queued ahead of it may have stood rows under
                         // the viewport, and a cradle the viewport is back inside is left to the observers
                         block = spanFromViewportStart(outrunEnd == 'tail' ? tailblockRef.current : headblockRef.current),
@@ -250,21 +296,7 @@ const useIntersections = ({
 
                     if (!stillOutrun) return
 
-                    if (outrunEnd == 'tail') {
-
-                        shiftAxis('forward', tailBandListRef.current.length)
-                        if (vertical) setAxisPosition(0, viewport.scrollTop + 1, 'outrun')
-                        else setAxisPosition(viewport.scrollLeft + 1, 0, 'outrun')
-
-                    } else {
-
-                        shiftAxis('backward', headBandListRef.current.length)
-                        if (vertical) setAxisPosition(0, viewport.scrollTop + viewport.clientHeight - 1, 'outrun')
-                        else setAxisPosition(viewport.scrollLeft + viewport.clientWidth - 1, 0, 'outrun')
-
-                    }
-
-                    await fillCradle()
+                    await followViewport()
 
                 } finally {
 
@@ -336,11 +368,13 @@ const useIntersections = ({
 
                     } else {
 
-                        const count = measureBackwardShiftCount(backwardTrigger)
+                        await followViewport(() => {
 
-                        if (count) shiftAxis('backward', count)
+                            const count = measureBackwardShiftCount(backwardTrigger)
 
-                        await fillCradle()
+                            if (count) shiftAxis('backward', count)
+
+                        })
 
                     }
 
@@ -377,14 +411,16 @@ const useIntersections = ({
                     const settled = await adjustForEndOverflow('tail', false)
 
                     // this branch precedes the shift branch and returns, so while the tail's fetch stayed open a shift
-                    // the scroll owed was deferred past the answer, and landed under whatever input followed it
-                    if (!settled) {
+                    // the scroll owed was deferred past the answer, and landed under whatever input followed it.
+                    // The adjustment filled before that shift, at the axis as it stood: the room the shift opens,
+                    // or the cradle the scroll has outrun by now, is the shared end's
+                    if (!settled) await followViewport(() => {
 
                         const count = measureForwardShiftCount(forwardTrigger)
 
                         if (count) shiftAxis('forward', count)
 
-                    }
+                    })
 
                 } finally {
 
@@ -417,14 +453,16 @@ const useIntersections = ({
 
                 try {
 
-                    const count = measureBackwardShiftCount(trigger)
+                    await followViewport(() => {
 
-                    // with no head band left, shiftAxis('backward', 0) sets the axis just above the viewport for
-                    // the backward fetch, as it always has; a count of 0 with head bands means the trigger is no
-                    // longer past the edge, and nothing moves
-                    if (count || !headBandListRef.current.length) shiftAxis('backward',count) // axis backward, bands forward
+                        const count = measureBackwardShiftCount(trigger)
 
-                    await fillCradle()
+                        // with no head band left, shiftAxis('backward', 0) sets the axis just above the viewport for
+                        // the backward fetch, as it always has; a count of 0 with head bands means the trigger is no
+                        // longer past the edge, and nothing moves
+                        if (count || !headBandListRef.current.length) shiftAxis('backward',count) // axis backward, bands forward
+
+                    })
 
                 } finally {
 
@@ -459,11 +497,13 @@ const useIntersections = ({
 
                 try {
 
-                    const count = measureForwardShiftCount(trigger)
+                    await followViewport(() => {
 
-                    if (count) shiftAxis('forward', count) // axis forward, bands backward
+                        const count = measureForwardShiftCount(trigger)
 
-                    await fillCradle()
+                        if (count) shiftAxis('forward', count) // axis forward, bands backward
+
+                    })
 
                 } finally {
 
@@ -1427,7 +1467,10 @@ const useIntersections = ({
 
     }
 
-    return { evaluateIntersections, onEndScroll, onEndScrollingModeEnd, onEndWheel, onEndTouchStart, isBringingBack, endStateReport }
+    return {
+        evaluateIntersections, followViewport, onEndScroll, onEndScrollingModeEnd, onEndWheel, onEndTouchStart, isBringingBack,
+        endStateReport,
+    }
 
 }
 

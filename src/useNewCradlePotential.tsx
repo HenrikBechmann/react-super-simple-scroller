@@ -36,7 +36,7 @@ const useCradlePotential = ({
     removeCells,
     trimCradle,
     getSeed,
-    fillCradle,
+    followViewport,
     updateCurrentAxisReferenceID,
     bandMutationObserverRef,
 
@@ -259,7 +259,7 @@ const useCradlePotential = ({
 
             if (cellPortalList.length != cellCount) setPortalRenderList([...cellPortalList])
 
-            await fillCradle()
+            await followViewport()
 
             cradleActual.totalBands = cradleActual.backwardBands + cradleActual.forwardBands
             cradleActual.totalCells = cradleActual.backwardCells + cradleActual.forwardCells
