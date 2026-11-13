@@ -647,9 +647,9 @@ const useCells = ({
 
     }
 
-    // withdraws what the scroll has passed, fills the room at both ends with placeholders, within the caps, and
-    // sends the next ask if none is out. An end the host has closed (the quiet mark) takes none, and neither does
-    // an end the end state is asking again
+    // withdraws what the scroll has passed, fills the room at both ends with placeholders, within the caps, lets go
+    // of an ask left with nothing standing at its end, and sends the next ask if none is out. An end the host has
+    // closed (the quiet mark) takes none, and neither does an end the end state is asking again
     const fillWithPlaceholders = () => {
 
         const
@@ -674,6 +674,12 @@ const useCells = ({
             setPortalRenderList([...cellPortalListRef.current])
             updateCurrentAxisReferenceID()
         }
+
+        // one fetch is out at a time, so an ask left with nothing standing at its end holds back the end that has
+        // placeholders: it is let go. Read after the placing, so a run withdrawn and stood again on the same row keeps
+        // its ask. The opening's ask is not read (no other ask brings the first rows), nor the end state's (it
+        // stands none by design)
+        if (state.pending && !state.pending.endAsk && (state.pending.startCode != 'at') && !standingAt(state.pending.direction).length) dropPending()
 
         if (!state.pending) sendNextAsk()
 
@@ -794,7 +800,7 @@ const useCells = ({
 
         call().then((answer) => {
 
-            if (controller.signal.aborted) return // dropped at the ceiling, by a structural call, a reset or the unmount
+            if (controller.signal.aborted) return // dropped at the ceiling, by a let-go, a structural call, a reset or the unmount
 
             clearTimeout(pending.ceilingTimer)
 
