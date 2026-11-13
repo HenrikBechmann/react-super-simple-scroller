@@ -1,4 +1,4 @@
-declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortMomentumFadeRef, AXIS_START_POSITION, DOMManipulationQueueRef, orientationRef, layoutRef, viewportRef, headblockRef, leadHeadblockBandRef, headblockOverflowTriggerRef, tailblockRef, tailblockOverflowTriggerRef, leadTailblockBandRef, cradleActualRef, cradlePotentialRef, headBandListRef, tailBandListRef, intersectionsMapRef, scrollTopRef, scrollLeftRef, axisPositionRef, portalIDListRef, immediateIsScrollingRef, lastScrollEventTimeRef, immediateStopScrollingRef, restoreScrollingTimeoutIDRef, callbacksRef, setAxisPosition, assertIntersectionsDisconnect, requestIntersectionsConnect, fillCradle, updateCurrentAxisReferenceID, trimCradle, isFetchOpenAt, markQuiet, isQuietAt, clearQuietAt, onRunEndedRef, }: {
+declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortMomentumFadeRef, AXIS_START_POSITION, DOMManipulationQueueRef, orientationRef, layoutRef, viewportRef, headblockRef, leadHeadblockBandRef, headblockOverflowTriggerRef, tailblockRef, tailblockOverflowTriggerRef, leadTailblockBandRef, cradleActualRef, cradlePotentialRef, headBandListRef, tailBandListRef, intersectionsMapRef, scrollTopRef, scrollLeftRef, axisPositionRef, portalIDListRef, immediateIsScrollingRef, lastScrollEventTimeRef, immediateStopScrollingRef, restoreScrollingTimeoutIDRef, callbacksRef, setAxisPosition, assertIntersectionsDisconnect, requestIntersectionsConnect, fillCradle, updateCurrentAxisReferenceID, trimCradle, isFetchOpenAt, isEndFixed, markQuiet, isQuietAt, clearQuietAt, isEndAskAt, onRunEndedRef, setEndIndicators, }: {
     scrollerName: any;
     standardMomentumFadeRef: any;
     shortMomentumFadeRef: any;
@@ -34,10 +34,13 @@ declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortM
     updateCurrentAxisReferenceID: any;
     trimCradle: any;
     isFetchOpenAt: any;
+    isEndFixed: any;
     markQuiet: any;
     isQuietAt: any;
     clearQuietAt: any;
+    isEndAskAt: any;
     onRunEndedRef: any;
+    setEndIndicators: any;
 }) => {
     evaluateIntersections: any;
     followViewport: (shift?: any) => Promise<void>;

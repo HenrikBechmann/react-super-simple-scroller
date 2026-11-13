@@ -14,6 +14,12 @@ export type PlaceholderProps = {
     direction: 'forward' | 'backward';
     referenceID: any;
 };
+export type EndIndicatorProps = {
+    context: any;
+    end: 'start' | 'end';
+    searching: boolean;
+    orientation: 'vertical' | 'horizontal';
+};
 export type AxisContext = {
     isPlaceholder: true;
     referenceID: any;
@@ -66,6 +72,12 @@ export type ReactSuperSimpleScrollerProps = {
         placeholderSpreadRatio?: number | null;
         placeholder?: React.ComponentType<PlaceholderProps>;
         placeholderContext?: any;
+        endIndicator?: React.ComponentType<EndIndicatorProps>;
+        endIndicatorContext?: any;
+        fixedEnds?: boolean | {
+            start?: boolean;
+            end?: boolean;
+        };
     };
     scrollerName?: string;
 };

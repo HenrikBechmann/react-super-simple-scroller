@@ -21,15 +21,26 @@ export const createPlaceholderState = () => ({
     serial: 0,
     askSerial: 0,
     map: new Map(), // placeholder id -> {direction, referenceID, askID, index}
-    pending: null, // the one fetch out at a time: {startCode, direction, referenceID, count, attempt, controller, ceilingTimer, cradleActual, askID}
+    pending: null, // the one fetch out at a time: {startCode, direction, referenceID, count, endAsk, attempt, controller, ceilingTimer, cradleActual, askID}
     inlineController: null, // the signal given to fetches made with placeholders off
     badOptions: new Map(), // option name -> Set of the values reported for it, so each is reported once
-    // an end the host answered empty at, or failed to answer: {reason: 'end' | 'failed', cradleActual, endID,
-    // scrollTop, scrollLeft}. While the cradle, the row at that end and the scroll position are as they were, a fill
-    // places nothing there, so an empty or failed answer cannot start a loop of placing, asking and removing. A
-    // scroll into that end, a change at that end, a structural call, an explicit fill or a reset clears it
+    // an end the host answered empty at, or failed to answer: {reason: 'end' | 'failed', cradleActual, endID}. While
+    // the cradle and the row at that end are as they were, a fill places nothing there, so an empty or failed answer
+    // cannot start a loop of placing, asking and removing. A change at that end, a gesture past the end's mark (the
+    // end state's re-ask), a structural call, an explicit fill or a reset clears it
     quiet: {forward: null, backward: null},
+    // an end the end state is asking again, with placeholders on: {cradleActual, endID}. Nothing is placed there for
+    // that ask, and its rows are added at the end
+    endAsk: {forward: null, backward: null},
 })
+
+export const END_INDICATOR_TEXT = { start: 'start of list', end: 'end of list', searching: 'searching…' }
+
+// the text an end indicator shows: the host's own where it gives a string for it, '' for none
+export const endIndicatorText = (context, end, searching) => {
+    const key = searching ? 'searching' : end
+    return (context && typeof context[key] == 'string') ? context[key] : END_INDICATOR_TEXT[key]
+}
 
 const defaultStyles = {
     color: 'gray',
@@ -49,5 +60,33 @@ export const DefaultPlaceholder = ({ context }) => {
     if (text === '') return null
 
     return <div data-type='placeholder' style={defaultStyles}>{text}</div>
+
+}
+
+const endIndicatorStyles = {
+    color: 'gray',
+    fontSize: 'small',
+    padding: '4px',
+    boxSizing: 'border-box' as const,
+    textAlign: 'center' as const,
+}
+
+// in a horizontal list the indicator stands along the viewport's left or right edge, and reads down it
+const horizontalEndIndicatorStyles = {
+    ...endIndicatorStyles,
+    writingMode: 'vertical-rl' as const,
+}
+
+// The end indicator the scroller shows when the host supplies none. It stands on the viewport's edge at an end of
+// the data, outside the scrolled content, and takes no size of its own. context is the host's
+// operations.endIndicatorContext, passed untouched: context.start, context.end and context.searching replace the
+// default texts, and '' shows none. end is 'start' or 'end'; searching is true while the host is being asked there.
+export const DefaultEndIndicator = ({ context, end, searching, orientation }) => {
+
+    const text = endIndicatorText(context, end, searching)
+
+    if (text === '') return null
+
+    return <div data-type='end-indicator' style={(orientation == 'horizontal') ? horizontalEndIndicatorStyles : endIndicatorStyles}>{text}</div>
 
 }

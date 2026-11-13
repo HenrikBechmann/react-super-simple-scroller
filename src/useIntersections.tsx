@@ -6,10 +6,15 @@ import React, { useCallback, useEffect, useRef } from 'react'
 import { reportError, errorMessage } from './utilities'
 import { isPlaceholderID } from './placeholders'
 
-// The end state (below) rests the viewport's edge this far past the content's edge at that end in variable layout, so
+// The end state (below) rests the viewport's edge this far past the content's edge at the tail in variable layout, so
 // that the rows' own settling there (a late image, a reflow) is absorbed in the room rather than moving the list;
-// uniform layout, whose rows do not settle, has none. A constant of the mechanism, not a setting
+// uniform layout, whose rows do not settle, has none. The head has none in either layout: its mark is the content's
+// top, so the first row rests at the viewport's start. A constant of the mechanism, not a setting
 const END_SLACK = 40
+
+// The pull past an end the host has fixed is drawn no farther past its mark than this, or a tenth of the viewport
+// where that is less (drawEndElastic). A constant of the mechanism, not a setting
+const END_ELASTIC_CAP = 60
 
 const useIntersections = ({
 
@@ -60,10 +65,13 @@ const useIntersections = ({
     updateCurrentAxisReferenceID,
     trimCradle,
     isFetchOpenAt,
+    isEndFixed,
     markQuiet,
     isQuietAt,
     clearQuietAt,
+    isEndAskAt,
     onRunEndedRef,
+    setEndIndicators,
 
 }) => {
 
@@ -362,8 +370,8 @@ const useIntersections = ({
 
                         adjustForHeadOverflow()
 
-                        // a list arrived at on its first row is not moved into the slack: the entry snaps only a
-                        // viewport that is past the mark
+                        // a list arrived at on its first row is not moved: the entry snaps only a viewport that is
+                        // past the mark
                         await adjustForEndOverflow('head', true)
 
                     } else {
@@ -480,9 +488,7 @@ const useIntersections = ({
         // --- shift axis forward
 
         // where the end state stands at an end nothing is coming from it, so the cradle does not follow the viewport
-        // there: a band shifted through the axis would be withdrawn from the other block when it is the re-ask's
-        // placeholder, and the blocks are anchored at the axis, so the rows would move by its dimension. The shift
-        // toward the other end stays live
+        // there. The shift toward the other end stays live
         if ( leadTailblockBandForwardTrigger.rs3position == 'before' && !endStands('tail') ) {
 
             if (!tailBandListRef.current.length) return
@@ -674,10 +680,12 @@ const useIntersections = ({
     // with the memory, with no flag of its own to keep in step. One viewport has one bring-back at a time, whichever
     // end it is for: glidingTo is the scroll position a running one is taking the viewport to. The touch that holds
     // the list, under which none is made, is the fingers that began on the viewport and are still on the screen
-    // (touches, by identifier), and inputAt is the time of the last input that is not a scroll event (quietWindowLeft)
+    // (touches, by identifier), and inputAt is the time of the last input that is not a scroll event (quietWindowLeft).
+    // No placeholder stands at an end for the state's own ask: what the user is shown there is the end indicator, a
+    // layer on the viewport's edge (shown is what it reads at that end: null, 'end' or 'searching'; readEndIndicators)
     const endStateRef = useRef({
-        head:{markFromAxis:null, reaskOpen:false, gestureTimeoutID:null},
-        tail:{markFromAxis:null, reaskOpen:false, gestureTimeoutID:null},
+        head:{markFromAxis:null, reaskOpen:false, gestureTimeoutID:null, travel:0, drawn:0, shown:null},
+        tail:{markFromAxis:null, reaskOpen:false, gestureTimeoutID:null, travel:0, drawn:0, shown:null},
         glidingTo:null,
         touches:new Set(),
         inputAt:-Infinity,
@@ -685,7 +693,7 @@ const useIntersections = ({
 
     const directionAt = (end) => (end == 'tail') ? 'forward' : 'backward'
 
-    const endSlack = () => (layoutRef.current == 'variable') ? END_SLACK : 0
+    const endSlack = (end) => ((end == 'tail') && (layoutRef.current == 'variable')) ? END_SLACK : 0
 
     // the position mark is dropped when the end memory is found gone, unless a re-ask is out: the re-ask cleared the
     // memory itself (reaskOpen while the adjustment has the ask, the open fetch after), and an empty answer stands the
@@ -747,12 +755,10 @@ const useIntersections = ({
 
     }
 
-    // An end's two edges as the mark reads them, from the axis outward: the rows' edge, and the edge of what stands
-    // there. Placeholders standing at the end for an ask stand past the rows and count as far as their first band:
-    // the band nearest the rows is what a bring-back ends on, and the bands of the run beyond it are not counted, so
-    // a run longer than the viewport does not take the rows out of view. A band that rows and placeholders share is
-    // the rows' band. With no placeholders standing the two edges are one
-    const markEdgesAt = (end) => {
+    // An end's rows' edge, from the axis outward. Placeholders standing past the rows there (an ask the end state did
+    // not make: the fill that follows a structural call) are not counted, from their first whole band out: a band that
+    // rows and placeholders share is the rows' band
+    const rowsEdgeAt = (end) => {
 
         const
             isH = orientationRef.current == 'horizontal',
@@ -761,7 +767,7 @@ const useIntersections = ({
             block = isTail ? tailblockRef.current : headblockRef.current,
             bands = isTail ? [...tailBandListRef.current].reverse() : headBandListRef.current
 
-        if (!isTail && !cradleActualRef.current.backwardCells) return {rowsEdge:0, standingEdge:0}
+        if (!isTail && !cradleActualRef.current.backwardCells) return 0
 
         let standing = 0
 
@@ -781,33 +787,21 @@ const useIntersections = ({
 
         }
 
-        if (!firstBand) {
-
-            const edge = isH ? block.offsetWidth : block.offsetHeight
-
-            return {rowsEdge:edge, standingEdge:edge}
-
-        }
+        if (!firstBand) return isH ? block.offsetWidth : block.offsetHeight
 
         const blockRect = block.getBoundingClientRect(), bandRect = firstBand.getBoundingClientRect()
 
-        if (isTail) return isH
-            ? {rowsEdge:bandRect.left - blockRect.left, standingEdge:bandRect.right - blockRect.left}
-            : {rowsEdge:bandRect.top - blockRect.top, standingEdge:bandRect.bottom - blockRect.top}
+        if (isTail) return isH ? (bandRect.left - blockRect.left) : (bandRect.top - blockRect.top)
 
-        return isH
-            ? {rowsEdge:blockRect.right - bandRect.right, standingEdge:blockRect.right - bandRect.left}
-            : {rowsEdge:blockRect.bottom - bandRect.bottom, standingEdge:blockRect.bottom - bandRect.top}
+        return isH ? (blockRect.right - bandRect.right) : (blockRect.bottom - bandRect.bottom)
 
     }
 
-    // The mark that is kept (markFromAxis) is the rows' edge plus the slack, or the previous mark where that is
-    // further out: growth moves it on, and a shrink leaves the room the viewport had shown. A viewport whose edge is
-    // short of the rows' edge has scrolled back to see the content's end, and the mark is reset to it. The mark that
-    // is read is the kept one, or the edge of what stands plus the slack where that is further out: the first band of
-    // a re-ask's placeholders is in it while they stand, so a bring-back made then ends on them, and it is never
-    // kept. When an answer takes them down the mark is the rows' again, and a viewport that rested on them is a band
-    // past it. Read only where the end stands, or on entry.
+    // The mark (markFromAxis) is the rows' edge plus that end's slack, or the previous mark where that is further out:
+    // growth moves it on, and a shrink leaves the room the viewport had shown. A viewport whose edge is short of the
+    // rows' edge has scrolled back to see the content's end, and the mark is reset to it. One definition: nothing
+    // that stands past the rows is in it, so the mark that is read is the mark that is kept. Read only where the end
+    // stands, or on entry.
     // A content shorter than the viewport is at its head and its tail at once, and it rests at its head. Where the
     // head stands (its own end state, through its re-ask, or the host's empty answer there), the tail's mark is never
     // short of the viewport's forward edge with its leading edge at the head's rest (a pixel past the first row's
@@ -819,13 +813,13 @@ const useIntersections = ({
         const
             state = endStateRef.current[end],
             { viewportEdge, viewportDim } = endGeometry(end),
-            { rowsEdge, standingEdge } = markEdgesAt(end),
+            rowsEdge = rowsEdgeAt(end),
             headStands = (end == 'tail') && (endStands('head') || isQuietAt('backward')),
-            floor = Math.max(rowsEdge + endSlack(), headStands ? (1 - markEdgesAt('head').rowsEdge + viewportDim) : 0)
+            floor = Math.max(rowsEdge + endSlack(end), headStands ? (1 - rowsEdgeAt('head') + viewportDim) : 0)
 
         state.markFromAxis = (viewportEdge < rowsEdge) ? floor : Math.max(state.markFromAxis ?? floor, floor)
 
-        return Math.max(state.markFromAxis, standingEdge + endSlack())
+        return state.markFromAxis
 
     }
 
@@ -860,14 +854,63 @@ const useIntersections = ({
 
     }
 
+    // Rows have arrived at an end: it is not the end of the data, and a state standing there is left. Its mark no
+    // longer applies, so a return waiting on its timer is dropped and one running is stopped where it is: the
+    // viewport is never taken over new rows
+    const leaveEndState = (end) => {
+
+        const state = endStateRef.current[end]
+
+        if (state.markFromAxis === null) return
+
+        clearTimeout(state.gestureTimeoutID)
+        state.gestureTimeoutID = null
+        state.markFromAxis = null
+
+        yieldBringBack()
+
+        readEndIndicators()
+
+    }
+
+    // What the end indicator reads at each end, from the state as it stands: nothing unless the end stands and the
+    // viewport's edge is past its mark; then the end word inside the state, and the searching text while the state's
+    // own ask is out (reaskOpen while the adjustment has it, its record in the fill after). An end that stands
+    // through any other ask (the fill that follows a structural call, with its placeholders) shows nothing. The
+    // component is told only when a reading has changed. Taken at every reading of the viewport and every transition
+    // of the state
+    const readEndIndicators = () => {
+
+        if (!viewportRef.current) return
+
+        let changed = false
+
+        for (const end of ['head', 'tail']) {
+
+            const
+                state = endStateRef.current[end],
+                past = endStands(end) && (endGeometry(end).viewportEdge > endMark(end)),
+                shown = !past ? null : insideEndState(end) ? 'end' : (state.reaskOpen || isEndAskAt(directionAt(end))) ? 'searching' : null
+
+            if (shown !== state.shown) {
+                state.shown = shown
+                changed = true
+            }
+
+        }
+
+        if (changed) setEndIndicators({head:endStateRef.current.head.shown, tail:endStateRef.current.tail.shown})
+
+    }
+
     // Entry, once. The end is marked where the answer did not mark it (the inline fill's empty answer at cap 0 marks
     // nothing at the tail, and the trigger's inference from a cradle still short after the fill is the end). The
     // viewport is snapped to the mark (only when it is past it, where the caller says so: a list opened or arrived at
-    // on its first row is not moved into the slack) and, under input, held to stop its momentum: the plain hold, with
+    // on its first row is not moved) and, under input, held to stop its momentum: the plain hold, with
     // no quiet window and no wheel cancelling, since the state does from here what a longer hold would. A re-entry
     // during a bring-back neither snaps nor holds: the smooth scroll is already taking the viewport to the mark. An
-    // answer that stands the state up again on a kept mark reads the viewport against it: the placeholders it took
-    // down were what the viewport rested on
+    // answer that stands the state up again on a kept mark reads the viewport against it: one still past the mark is
+    // returned to it
     const enterEndState = (end, onlyIfPast) => {
 
         const direction = directionAt(end)
@@ -877,17 +920,22 @@ const useIntersections = ({
         if (insideEndState(end)) {
 
             readViewportAtEnd(end, false)
+            readEndIndicators()
             return
 
         }
 
         const mark = endMark(end)
 
-        if (endStateRef.current.glidingTo !== null) return
+        if (endStateRef.current.glidingTo === null) {
 
-        snapToEndMark(end, mark, onlyIfPast)
+            snapToEndMark(end, mark, onlyIfPast)
 
-        if (holdRef.current.viewport || isScrollInputRecent()) holdScrolling(end)
+            if (holdRef.current.viewport || isScrollInputRecent()) holdScrolling(end)
+
+        }
+
+        readEndIndicators()
 
     }
 
@@ -912,11 +960,11 @@ const useIntersections = ({
     //
     // Every other reading is the same one without the ask: an answer that stands the state up again (enterEndState),
     // the mode's end, the end of a touch, a bring-back stopped for input, the timer of an earlier one. It is taken
-    // wherever the end stands, so also while a re-ask is out, against the mark as it stands then (the placeholders
-    // are in it). It waits only what is left of the quiet window, and the timer it leaves decides nothing: it takes
-    // the reading again. With none left it returns the viewport (returnToEndMark). During a bring-back there is
-    // nothing to wait out: no hand is on the list while one runs (input ends it), and the mark the scroll is running
-    // to may no longer be the mark. A bring-back a gesture has already scheduled stands, with its ask
+    // wherever the end stands, so also while a re-ask is out, against the same mark. It waits only what is left of
+    // the quiet window, and the timer it leaves decides nothing: it takes the reading again. With none left it
+    // returns the viewport (returnToEndMark). During a bring-back there is nothing to wait out: no hand is on the
+    // list while one runs (input ends it), and the mark the scroll is running to may no longer be the mark. A
+    // bring-back a gesture has already scheduled stands, with its ask
     const readViewportAtEnd = (end, ask, inTask = false) => {
 
         const state = endStateRef.current[end]
@@ -975,10 +1023,58 @@ const useIntersections = ({
 
     }
 
+    // The pull past a fixed end is a small elastic, carried by the axis. Past the mark the scroll position travels as
+    // the browser scrolls it, and the axis goes with it, short of the part of the travel that is drawn: the gap
+    // between the mark and the viewport's edge is cap·t / (t + cap) of the travel t (one for one at the mark, never
+    // the cap). Travel back toward the mark is drawn one for one, so the content follows the hand home, and a pull
+    // that turns outward again is damped from where the content stands. The axis moves by whole pixels, as a shift
+    // moves it, and never draws past the curve; the travel is kept unrounded, so a slow pull adds up as a fast one
+    // does. A gap the elastic did not draw (a viewport found out past the cap) is not pulled in: it stops growing.
+    // The write is made in the scroll event, outside the queue, so that the content is drawn where the hand is in
+    // the event's own frame: every write of the axis reads it in the same turn, so none is lost to this one
+    const drawEndElastic = (end) => {
+
+        const state = endStateRef.current[end]
+
+        if (!isEndFixed(end) || !insideEndState(end)) {
+            state.travel = state.drawn = 0
+            return
+        }
+
+        const
+            { isH, axis, viewportDim, viewportEdge } = endGeometry(end),
+            gap = Math.max(viewportEdge - endMark(end), 0),
+            cap = Math.min(END_ELASTIC_CAP, viewportDim / 10),
+            moved = gap - state.drawn
+
+        if (moved <= 0) {
+            state.drawn = gap
+            state.travel = (gap < cap) ? cap * gap / (cap - gap) : Infinity
+            return
+        }
+
+        const
+            travel = state.travel + moved,
+            damped = (travel < Infinity) ? cap * travel / (travel + cap) : cap,
+            along = Math.ceil(gap - Math.max(damped, state.drawn)),
+            position = axis + ((end == 'tail') ? along : -along)
+
+        setAxisPosition(isH ? position : 0, isH ? 0 : position)
+
+        state.travel = travel
+        state.drawn = gap - along
+
+    }
+
     const onEndScroll = () => {
+
+        drawEndElastic('head')
+        drawEndElastic('tail')
 
         readViewportAtEnd('head', true)
         readViewportAtEnd('tail', true)
+
+        readEndIndicators()
 
     }
 
@@ -986,6 +1082,8 @@ const useIntersections = ({
 
         readViewportAtEnd('head', false)
         readViewportAtEnd('tail', false)
+
+        readEndIndicators()
 
     }
 
@@ -1002,20 +1100,19 @@ const useIntersections = ({
     }
 
     // A gesture past the mark asks that end once more, and the viewport is brought back to the mark with a smooth
-    // scroll: the gesture into the end is the user asking for more, and the placeholders that stand for the ask are
-    // the feedback, so the ask goes first and the bring-back ends on them (reaskEnd). Rows answered fill in place and
-    // leave the state (the end memory goes with the end cell). An empty or failed answer takes the placeholders down
-    // and stands the state up again on the kept mark, which never had their room in it: the viewport is past it by
-    // the band it rested on, the answer's reading finds it there, and a second bring-back takes it to the rows' edge
-    // plus the slack. That one does not ask again. This is the timer's end: a gesture's sends its ask, and any other
-    // takes the reading again
+    // scroll: the gesture into the end is the user asking for more. Nothing is placed at the end for that ask: the
+    // end indicator reads the searching text while it is out and the viewport is still past the mark (reaskEnd). Rows
+    // answered are added at the end and leave the state (leaveEndState). An empty or failed answer stands the state
+    // up again on the mark it kept, and a viewport the answer finds past it is returned by a reading that does not ask
+    // again. This is the timer's end: a gesture's sends its ask, and any other takes the reading again. An end the
+    // host has fixed (operations.fixedEnds) is not asked: its gesture is brought back by the reading that asks nothing
     const bringBackToEndMark = (end, ask) => {
 
         endStateRef.current[end].gestureTimeoutID = null
 
         if (!viewportRef.current) return
 
-        if (!ask) readViewportAtEnd(end, false)
+        if (!ask || isEndFixed(end)) readViewportAtEnd(end, false)
         else if (insideEndState(end)) reaskEnd(end)
 
     }
@@ -1140,10 +1237,9 @@ const useIntersections = ({
     // The re-ask goes through the overflow adjustment, whose answer is the entry's (an inline empty answer at cap 0
     // enters by its inference, as at the trigger). The end memory is cleared inside the task, so that nothing reads
     // the state between the clearing and the ask; the adjustment closes reaskOpen with its answer. The fill sends the
-    // ask and stands its placeholders before it first waits, and the bring-back is made then, before the answer is
-    // waited for: the mark it reads has the placeholders in it, and a host slow to answer does not keep the viewport
-    // out past the end (a viewport that goes out past the placeholders while the answer is out is read as anywhere
-    // the end stands)
+    // ask before it first waits, with nothing placed at the end for it, and the bring-back is made then, before the
+    // answer is waited for: a host slow to answer does not keep the viewport out past the end (a viewport that goes
+    // out past the mark while the answer is out is read as anywhere the end stands)
     const reaskEnd = (end) => {
 
         endStateRef.current[end].reaskOpen = true
@@ -1155,6 +1251,8 @@ const useIntersections = ({
             try {
 
                 clearQuietAt(end)
+
+                readEndIndicators()
 
                 const answered = adjustForEndOverflow(end, true)
 
@@ -1182,8 +1280,9 @@ const useIntersections = ({
 
     // An end's overflow, and its re-ask: true when the end of the data is there and the state was entered. The fill
     // asks where the end is not known (with the quiet mark standing, an answer that came while the viewport was still
-    // short of the end, it asks nothing there), and rows that arrive, or a fetch left open (the placeholders standing
-    // there size the block, and the answer fills in place), settle nothing here. A cradle at its potential with
+    // short of the end, it asks nothing there), and rows that arrive, or a fetch left open (its answer settles the
+    // end when it comes), settle nothing here; rows that the fill itself brought, with no fetch left open, were
+    // answered inline, and leave a state standing at that end. A cradle at its potential with
     // nothing to ask for was outrun, not ended: the rows ahead answer that, by the shift the caller measures and the
     // outrun branch on the next observation. A cradle still short after the fill with no fetch open was answered
     // inline with nothing, which is the end
@@ -1198,6 +1297,8 @@ const useIntersections = ({
 
             await fillCradle()
 
+            if (!isFetchOpenAt(end) && (cellsAtEnd() > cellsBefore)) leaveEndState(end)
+
             if (cellsAtEnd() > cellsBefore || isFetchOpenAt(end)) return false
 
             if (!isQuietAt(direction) && !isCradleShortAt(end)) return false
@@ -1210,6 +1311,8 @@ const useIntersections = ({
 
             endStateRef.current[end].reaskOpen = false
 
+            readEndIndicators()
+
         }
 
     }
@@ -1221,7 +1324,7 @@ const useIntersections = ({
 
             const
                 inside = insideEndState(end),
-                slack = endSlack()
+                slack = endSlack(end)
 
             if (!inside || !viewportRef.current) return {inside, mark:null, slack, contentEdge:null}
 
@@ -1237,12 +1340,14 @@ const useIntersections = ({
 
     }
 
-    // The host answered an ask at an end with nothing, or failed to answer it. Two callers: a placeholder run's
-    // answer, which arrives after the fill that asked had returned and takes that end's placeholders with it, and,
-    // with placeholders off, the inline fill's empty answer to 'before'. A viewport still bands away from that end has
-    // rows to scroll into, and the overflow there enters the state when it arrives: nothing is held short of them. At
-    // the end the answer enters the end state (the entry snaps a viewport past the mark, and holds under input); the
-    // end memory keeps a failure as it keeps an empty answer, and the state's re-ask is how the host is asked again
+    // The host answered an ask at an end. With rows (a placeholder run's answer that placed some, or the rows the end
+    // state's own ask added): a state standing at that end is left. With nothing, or with a failure, from two
+    // callers: an answer with placeholders on, which arrives after the fill that asked had returned and takes down
+    // what stood at that end for it, and, with placeholders off, the inline fill's empty answer to 'before'. A
+    // viewport still bands away from that end has rows to scroll into, and the overflow there enters the state when
+    // it arrives: nothing is held short of them. At the end the answer enters the end state (the entry snaps a
+    // viewport past the mark, and holds under input); the end memory keeps a failure as it keeps an empty answer, and
+    // the state's re-ask is how the host is asked again
     onRunEndedRef.current = (direction, reason) => {
 
         if (!viewportRef.current) return
@@ -1250,6 +1355,13 @@ const useIntersections = ({
         const
             end = (direction == 'forward')?'tail':'head',
             hold = holdRef.current
+
+        if (reason == 'rows') {
+
+            leaveEndState(end)
+            return
+
+        }
 
         if (hold.viewport && hold.endOfData && (hold.endOfData != end)) return // held at the other end
 

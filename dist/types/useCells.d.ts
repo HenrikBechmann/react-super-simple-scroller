@@ -36,6 +36,7 @@ declare const useCells: ({ scrollerName, DOMManipulationQueueRef, viewportRef, o
     abortFetches: () => void;
     clearPlaceholders: () => void;
     isFetchOpenAt: (end: any) => boolean;
+    isEndFixed: (end: any) => boolean;
     markQuiet: (direction: any, reason: any) => {
         reason: any;
         cradleActual: any;
@@ -44,6 +45,8 @@ declare const useCells: ({ scrollerName, DOMManipulationQueueRef, viewportRef, o
     isQuietAt: (direction: any) => boolean;
     clearQuietMarks: () => void;
     clearQuietAt: (end: any) => void;
+    isEndAskAt: (direction: any) => boolean;
+    endIndicatorComponentType: () => any;
     runAnchorIndex: (direction: any) => any;
     rebuildPlaceholderPortals: () => void;
     placeholderReport: () => {

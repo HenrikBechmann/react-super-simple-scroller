@@ -5,7 +5,7 @@ import React from 'react'
 import { createPortal } from 'react-dom'
 
 import { createBand, createContainer, setPlaceholderSpread, clearPlaceholderSpread, removeEmptyBands, isValidID, reportError, reportFailed, reportWarning, errorMessage } from './utilities'
-import { DefaultPlaceholder, placeholderID } from './placeholders'
+import { DefaultPlaceholder, DefaultEndIndicator, placeholderID } from './placeholders'
 
 // Two ways to grow the cradle, chosen by operations.placeholderCap.
 //
@@ -26,6 +26,10 @@ import { DefaultPlaceholder, placeholderID } from './placeholders'
 // the next ask. A fetch unanswered within technical.FETCH_CEILING is dropped, its signal fired, and the same
 // positions asked for again, once per ceiling, for as long as they stand. A structural call, a reset or the
 // unmount withdraws the standing placeholders and drops the pending answer.
+// One ask stands no placeholders: the one the end state makes at an end the host has answered empty at, or failed
+// to answer (clearQuietAt sets its record, isEndAskAt reads it). Nothing is placed at that end for it, its count is
+// the cradle's room there, and its rows are added past the end row (addAtEnd, through the adders the inline path
+// uses). The fill that follows those rows is an ordinary one.
 const useCells = ({
 
     scrollerName,
@@ -126,6 +130,36 @@ const useCells = ({
         reportBadOption('operations.placeholder', Component, 'must be a component; the default placeholder is used')
 
         return DefaultPlaceholder
+
+    }
+
+    const endIndicatorComponentType = () => {
+
+        const Component = operationsRef.current?.endIndicator
+
+        if (Component === undefined || Component === null) return DefaultEndIndicator
+
+        if (typeof Component == 'function' || (typeof Component == 'object')) return Component
+
+        reportBadOption('operations.endIndicator', Component, 'must be a component; the default end indicator is used')
+
+        return DefaultEndIndicator
+
+    }
+
+    // operations.fixedEnds: the host's word that nothing is to be looked for past an end. true closes both ends; an
+    // object closes the end it names true (start: the head, end: the tail)
+    const isEndFixed = (end) => {
+
+        const fixedEnds = operationsRef.current?.fixedEnds
+
+        if (fixedEnds === undefined || fixedEnds === null || (typeof fixedEnds == 'boolean')) return !!fixedEnds
+
+        if (typeof fixedEnds == 'object') return ((end == 'head') ? fixedEnds.start : fixedEnds.end) === true
+
+        reportBadOption('operations.fixedEnds', fixedEnds, 'must be a boolean or { start, end }; neither end is fixed')
+
+        return false
 
     }
 
@@ -401,6 +435,12 @@ const useCells = ({
 
     const backwardRoom = () => Math.max(cradlePotentialRef.current.backwardCells - cradleActualRef.current.backwardCells, 0)
 
+    const roomAt = (direction) => {
+
+        return (direction == 'forward')?forwardRoom():backwardRoom()
+
+    }
+
     const endID = (direction) => (direction == 'forward')?portalIDListRef.current.at(-1):portalIDListRef.current[0]
 
     // the one end memory: the host's last answer at this end closed the run, with nothing (end) or with a failure.
@@ -438,11 +478,42 @@ const useCells = ({
         const state = placeholderState()
         state.quiet.forward = null
         state.quiet.backward = null
+        state.endAsk.forward = null
+        state.endAsk.backward = null
     }
 
-    // a gesture past an end's mark asks there again (the end state's re-ask)
+    // a gesture past an end's mark asks there again (the end state's re-ask). With placeholders on, that ask stands
+    // none at its end: the record says so to the fill and to the answer (isEndAskAt)
     const clearQuietAt = (end) => {
-        placeholderState().quiet[(end == 'tail')?'forward':'backward'] = null
+
+        const
+            state = placeholderState(),
+            direction = (end == 'tail')?'forward':'backward'
+
+        state.quiet[direction] = null
+
+        if (placeholderCap() > 0) state.endAsk[direction] = {cradleActual: cradleActualRef.current, endID: endID(direction)}
+
+    }
+
+    // an end the end state is asking again, with placeholders on: {cradleActual, endID}. Nothing is placed at that end
+    // for the ask, and its rows are added there (applyAnswer). It stands while the cradle and the row at that end are as
+    // they were when it was set
+    const isEndAskAt = (direction) => {
+
+        const
+            state = placeholderState(),
+            record = state.endAsk[direction]
+
+        if (!record) return false
+
+        if ((record.cradleActual !== cradleActualRef.current) || (record.endID !== endID(direction))) {
+            state.endAsk[direction] = null
+            return false
+        }
+
+        return true
+
     }
 
     const placeholderPortal = (id, entry) => {
@@ -577,7 +648,8 @@ const useCells = ({
     }
 
     // withdraws what the scroll has passed, fills the room at both ends with placeholders, within the caps, and
-    // sends the next ask if none is out
+    // sends the next ask if none is out. An end the host has closed (the quiet mark) takes none, and neither does
+    // an end the end state is asking again
     const fillWithPlaceholders = () => {
 
         const
@@ -595,8 +667,8 @@ const useCells = ({
             forwardAnchor = (last !== undefined)?last:(forwardStanding.length?state.map.get(forwardStanding[0]).referenceID:undefined),
             backwardAnchor = (first !== undefined)?first:(backwardStanding.length?state.map.get(backwardStanding[0]).referenceID:undefined)
 
-        if (forwardAnchor !== undefined && !isQuietAt('forward')) placed += placeAt('forward', forwardAnchor, forwardRoom(), passedForward.behind)
-        if (backwardAnchor !== undefined && !isQuietAt('backward')) placed += placeAt('backward', backwardAnchor, backwardRoom(), passedBackward.behind)
+        if (forwardAnchor !== undefined && !isQuietAt('forward') && !isEndAskAt('forward')) placed += placeAt('forward', forwardAnchor, forwardRoom(), passedForward.behind)
+        if (backwardAnchor !== undefined && !isQuietAt('backward') && !isEndAskAt('backward')) placed += placeAt('backward', backwardAnchor, backwardRoom(), passedBackward.behind)
 
         if (placed || passedForward.withdrawn || passedBackward.withdrawn) {
             setPortalRenderList([...cellPortalListRef.current])
@@ -636,20 +708,34 @@ const useCells = ({
 
     }
 
-    // the forward end is asked first; an ask covers every placeholder standing at its end
+    // the forward end is asked first. An ask covers every placeholder standing at its end; an end the end state asks
+    // again has none standing, and its ask is for the room there
     const sendNextAsk = () => {
 
         for (const direction of ['forward', 'backward']) {
 
-            const ids = standingAt(direction)
-
-            if (!ids.length) continue
-
             const
-                anchor = (direction == 'forward')?lastRealID():firstRealID(),
-                referenceID = (anchor !== undefined)?anchor:placeholderState().map.get(ids[0]).referenceID
+                ids = standingAt(direction),
+                anchor = (direction == 'forward')?lastRealID():firstRealID()
 
-            sendAsk((direction == 'forward')?'after':'before', direction, referenceID, ids)
+            let room = null
+
+            if (!ids.length) {
+
+                if (!isEndAskAt(direction)) continue
+
+                room = (anchor !== undefined)?roomAt(direction):0
+
+                if (!room) {
+                    placeholderState().endAsk[direction] = null
+                    continue
+                }
+
+            }
+
+            const referenceID = (anchor !== undefined)?anchor:placeholderState().map.get(ids[0]).referenceID
+
+            sendAsk((direction == 'forward')?'after':'before', direction, referenceID, ids, room)
 
             return
 
@@ -657,7 +743,8 @@ const useCells = ({
 
     }
 
-    const sendAsk = (startCode, direction, referenceID, ids) => {
+    // roomAtEnd is given for the end state's ask alone: no placeholder stands for it, and it asks for that many
+    const sendAsk = (startCode, direction, referenceID, ids, roomAtEnd = null) => {
 
         const
             state = placeholderState(),
@@ -673,12 +760,13 @@ const useCells = ({
             startCode,
             direction,
             referenceID,
-            count: ids.length,
+            count: roomAtEnd ?? ids.length,
             attempt: 0,
             controller: null,
             ceilingTimer: null,
             cradleActual: cradleActualRef.current,
             askID,
+            endAsk: roomAtEnd !== null,
         }
 
         issueAsk(state.pending)
@@ -739,9 +827,12 @@ const useCells = ({
 
         pending.controller.abort()
 
-        const ids = standingAt(pending.direction)
+        // the end state's ask is sent again for the room at its end, while its record stands
+        const
+            ids = standingAt(pending.direction),
+            count = pending.endAsk?(isEndAskAt(pending.direction)?roomAt(pending.direction):0):ids.length
 
-        if (!ids.length) { // every position has been trimmed; there is nothing to fill
+        if (!count) { // every position has been trimmed, or the end state's ask no longer stands; there is nothing to fill
             state.pending = null
             sendNextAsk()
             return
@@ -754,7 +845,7 @@ const useCells = ({
         reportWarning(callbacksRef, source, message, [pending.startCode, pending.referenceID, pending.count], {attempt})
 
         ids.forEach((id, k) => { state.map.get(id).index = k })
-        pending.count = ids.length
+        pending.count = count
 
         issueAsk(pending)
 
@@ -796,6 +887,20 @@ const useCells = ({
 
     }
 
+    // rows answered at an end the end state asked again: nothing stood there to fill, so they are added at that end,
+    // as many as the cradle has room for
+    const addAtEnd = (direction, cells, source) => {
+
+        const cellsBefore = portalIDListRef.current.length
+
+        cells = cells.slice(0, roomAt(direction))
+
+        cellPortalListRef.current = (direction == 'forward')?setForwardCells(cells, source):setBackwardCells(cells, source)
+
+        return portalIDListRef.current.length - cellsBefore
+
+    }
+
     const applyAnswer = (pending, attempt, answer) => {
 
         const state = placeholderState()
@@ -810,9 +915,20 @@ const useCells = ({
         state.pending = null
 
         const
-            {startCode, direction, referenceID, count} = pending,
+            {startCode, direction, referenceID, count, endAsk} = pending,
             source = `fetchCells, ${startCode}`,
             args = [startCode, referenceID, count]
+
+        // an answer to the end state's ask is taken only while that ask's record stands (the cradle and the end row
+        // are as they were). Otherwise it is neither rows nor the end of the data, and that end is filled as any other
+        const endAskStands = endAsk && isEndAskAt(direction)
+
+        if (endAsk) state.endAsk[direction] = null
+
+        if (endAsk && !endAskStands) {
+            fillWithPlaceholders()
+            return
+        }
 
         if (!answer.ok) {
             reportError(callbacksRef, source, `fetchCells rejected: ${errorMessage(answer.error)}`, args, {attempt})
@@ -854,19 +970,24 @@ const useCells = ({
         // rows stay in sequence though the scroll has withdrawn or trimmed placeholders and stood others since. A
         // short answer fills the nearest positions and leaves the far ones standing; a row past the run's end takes
         // nothing, and is asked for again if the cradle comes back to it. A run that no longer stands on the row
-        // the ask named takes nothing: the answer's rows are not its positions'
+        // the ask named takes nothing: the answer's rows are not its positions'.
+        // The end state's ask has no run: its rows are added at the end
         const
             ids = standingAt(direction),
             anchor = (direction == 'forward')?lastRealID():firstRealID(),
             runReferenceID = (anchor !== undefined)?anchor:state.map.get(ids[0])?.referenceID
 
-        if (runReferenceID === referenceID) cells.forEach((cellPack, k) => {
+        let placed = 0
+
+        if (endAsk) placed = addAtEnd(direction, cells, source)
+        else if (runReferenceID === referenceID) cells.forEach((cellPack, k) => {
 
             const id = ids[k]
 
             if (id === undefined) return
 
             fillInPlace(id, cellPack)
+            placed++
 
         })
 
@@ -878,6 +999,9 @@ const useCells = ({
 
         setPortalRenderList([...cellPortalListRef.current])
         updateCurrentAxisReferenceID()
+
+        // rows at an end are not that end's end of the data: an end state standing there is left (useIntersections)
+        if (placed) onRunEndedRef.current && onRunEndedRef.current(direction, 'rows')
 
         fillWithPlaceholders()
 
@@ -1043,12 +1167,13 @@ const useCells = ({
 
     }
 
-    // a fetch is open at an end while placeholders stand there or an ask for it is out
+    // a fetch is open at an end while placeholders stand there, an ask for it is out, or the end state's ask for it
+    // waits its turn
     const isFetchOpenAt = (end) => {
 
         const direction = (end == 'tail')?'forward':'backward'
 
-        return !!standingAt(direction).length || (placeholderState().pending?.direction == direction)
+        return !!standingAt(direction).length || (placeholderState().pending?.direction == direction) || isEndAskAt(direction)
 
     }
 
@@ -1342,10 +1467,13 @@ const useCells = ({
         abortFetches,
         clearPlaceholders,
         isFetchOpenAt,
+        isEndFixed,
         markQuiet,
         isQuietAt,
         clearQuietMarks,
         clearQuietAt,
+        isEndAskAt,
+        endIndicatorComponentType,
         runAnchorIndex,
         rebuildPlaceholderPortals,
         placeholderReport,

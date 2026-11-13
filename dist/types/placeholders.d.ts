@@ -13,7 +13,23 @@ export declare const createPlaceholderState: () => {
         forward: any;
         backward: any;
     };
+    endAsk: {
+        forward: any;
+        backward: any;
+    };
 };
+export declare const END_INDICATOR_TEXT: {
+    start: string;
+    end: string;
+    searching: string;
+};
+export declare const endIndicatorText: (context: any, end: any, searching: any) => any;
 export declare const DefaultPlaceholder: ({ context }: {
     context: any;
+}) => any;
+export declare const DefaultEndIndicator: ({ context, end, searching, orientation }: {
+    context: any;
+    end: any;
+    searching: any;
+    orientation: any;
 }) => any;

@@ -67,6 +67,26 @@ const virtualCradleStyles = {
     display: 'none',
 } as CSSProperties
 
+// the end indicators stand over the viewport, outside the scrolled content, and take no pointer events
+const endIndicatorLayerStyles = {
+    position: 'absolute',
+    inset: 0,
+    overflow: 'hidden',
+    pointerEvents: 'none',
+} as CSSProperties
+
+// an indicator stands along the viewport's edge at its end of the data: the start's along the top (the left, in a
+// horizontal list), the end's along the bottom (the right)
+const endIndicatorSlotStyles = (end, orientation) => {
+
+    const isHead = (end == 'head')
+
+    return ((orientation == 'horizontal')
+        ? {position: 'absolute', top: 0, bottom: 0, ...(isHead ? {left: 0} : {right: 0})}
+        : {position: 'absolute', left: 0, right: 0, ...(isHead ? {top: 0} : {bottom: 0})}) as CSSProperties
+
+}
+
 // note: remaining styles are in orientationStyles.tsx
 
 function fallbackRender({ error, resetErrorBoundary }) {
@@ -236,6 +256,7 @@ const Viewport = (props) =>{
         portalContainerMapRef = useRef(new Map()), // id -> containerElement
         [portalRenderList,setPortalRenderList] = useState([]), // portal render
         [connectTick,setConnectTick] = useState(0), // a wanted observer reconnect is flushed after the commit
+        [endIndicators, setEndIndicators] = useState(null), // what the end indicator reads at each end, with its component; null while none is shown
 
         // band tracking -- bands are listed in presentaton order
         headBandListRef = useRef<HTMLElement[]>([]),
@@ -553,7 +574,7 @@ const Viewport = (props) =>{
     // ===================[ breakout code to use* modules ]======================
 
     const 
-        {getCells, withdrawPlaceholders, abortFetches, clearPlaceholders, isFetchOpenAt, markQuiet, isQuietAt, clearQuietMarks, clearQuietAt, runAnchorIndex, rebuildPlaceholderPortals, placeholderReport} = useCells({
+        {getCells, withdrawPlaceholders, abortFetches, clearPlaceholders, isFetchOpenAt, isEndFixed, markQuiet, isQuietAt, clearQuietMarks, clearQuietAt, isEndAskAt, endIndicatorComponentType, runAnchorIndex, rebuildPlaceholderPortals, placeholderReport} = useCells({
 
             scrollerName,
 
@@ -662,10 +683,13 @@ const Viewport = (props) =>{
             fillCradle,
             updateCurrentAxisReferenceID,
             isFetchOpenAt,
+            isEndFixed,
             markQuiet,
             isQuietAt,
             clearQuietAt,
+            isEndAskAt,
             onRunEndedRef,
+            setEndIndicators:(shown) => setEndIndicators((shown.head || shown.tail) ? {...shown, Component:endIndicatorComponentType()} : null),
 
         }),
 
@@ -1467,6 +1491,11 @@ const Viewport = (props) =>{
                     </div>
                 </div>
             </div>
+            {endIndicators && <div data-type = 'end-indicators' style = {endIndicatorLayerStyles}>
+                {['head', 'tail'].map((end) => endIndicators[end] && <div key = {end} data-type = 'end-indicator-slot' style = {endIndicatorSlotStyles(end, orientation)}>
+                    <endIndicators.Component context = {operations.endIndicatorContext} end = {(end == 'head') ? 'start' : 'end'} searching = {endIndicators[end] == 'searching'} orientation = {orientation} />
+                </div>)}
+            </div>}
             <div data-type = 'virtual-cradle' style = {virtualCradleStyles}>
                 {portalRenderList}
             </div>        
@@ -1485,6 +1514,10 @@ export type FetchCells = (startCode: 'at' | 'after' | 'before', referenceID: any
 // the props of a placeholder component (operations.placeholder): the host's context as given, the placeholder's
 // position in the run at its end, counted from the real rows, the direction of that run, and the real row it stands beside
 export type PlaceholderProps = { context: any, index: number, direction: 'forward' | 'backward', referenceID: any }
+
+// the props of an end indicator component (operations.endIndicator): the host's context as given, the end of the data
+// it stands at, whether the host is being asked there (false once it has answered), and the list's orientation
+export type EndIndicatorProps = { context: any, end: 'start' | 'end', searching: boolean, orientation: 'vertical' | 'horizontal' }
 
 // the second argument of callbacks.axisReferenceID when the axis stands on a placeholder
 export type AxisContext = { isPlaceholder: true, referenceID: any, direction: 'forward' | 'backward' }
@@ -1540,6 +1573,9 @@ export type ReactSuperSimpleScrollerProps = {
         placeholderSpreadRatio?: number | null, // variable layout: a placeholder's axis size, from min (0) to max (1); default 0
         placeholder?: React.ComponentType<PlaceholderProps>, // the host's placeholder; default a gray "searching…"
         placeholderContext?: any, // passed to each placeholder untouched; memoize it
+        endIndicator?: React.ComponentType<EndIndicatorProps>, // the host's end indicator, shown on the viewport's edge past an end of the data; default a gray "start of list" / "end of list" / "searching…"
+        endIndicatorContext?: any, // passed to the end indicator untouched; the default reads its texts from { start, end, searching }, '' showing none
+        fixedEnds?: boolean | { start?: boolean, end?: boolean }, // an end the host closes: nothing is looked for past it; true closes both
     },
     scrollerName? : string
 }
