@@ -60,6 +60,7 @@ const useCalls = ({
     trimCradle,
     fillCradle,
     followViewport,
+    bringOutrunCradle,
     reset,
     callbacksRef,
     assertIntersectionsDisconnect,
@@ -812,6 +813,10 @@ const useCalls = ({
             // the opening ask is the fill in progress: nothing stands to fill from until it is answered, and
             // withdrawing it would leave the cradle empty
             if (!getCradleIDList().length && placeholdersRef.current.pending) return true
+
+            // the viewport is measured against the ends as they stand, before their memories are cleared: an end the
+            // host answered empty at is not a cradle the scroll has outrun, and it stands through this fill's ask
+            bringOutrunCradle()
 
             // an explicit fill asks again at an end the host answered empty at; what stands and what is pending are kept
             clearQuietMarks()

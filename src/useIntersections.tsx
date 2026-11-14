@@ -71,6 +71,7 @@ const useIntersections = ({
     clearQuietAt,
     isEndAskAt,
     onRunEndedRef,
+    bringOutrunCradleRef,
     setEndIndicators,
 
 }) => {
@@ -174,17 +175,24 @@ const useIntersections = ({
     }
 
     // At every task boundary the cradle agrees with the viewport: no run stands wholly behind it, and the room
-    // ahead is stood. A queued task that moves the cradle ends here, inside its own turn of the queue. A second
-    // task would wait behind an answer already queued, and that answer filled its rows where the first task had
-    // left the cradle, behind the viewport.
+    // ahead is stood. A queued task that moves the cradle ends in followViewport, inside its own turn of the queue.
+    // A second task would wait behind an answer already queued, and that answer filled its rows where the first
+    // task had left the cradle, behind the viewport.
+    // A task that only fills starts from the same measure. A scroll moves the viewport at once and the scroller's
+    // response to it is a task queued later, so a fill that runs in between would stand its rows where the last
+    // task left the cradle. The answer's task reaches the measure through bringOutrunCradleRef, and fills from it
+    // before it applies the answer; the head overflow's entry takes it in place of its own adjustment; the host's
+    // fill takes it before it clears the end memories, which the measure reads an end through.
     // The outrun is read from layout as the task runs, and before the task's own shift: that shift takes bands out
     // of the block the scroll is leaving, and a block it left short would read as an end the host had answered
     // empty at (evaluate's gate, below, which is this one). An outrun cradle is brought whole: every band goes to
-    // the side the scroll came from, the axis is written under the viewport's own position, and the fill takes
-    // down what the scroll carried behind and stands the rows ahead. A fill alone stood them from the old axis.
-    // Otherwise the caller's shift is taken as it measures it. A viewport with no box (a hidden scroller measures
-    // nothing) is at no position, and is past nothing
-    const followViewport = async (shift = null) => {
+    // the side the scroll came from, the axis is written under the viewport's own position, and the fill that
+    // follows takes down what the scroll carried behind and stands the rows ahead. A fill alone stood them from
+    // the old axis. The observers are off for the bring whoever makes it: a trigger the bring carries from one
+    // side of the viewport to the other reports nothing, and its old position would be read as the cradle's.
+    // True when the cradle was brought. A viewport with no box (a hidden scroller measures nothing) is at no
+    // position, and is past nothing
+    const bringOutrunCradle = () => {
 
         const
             viewport = viewportRef.current,
@@ -196,6 +204,8 @@ const useIntersections = ({
                 : null
 
         if (outrunEnd && !endStands(outrunEnd) && (!isCradleShortAt(outrunEnd) || isFetchOpenAt(outrunEnd))) {
+
+            assertIntersectionsDisconnect()
 
             if (outrunEnd == 'tail') {
 
@@ -211,11 +221,20 @@ const useIntersections = ({
 
             }
 
-        } else if (shift) {
-
-            shift()
+            return true
 
         }
+
+        return false
+
+    }
+
+    bringOutrunCradleRef.current = bringOutrunCradle
+
+    // the bring where the cradle is outrun, otherwise the caller's shift as it measures it; then the fill
+    const followViewport = async (shift = null) => {
+
+        if (!bringOutrunCradle() && shift) shift()
 
         await fillCradle()
 
@@ -368,7 +387,9 @@ const useIntersections = ({
                     // shift's, counted as that shift counts them: none while its trigger is before the viewport too
                     if (spanFromViewportStart(headblockOverflowTriggerRef.current).end >= 0) {
 
-                        adjustForHeadOverflow()
+                        // a cradle the scroll has carried the viewport wholly back past is brought to it instead: the
+                        // adjustment would stand the head's room at the cradle's far edge, out of sight
+                        if (!bringOutrunCradle()) adjustForHeadOverflow()
 
                         // a list arrived at on its first row is not moved: the entry snaps only a viewport that is
                         // past the mark
@@ -1580,8 +1601,8 @@ const useIntersections = ({
     }
 
     return {
-        evaluateIntersections, followViewport, onEndScroll, onEndScrollingModeEnd, onEndWheel, onEndTouchStart, isBringingBack,
-        endStateReport,
+        evaluateIntersections, followViewport, bringOutrunCradle, onEndScroll, onEndScrollingModeEnd, onEndWheel, onEndTouchStart,
+        isBringingBack, endStateReport,
     }
 
 }

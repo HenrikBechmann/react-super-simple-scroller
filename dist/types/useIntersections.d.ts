@@ -1,4 +1,4 @@
-declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortMomentumFadeRef, AXIS_START_POSITION, DOMManipulationQueueRef, orientationRef, layoutRef, viewportRef, headblockRef, leadHeadblockBandRef, headblockOverflowTriggerRef, tailblockRef, tailblockOverflowTriggerRef, leadTailblockBandRef, cradleActualRef, cradlePotentialRef, headBandListRef, tailBandListRef, intersectionsMapRef, scrollTopRef, scrollLeftRef, axisPositionRef, portalIDListRef, immediateIsScrollingRef, lastScrollEventTimeRef, immediateStopScrollingRef, restoreScrollingTimeoutIDRef, callbacksRef, setAxisPosition, assertIntersectionsDisconnect, requestIntersectionsConnect, fillCradle, updateCurrentAxisReferenceID, trimCradle, isFetchOpenAt, isEndFixed, markQuiet, isQuietAt, clearQuietAt, isEndAskAt, onRunEndedRef, setEndIndicators, }: {
+declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortMomentumFadeRef, AXIS_START_POSITION, DOMManipulationQueueRef, orientationRef, layoutRef, viewportRef, headblockRef, leadHeadblockBandRef, headblockOverflowTriggerRef, tailblockRef, tailblockOverflowTriggerRef, leadTailblockBandRef, cradleActualRef, cradlePotentialRef, headBandListRef, tailBandListRef, intersectionsMapRef, scrollTopRef, scrollLeftRef, axisPositionRef, portalIDListRef, immediateIsScrollingRef, lastScrollEventTimeRef, immediateStopScrollingRef, restoreScrollingTimeoutIDRef, callbacksRef, setAxisPosition, assertIntersectionsDisconnect, requestIntersectionsConnect, fillCradle, updateCurrentAxisReferenceID, trimCradle, isFetchOpenAt, isEndFixed, markQuiet, isQuietAt, clearQuietAt, isEndAskAt, onRunEndedRef, bringOutrunCradleRef, setEndIndicators, }: {
     scrollerName: any;
     standardMomentumFadeRef: any;
     shortMomentumFadeRef: any;
@@ -40,10 +40,12 @@ declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortM
     clearQuietAt: any;
     isEndAskAt: any;
     onRunEndedRef: any;
+    bringOutrunCradleRef: any;
     setEndIndicators: any;
 }) => {
     evaluateIntersections: any;
     followViewport: (shift?: any) => Promise<void>;
+    bringOutrunCradle: () => boolean;
     onEndScroll: () => void;
     onEndScrollingModeEnd: (scrollUnheard: any) => void;
     onEndWheel: (event: any) => void;

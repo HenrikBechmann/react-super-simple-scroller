@@ -65,6 +65,7 @@ const useCells = ({
     fetchCeilingRef,
     placeholdersRef,
     onRunEndedRef,
+    bringOutrunCradleRef,
     updateCurrentAxisReferenceID,
     currentAxisReferenceIDRef,
     callbacksRef,
@@ -806,6 +807,10 @@ const useCells = ({
 
             DOMManipulationQueueRef.current.enqueue(async () => {
                 try {
+                    // a scroll since the last task may have carried the viewport past the whole cradle, with the
+                    // scroller's response to it still to run. The cradle is brought first and the run stood from
+                    // there, so the rows fill under the viewport; an ask that fill lets go is answered late
+                    if (bringOutrunCradleRef.current && bringOutrunCradleRef.current()) fillWithPlaceholders()
                     applyAnswer(pending, attempt, answer)
                 } finally {
                     requestIntersectionsConnect()

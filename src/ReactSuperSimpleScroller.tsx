@@ -210,6 +210,9 @@ const Viewport = (props) =>{
         placeholdersRef = useState(() => ({current: createPlaceholderState()}))[0],
         // the intersections' answer to an empty fetch at an end (useIntersections sets it, useCells calls it)
         onRunEndedRef = useRef(null),
+        // the intersections' bring of a cradle the scroll has outrun, for the answer's task (useIntersections sets
+        // it, useCells calls it)
+        bringOutrunCradleRef = useRef(null),
 
         // the mount-time seed; the prop is inert after mount
         seedReferenceIDRef = useRef(seedReferenceID),
@@ -609,6 +612,7 @@ const Viewport = (props) =>{
             fetchCeilingRef,
             placeholdersRef,
             onRunEndedRef,
+            bringOutrunCradleRef,
             updateCurrentAxisReferenceID,
             currentAxisReferenceIDRef,
             callbacksRef,
@@ -638,8 +642,8 @@ const Viewport = (props) =>{
         }),
 
         {
-            evaluateIntersections, followViewport, onEndScroll, onEndScrollingModeEnd, onEndWheel, onEndTouchStart,
-            isBringingBack, endStateReport,
+            evaluateIntersections, followViewport, bringOutrunCradle, onEndScroll, onEndScrollingModeEnd, onEndWheel,
+            onEndTouchStart, isBringingBack, endStateReport,
         } = useIntersections({
 
             scrollerName,
@@ -689,6 +693,7 @@ const Viewport = (props) =>{
             clearQuietAt,
             isEndAskAt,
             onRunEndedRef,
+            bringOutrunCradleRef,
             setEndIndicators:(shown) => setEndIndicators((shown.head || shown.tail) ? {...shown, Component:endIndicatorComponentType()} : null),
 
         }),
@@ -796,6 +801,7 @@ const Viewport = (props) =>{
             trimCradle,
             fillCradle,
             followViewport,
+            bringOutrunCradle,
             reset,
             callbacksRef,
             assertIntersectionsDisconnect,
