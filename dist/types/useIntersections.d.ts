@@ -1,4 +1,4 @@
-declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortMomentumFadeRef, AXIS_START_POSITION, DOMManipulationQueueRef, orientationRef, layoutRef, viewportRef, headblockRef, leadHeadblockBandRef, headblockOverflowTriggerRef, tailblockRef, tailblockOverflowTriggerRef, leadTailblockBandRef, cradleActualRef, cradlePotentialRef, headBandListRef, tailBandListRef, intersectionsMapRef, scrollTopRef, scrollLeftRef, axisPositionRef, portalIDListRef, immediateIsScrollingRef, lastScrollEventTimeRef, immediateStopScrollingRef, restoreScrollingTimeoutIDRef, callbacksRef, setAxisPosition, assertIntersectionsDisconnect, requestIntersectionsConnect, fillCradle, updateCurrentAxisReferenceID, trimCradle, isFetchOpenAt, isEndFixed, markQuiet, isQuietAt, clearQuietAt, isEndAskAt, onRunEndedRef, bringOutrunCradleRef, setEndIndicators, }: {
+declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortMomentumFadeRef, AXIS_START_POSITION, DOMManipulationQueueRef, orientationRef, layoutRef, viewportRef, headblockRef, leadHeadblockBandRef, headblockOverflowTriggerRef, tailblockRef, tailblockOverflowTriggerRef, leadTailblockBandRef, cradleActualRef, cradlePotentialRef, headBandListRef, tailBandListRef, intersectionsMapRef, scrollTopRef, scrollLeftRef, axisPositionRef, portalIDListRef, immediateIsScrollingRef, lastScrollEventTimeRef, immediateStopScrollingRef, restoreScrollingTimeoutIDRef, callbacksRef, setAxisPosition, slideAxis, readAxisSlide, assertIntersectionsDisconnect, requestIntersectionsConnect, fillCradle, updateCurrentAxisReferenceID, trimCradle, isFetchOpenAt, isEndFixed, markQuiet, isQuietAt, quietReasonAt, clearQuietAt, isEndAskAt, onRunEndedRef, bringOutrunCradleRef, setEndIndicators, }: {
     scrollerName: any;
     standardMomentumFadeRef: any;
     shortMomentumFadeRef: any;
@@ -28,6 +28,8 @@ declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortM
     restoreScrollingTimeoutIDRef: any;
     callbacksRef: any;
     setAxisPosition: any;
+    slideAxis: any;
+    readAxisSlide: any;
     assertIntersectionsDisconnect: any;
     requestIntersectionsConnect: any;
     fillCradle: any;
@@ -37,6 +39,7 @@ declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortM
     isEndFixed: any;
     markQuiet: any;
     isQuietAt: any;
+    quietReasonAt: any;
     clearQuietAt: any;
     isEndAskAt: any;
     onRunEndedRef: any;
@@ -50,6 +53,7 @@ declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortM
     onEndScrollingModeEnd: (scrollUnheard: any) => void;
     onEndWheel: (event: any) => void;
     onEndTouchStart: (event: any) => void;
+    onEndTouchMove: (event: any) => void;
     isBringingBack: () => boolean;
     endStateReport: () => {
         head: {

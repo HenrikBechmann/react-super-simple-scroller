@@ -34,11 +34,12 @@ export const createPlaceholderState = () => ({
     endAsk: {forward: null, backward: null},
 })
 
-export const END_INDICATOR_TEXT = { start: 'start of list', end: 'end of list', searching: 'searching…' }
+export const END_INDICATOR_TEXT = { start: 'start of list', end: 'end of list', searching: 'searching…', failed: '' }
 
-// the text an end indicator shows: the host's own where it gives a string for it, '' for none
-export const endIndicatorText = (context, end, searching) => {
-    const key = searching ? 'searching' : end
+// the text an end indicator shows: the host's own where it gives a string for it, '' for none. A failed load has no
+// words of the scroller's own: what went wrong, and what to say of it, is the host's to know (context.failed)
+export const endIndicatorText = (context, end, searching, failed = false) => {
+    const key = searching ? 'searching' : failed ? 'failed' : end
     return (context && typeof context[key] == 'string') ? context[key] : END_INDICATOR_TEXT[key]
 }
 
@@ -77,13 +78,14 @@ const horizontalEndIndicatorStyles = {
     writingMode: 'vertical-rl' as const,
 }
 
-// The end indicator the scroller shows when the host supplies none. It stands on the viewport's edge at an end of
-// the data, outside the scrolled content, and takes no size of its own. context is the host's
-// operations.endIndicatorContext, passed untouched: context.start, context.end and context.searching replace the
-// default texts, and '' shows none. end is 'start' or 'end'; searching is true while the host is being asked there.
-export const DefaultEndIndicator = ({ context, end, searching, orientation }) => {
+// The end indicator the scroller shows when the host supplies none. It stands in the gap a pull opens past an end of
+// the data, beyond the last row, and takes no size of its own. context is the host's operations.endIndicatorContext,
+// passed untouched: context.start, context.end, context.searching and context.failed replace the default texts, and
+// '' shows none. end is 'start' or 'end'; searching is true while the host is being asked there; failed is true
+// where the host's last answer there was a failure, which shows nothing unless the host gives it words.
+export const DefaultEndIndicator = ({ context, end, searching, failed, orientation }) => {
 
-    const text = endIndicatorText(context, end, searching)
+    const text = endIndicatorText(context, end, searching, failed)
 
     if (text === '') return null
 

@@ -67,23 +67,17 @@ const virtualCradleStyles = {
     display: 'none',
 } as CSSProperties
 
-// the end indicators stand over the viewport, outside the scrolled content, and take no pointer events
-const endIndicatorLayerStyles = {
-    position: 'absolute',
-    inset: 0,
-    overflow: 'hidden',
-    pointerEvents: 'none',
-} as CSSProperties
-
-// an indicator stands along the viewport's edge at its end of the data: the start's along the top (the left, in a
-// horizontal list), the end's along the bottom (the right)
-const endIndicatorSlotStyles = (end, orientation) => {
+// An end indicator stands in the scrolled content, in the axis: on its end's mark (a distance from the axis) and
+// outward from it, the start's reaching up from its mark (left, in a horizontal list) and the end's down (right).
+// So it is in the gap a pull opens past that end and nowhere else: at rest the viewport's edge is on the mark or
+// short of it, and no row stands past it. It takes no pointer events
+const endIndicatorSlotStyles = (end, orientation, mark) => {
 
     const isHead = (end == 'head')
 
     return ((orientation == 'horizontal')
-        ? {position: 'absolute', top: 0, bottom: 0, ...(isHead ? {left: 0} : {right: 0})}
-        : {position: 'absolute', left: 0, right: 0, ...(isHead ? {top: 0} : {bottom: 0})}) as CSSProperties
+        ? {position: 'absolute', top: 0, bottom: 0, pointerEvents: 'none', ...(isHead ? {right: mark} : {left: mark})}
+        : {position: 'absolute', left: 0, right: 0, pointerEvents: 'none', ...(isHead ? {bottom: mark} : {top: mark})}) as CSSProperties
 
 }
 
@@ -259,7 +253,7 @@ const Viewport = (props) =>{
         portalContainerMapRef = useRef(new Map()), // id -> containerElement
         [portalRenderList,setPortalRenderList] = useState([]), // portal render
         [connectTick,setConnectTick] = useState(0), // a wanted observer reconnect is flushed after the commit
-        [endIndicators, setEndIndicators] = useState(null), // what the end indicator reads at each end, with its component; null while none is shown
+        [endIndicators, setEndIndicators] = useState(null), // what the end indicator reads at each end, with the mark each stands on and its component; null while none is shown
 
         // band tracking -- bands are listed in presentaton order
         headBandListRef = useRef<HTMLElement[]>([]),
@@ -399,6 +393,20 @@ const Viewport = (props) =>{
         axisRef.current.style.transform = translate
 
     },[])
+
+    // The end state's slide (useIntersections, slideToEndMark). The transform is the axis's position, for everything
+    // that reads it. The slide is only what is drawn: the axis's translate, which the browser adds to the transform,
+    // run from an offset back to nothing, so the content is seen to travel to where the axis already has it
+    const slideAxis = (x, y, timing) => axisRef.current.animate({translate: [`${x}px ${y}px`, '0px 0px']}, timing)
+
+    // what is left of a slide at this moment, as the browser draws it; nothing when none runs
+    const readAxisSlide = () => {
+
+        const [x, y] = getComputedStyle(axisRef.current).translate.split(' ').map(parseFloat)
+
+        return {x:x || 0, y:y || 0}
+
+    }
 
     const updateCurrentAxisReferenceID = useCallback(() => {
 
@@ -577,7 +585,7 @@ const Viewport = (props) =>{
     // ===================[ breakout code to use* modules ]======================
 
     const 
-        {getCells, withdrawPlaceholders, abortFetches, clearPlaceholders, isFetchOpenAt, isEndFixed, markQuiet, isQuietAt, clearQuietMarks, clearQuietAt, isEndAskAt, endIndicatorComponentType, runAnchorIndex, rebuildPlaceholderPortals, placeholderReport} = useCells({
+        {getCells, withdrawPlaceholders, abortFetches, clearPlaceholders, isFetchOpenAt, isEndFixed, markQuiet, isQuietAt, quietReasonAt, clearQuietMarks, clearQuietAt, isEndAskAt, endIndicatorComponentType, runAnchorIndex, rebuildPlaceholderPortals, placeholderReport} = useCells({
 
             scrollerName,
 
@@ -643,7 +651,7 @@ const Viewport = (props) =>{
 
         {
             evaluateIntersections, followViewport, bringOutrunCradle, onEndScroll, onEndScrollingModeEnd, onEndWheel,
-            onEndTouchStart, isBringingBack, endStateReport,
+            onEndTouchStart, onEndTouchMove, isBringingBack, endStateReport,
         } = useIntersections({
 
             scrollerName,
@@ -680,6 +688,8 @@ const Viewport = (props) =>{
 
             callbacksRef,
             setAxisPosition,
+            slideAxis,
+            readAxisSlide,
             assertIntersectionsDisconnect,
             requestIntersectionsConnect,
 
@@ -690,11 +700,12 @@ const Viewport = (props) =>{
             isEndFixed,
             markQuiet,
             isQuietAt,
+            quietReasonAt,
             clearQuietAt,
             isEndAskAt,
             onRunEndedRef,
             bringOutrunCradleRef,
-            setEndIndicators:(shown) => setEndIndicators((shown.head || shown.tail) ? {...shown, Component:endIndicatorComponentType()} : null),
+            setEndIndicators:(shown, marks) => setEndIndicators((shown.head || shown.tail) ? {...shown, marks, Component:endIndicatorComponentType()} : null),
 
         }),
 
@@ -935,11 +946,16 @@ const Viewport = (props) =>{
         scrollendSupportedRef.current = typeof window !== 'undefined' && 'onscrollend' in window
         if (scrollendSupportedRef.current) viewport.addEventListener('scrollend', onViewportScrollEnd, { passive: true })
 
-        // The end state's bring-back stops for the user's input. Native listeners: the cells are portals rendered
-        // beside the viewport, and their React events do not pass through it. Both read the hook's refs alone, so
-        // the mount's closures serve the scroller's life
-        viewport.addEventListener('wheel', onEndWheel, { passive: true })
+        // The end state hears the user's input: its bring-back stops for it, and a pull that starts at a fixed
+        // end's mark is the scroller's to draw. Native listeners: the cells are portals rendered beside the
+        // viewport, and their React events do not pass through it. A wheel and a finger's move are heard by
+        // listeners that are not passive, since only such a listener may cancel one; they stand for the scroller's
+        // life, whichever ends are fixed, because whether a touch's moves can be cancelled is settled as the touch
+        // starts, before the list is known to reach a fixed end under it. All read the hook's refs alone, so the
+        // mount's closures serve the scroller's life
+        viewport.addEventListener('wheel', onEndWheel, { passive: false })
         viewport.addEventListener('touchstart', onEndTouchStart, { passive: true })
+        viewport.addEventListener('touchmove', onEndTouchMove, { passive: false })
 
         return () => {
             isMountedRef.current = false
@@ -954,6 +970,7 @@ const Viewport = (props) =>{
             viewport.removeEventListener('scrollend', onViewportScrollEnd)
             viewport.removeEventListener('wheel', onEndWheel)
             viewport.removeEventListener('touchstart', onEndTouchStart)
+            viewport.removeEventListener('touchmove', onEndTouchMove)
             abortFetches()
             queue.stop(false)
         }
@@ -1494,14 +1511,12 @@ const Viewport = (props) =>{
                             </div>
                             <div data-type = 'tailblock-overflow-trigger' style = {styles.tailblockOverflowTriggerStyles} ref = {tailblockOverflowTriggerRef} />
                         </div>
+                        {endIndicators && ['head', 'tail'].map((end) => endIndicators[end] && <div key = {end} data-type = 'end-indicator-slot' style = {endIndicatorSlotStyles(end, orientation, endIndicators.marks[end])}>
+                            <endIndicators.Component context = {operations.endIndicatorContext} end = {(end == 'head') ? 'start' : 'end'} searching = {endIndicators[end] == 'searching'} failed = {endIndicators[end] == 'failed'} orientation = {orientation} />
+                        </div>)}
                     </div>
                 </div>
             </div>
-            {endIndicators && <div data-type = 'end-indicators' style = {endIndicatorLayerStyles}>
-                {['head', 'tail'].map((end) => endIndicators[end] && <div key = {end} data-type = 'end-indicator-slot' style = {endIndicatorSlotStyles(end, orientation)}>
-                    <endIndicators.Component context = {operations.endIndicatorContext} end = {(end == 'head') ? 'start' : 'end'} searching = {endIndicators[end] == 'searching'} orientation = {orientation} />
-                </div>)}
-            </div>}
             <div data-type = 'virtual-cradle' style = {virtualCradleStyles}>
                 {portalRenderList}
             </div>        
@@ -1522,8 +1537,9 @@ export type FetchCells = (startCode: 'at' | 'after' | 'before', referenceID: any
 export type PlaceholderProps = { context: any, index: number, direction: 'forward' | 'backward', referenceID: any }
 
 // the props of an end indicator component (operations.endIndicator): the host's context as given, the end of the data
-// it stands at, whether the host is being asked there (false once it has answered), and the list's orientation
-export type EndIndicatorProps = { context: any, end: 'start' | 'end', searching: boolean, orientation: 'vertical' | 'horizontal' }
+// it stands at, whether the host is being asked there (false once it has answered), whether the host's last answer
+// there was a failure, and the list's orientation
+export type EndIndicatorProps = { context: any, end: 'start' | 'end', searching: boolean, failed: boolean, orientation: 'vertical' | 'horizontal' }
 
 // the second argument of callbacks.axisReferenceID when the axis stands on a placeholder
 export type AxisContext = { isPlaceholder: true, referenceID: any, direction: 'forward' | 'backward' }
@@ -1579,8 +1595,8 @@ export type ReactSuperSimpleScrollerProps = {
         placeholderSpreadRatio?: number | null, // variable layout: a placeholder's axis size, from min (0) to max (1); default 0
         placeholder?: React.ComponentType<PlaceholderProps>, // the host's placeholder; default a gray "searching…"
         placeholderContext?: any, // passed to each placeholder untouched; memoize it
-        endIndicator?: React.ComponentType<EndIndicatorProps>, // the host's end indicator, shown on the viewport's edge past an end of the data; default a gray "start of list" / "end of list" / "searching…"
-        endIndicatorContext?: any, // passed to the end indicator untouched; the default reads its texts from { start, end, searching }, '' showing none
+        endIndicator?: React.ComponentType<EndIndicatorProps>, // the host's end indicator, shown in the gap a pull opens past an end of the data and gone at rest; default a gray "start of list" / "end of list" / "searching…", and nothing after a failed load
+        endIndicatorContext?: any, // passed to the end indicator untouched; the default reads its texts from { start, end, searching, failed }, '' showing none
         fixedEnds?: boolean | { start?: boolean, end?: boolean }, // an end the host closes: nothing is looked for past it; true closes both
     },
     scrollerName? : string

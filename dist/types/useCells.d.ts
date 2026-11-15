@@ -44,6 +44,7 @@ declare const useCells: ({ scrollerName, DOMManipulationQueueRef, viewportRef, o
         endID: any;
     };
     isQuietAt: (direction: any) => boolean;
+    quietReasonAt: (direction: any) => any;
     clearQuietMarks: () => void;
     clearQuietAt: (end: any) => void;
     isEndAskAt: (direction: any) => boolean;

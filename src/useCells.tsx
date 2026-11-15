@@ -475,6 +475,13 @@ const useCells = ({
 
     }
 
+    // what closed the run at an end whose memory stands: 'end' (the host answered with nothing) or 'failed'
+    const quietReasonAt = (direction) => {
+
+        return isQuietAt(direction) ? placeholderState().quiet[direction].reason : null
+
+    }
+
     const clearQuietMarks = () => {
         const state = placeholderState()
         state.quiet.forward = null
@@ -1481,6 +1488,7 @@ const useCells = ({
         isEndFixed,
         markQuiet,
         isQuietAt,
+        quietReasonAt,
         clearQuietMarks,
         clearQuietAt,
         isEndAskAt,

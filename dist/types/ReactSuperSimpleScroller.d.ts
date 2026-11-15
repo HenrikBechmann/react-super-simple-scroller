@@ -18,6 +18,7 @@ export type EndIndicatorProps = {
     context: any;
     end: 'start' | 'end';
     searching: boolean;
+    failed: boolean;
     orientation: 'vertical' | 'horizontal';
 };
 export type AxisContext = {

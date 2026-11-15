@@ -22,14 +22,16 @@ export declare const END_INDICATOR_TEXT: {
     start: string;
     end: string;
     searching: string;
+    failed: string;
 };
-export declare const endIndicatorText: (context: any, end: any, searching: any) => any;
+export declare const endIndicatorText: (context: any, end: any, searching: any, failed?: boolean) => any;
 export declare const DefaultPlaceholder: ({ context }: {
     context: any;
 }) => any;
-export declare const DefaultEndIndicator: ({ context, end, searching, orientation }: {
+export declare const DefaultEndIndicator: ({ context, end, searching, failed, orientation }: {
     context: any;
     end: any;
     searching: any;
+    failed: any;
     orientation: any;
 }) => any;

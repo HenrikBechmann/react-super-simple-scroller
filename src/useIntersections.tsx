@@ -13,8 +13,12 @@ import { isPlaceholderID } from './placeholders'
 const END_SLACK = 40
 
 // The pull past an end the host has fixed is drawn no farther past its mark than this, or a tenth of the viewport
-// where that is less (drawEndElastic). A constant of the mechanism, not a setting
+// where that is less (endElasticCap). A constant of the mechanism, not a setting
 const END_ELASTIC_CAP = 60
+
+// The return of a fixed end's stretch is one slide of the transform (slideToEndMark), and this is its timing: how the
+// return feels. Nothing is sequenced on it: what follows the slide waits on the slide's own end
+const END_RETURN = {duration:180, easing:'ease-out'}
 
 const useIntersections = ({
 
@@ -59,6 +63,8 @@ const useIntersections = ({
     // methods
     callbacksRef,
     setAxisPosition,
+    slideAxis,
+    readAxisSlide,
     assertIntersectionsDisconnect,
     requestIntersectionsConnect,
     fillCradle,
@@ -68,6 +74,7 @@ const useIntersections = ({
     isEndFixed,
     markQuiet,
     isQuietAt,
+    quietReasonAt,
     clearQuietAt,
     isEndAskAt,
     onRunEndedRef,
@@ -699,16 +706,21 @@ const useIntersections = ({
     // is through them. Being inside the state is the two together: the position mark exists only while the end memory
     // stands, so a trim of the end row, a structural call, a reset, a new cradle or rows at the end leave the state
     // with the memory, with no flag of its own to keep in step. One viewport has one bring-back at a time, whichever
-    // end it is for: glidingTo is the scroll position a running one is taking the viewport to. The touch that holds
-    // the list, under which none is made, is the fingers that began on the viewport and are still on the screen
-    // (touches, by identifier), and inputAt is the time of the last input that is not a scroll event (quietWindowLeft).
-    // No placeholder stands at an end for the state's own ask: what the user is shown there is the end indicator, a
-    // layer on the viewport's edge (shown is what it reads at that end: null, 'end' or 'searching'; readEndIndicators)
+    // end it is for: glidingTo is the scroll position a running smooth scroll is taking the viewport to, and sliding
+    // is the slide of the transform that returns a fixed end's stretch ({end, slide}; slideToEndMark). The touch that
+    // holds the list, under which none is made, is the fingers that began on the viewport and are still on the screen
+    // (touches, by identifier); touchAt is where the one finger of a touch last was ({id, x, y}), which each of its
+    // moves is measured from, and inputAt is the time of the last input that is not a scroll event or a finger's
+    // move (quietWindowLeft). No placeholder stands at an end for the state's own ask: what the user is shown there
+    // is the end indicator, which stands in the content on the end's mark (shown is what it reads at that end: null,
+    // 'end', 'failed' or 'searching', and shownAt is the mark it stands on; readEndIndicators)
     const endStateRef = useRef({
-        head:{markFromAxis:null, reaskOpen:false, gestureTimeoutID:null, travel:0, drawn:0, shown:null},
-        tail:{markFromAxis:null, reaskOpen:false, gestureTimeoutID:null, travel:0, drawn:0, shown:null},
+        head:{markFromAxis:null, reaskOpen:false, gestureTimeoutID:null, travel:0, drawn:0, shown:null, shownAt:null},
+        tail:{markFromAxis:null, reaskOpen:false, gestureTimeoutID:null, travel:0, drawn:0, shown:null, shownAt:null},
         glidingTo:null,
+        sliding:null,
         touches:new Set(),
+        touchAt:null,
         inputAt:-Infinity,
     })
 
@@ -745,8 +757,9 @@ const useIntersections = ({
     }
 
     // An end read from the axis outward, toward that end: the content's edge, the viewport's edge on that side, and
-    // the scroll position that puts the viewport's edge at a distance. The tail's distances run forward of the axis
-    // and the head's backward of it, which is the whole of the difference between the ends
+    // the scroll position that puts the viewport's edge at a distance (axisAt: the axis position that does, with the
+    // viewport left where it is). The tail's distances run forward of the axis and the head's backward of it, which
+    // is the whole of the difference between the ends
     const endGeometry = (end) => {
 
         const
@@ -765,6 +778,7 @@ const useIntersections = ({
                 viewportEdge: scrollPos + viewportDim - axis,
                 scrollPositionAt: (distance) => axis + distance - viewportDim,
                 positionAt: (distance) => axis + distance,
+                axisAt: (distance) => scrollPos + viewportDim - distance,
             }
             : {
                 isH, axis, viewportDim,
@@ -772,6 +786,7 @@ const useIntersections = ({
                 viewportEdge: axis - scrollPos,
                 scrollPositionAt: (distance) => axis - distance,
                 positionAt: (distance) => axis - distance,
+                axisAt: (distance) => scrollPos + distance,
             }
 
     }
@@ -845,13 +860,16 @@ const useIntersections = ({
     }
 
     // a shift moves the axis under the content by the moved band's dimension, and each mark stays with the content:
-    // the tail's is that much nearer the axis, the head's that much further
+    // the tail's is that much nearer the axis, the head's that much further. An indicator that is shown stands on
+    // its mark from the axis, so it is told the mark again
     const keepEndMarksUnderShift = (delta) => {
 
         const { head, tail } = endStateRef.current
 
         if (tail.markFromAxis !== null) tail.markFromAxis -= delta
         if (head.markFromAxis !== null) head.markFromAxis += delta
+
+        if ((head.shown !== null) || (tail.shown !== null)) readEndIndicators()
 
     }
 
@@ -894,12 +912,16 @@ const useIntersections = ({
 
     }
 
-    // What the end indicator reads at each end, from the state as it stands: nothing unless the end stands and the
-    // viewport's edge is past its mark; then the end word inside the state, and the searching text while the state's
-    // own ask is out (reaskOpen while the adjustment has it, its record in the fill after). An end that stands
-    // through any other ask (the fill that follows a structural call, with its placeholders) shows nothing. The
-    // component is told only when a reading has changed. Taken at every reading of the viewport and every transition
-    // of the state
+    // What the end indicator reads at each end, from the state as it stands: nothing unless the end stands and a gap
+    // is open past its mark, which is the viewport's edge past the mark, or the content still sliding back to it (a
+    // fixed end's return: the gap is drawn until the slide has finished). Then the end word inside the state
+    // ('failed' where the host's last answer there was a failure, which the scroller has no words of its own for),
+    // and the searching text while the state's own ask is out (reaskOpen while the adjustment has it, its record in
+    // the fill after). An end that stands through any other ask (the fill that follows a structural call, with its
+    // placeholders) shows nothing. The indicator stands in the content on the end's mark, outward of it: in the gap,
+    // never over a row, and out of sight at rest whatever it reads. The component is told what each end reads and
+    // the mark it stands on, only when one of them has changed. Taken at every reading of the viewport and every
+    // transition of the state
     const readEndIndicators = () => {
 
         if (!viewportRef.current) return
@@ -910,17 +932,25 @@ const useIntersections = ({
 
             const
                 state = endStateRef.current[end],
-                past = endStands(end) && (endGeometry(end).viewportEdge > endMark(end)),
-                shown = !past ? null : insideEndState(end) ? 'end' : (state.reaskOpen || isEndAskAt(directionAt(end))) ? 'searching' : null
+                direction = directionAt(end),
+                past = endStands(end) && ((endGeometry(end).viewportEdge > endMark(end)) || (endStateRef.current.sliding?.end == end)),
+                shown = !past ? null
+                    : insideEndState(end) ? ((quietReasonAt(direction) == 'failed') ? 'failed' : 'end')
+                    : (state.reaskOpen || isEndAskAt(direction)) ? 'searching' : null,
+                shownAt = (shown === null) ? null : endMark(end)
 
-            if (shown !== state.shown) {
+            if ((shown !== state.shown) || (shownAt !== state.shownAt)) {
                 state.shown = shown
+                state.shownAt = shownAt
                 changed = true
             }
 
         }
 
-        if (changed) setEndIndicators({head:endStateRef.current.head.shown, tail:endStateRef.current.tail.shown})
+        if (changed) setEndIndicators(
+            {head:endStateRef.current.head.shown, tail:endStateRef.current.tail.shown},
+            {head:endStateRef.current.head.shownAt, tail:endStateRef.current.tail.shownAt},
+        )
 
     }
 
@@ -1044,15 +1074,25 @@ const useIntersections = ({
 
     }
 
-    // The pull past a fixed end is a small elastic, carried by the axis. Past the mark the scroll position travels as
-    // the browser scrolls it, and the axis goes with it, short of the part of the travel that is drawn: the gap
-    // between the mark and the viewport's edge is cap·t / (t + cap) of the travel t (one for one at the mark, never
-    // the cap). Travel back toward the mark is drawn one for one, so the content follows the hand home, and a pull
-    // that turns outward again is damped from where the content stands. The axis moves by whole pixels, as a shift
-    // moves it, and never draws past the curve; the travel is kept unrounded, so a slow pull adds up as a fast one
-    // does. A gap the elastic did not draw (a viewport found out past the cap) is not pulled in: it stops growing.
-    // The write is made in the scroll event, outside the queue, so that the content is drawn where the hand is in
-    // the event's own frame: every write of the axis reads it in the same turn, so none is lost to this one
+    // The pull past a fixed end is a small elastic, carried by the axis: the gap between the mark and the viewport's
+    // edge is cap·t / (t + cap) of the travel t (one for one at the mark, never the cap), and travel back toward the
+    // mark is drawn one for one, so the content follows the hand home, and a pull that turns outward again is damped
+    // from where the content stands. The curve and its inverse are read wherever a gap is drawn or found
+    const endElasticCap = (viewportDim) => Math.min(END_ELASTIC_CAP, viewportDim / 10)
+
+    const elasticTravelAt = (gap, cap) => (gap <= 0) ? gap : (gap < cap) ? cap * gap / (cap - gap) : Infinity
+
+    const elasticGapAt = (travel, cap) => (travel <= 0) ? travel : (travel < Infinity) ? cap * travel / (travel + cap) : cap
+
+    // A viewport that the browser has scrolled past a fixed end (a drag or a momentum that arrives there, or a pull
+    // the scroller could not take) is drawn on the same curve. Past the mark the scroll position travels as the
+    // browser scrolls it, and the axis goes with it, short of the part of the travel that is drawn. Here the axis
+    // moves by whole pixels, as a shift moves it, and never draws past the curve; the travel is kept unrounded, so a
+    // slow pull adds up as a fast one does. A gap the elastic did not draw (a viewport found out past the cap) is
+    // not pulled in: it stops growing. The write is made in the scroll event, outside the queue, so that the content
+    // is drawn where the hand is in the event's own frame: every write of the axis reads it in the same turn, so
+    // none is lost to this one. A viewport the browser has brought to the mark or inside it, over an axis a pull
+    // left between pixels, has its axis put on a whole one (settleAxisAtEnd)
     const drawEndElastic = (end) => {
 
         const state = endStateRef.current[end]
@@ -1065,18 +1105,19 @@ const useIntersections = ({
         const
             { isH, axis, viewportDim, viewportEdge } = endGeometry(end),
             gap = Math.max(viewportEdge - endMark(end), 0),
-            cap = Math.min(END_ELASTIC_CAP, viewportDim / 10),
+            cap = endElasticCap(viewportDim),
             moved = gap - state.drawn
 
         if (moved <= 0) {
             state.drawn = gap
-            state.travel = (gap < cap) ? cap * gap / (cap - gap) : Infinity
+            state.travel = elasticTravelAt(gap, cap)
+            if (!gap && !Number.isInteger(axis)) settleAxisAtEnd(end)
             return
         }
 
         const
             travel = state.travel + moved,
-            damped = (travel < Infinity) ? cap * travel / (travel + cap) : cap,
+            damped = elasticGapAt(travel, cap),
             along = Math.ceil(gap - Math.max(damped, state.drawn)),
             position = axis + ((end == 'tail') ? along : -along)
 
@@ -1084,6 +1125,177 @@ const useIntersections = ({
 
         state.travel = travel
         state.drawn = gap - along
+
+    }
+
+    // the elastic's two numbers, read again from where the content stands: the scroller has moved the transform
+    // itself (a pull it took, a return, a slide taken up), and the next scroll event is measured from there
+    const readEndElastic = (end) => {
+
+        const state = endStateRef.current[end]
+
+        if (!isEndFixed(end) || !insideEndState(end)) {
+            state.travel = state.drawn = 0
+            return
+        }
+
+        const
+            { viewportDim, viewportEdge } = endGeometry(end),
+            gap = Math.max(viewportEdge - endMark(end), 0)
+
+        state.drawn = gap
+        state.travel = elasticTravelAt(gap, endElasticCap(viewportDim))
+
+    }
+
+    // A stretch is drawn between pixels, and a pull back that the browser takes over (takeEndInput) scrolls on from
+    // there. The axis is put on its whole pixel, toward the content, once the viewport is at the mark or inside it:
+    // by less than a pixel, in its turn of the queue, read again as it runs
+    const settleAxisAtEnd = (end) => {
+
+        const settleTask = async () => {
+
+            try {
+
+                if (!viewportRef.current || !isEndFixed(end) || !insideEndState(end)) return
+
+                const
+                    { isH, axis, viewportEdge } = endGeometry(end),
+                    position = (end == 'tail') ? Math.ceil(axis) : Math.floor(axis)
+
+                if ((viewportEdge > endMark(end)) || (position === axis)) return
+
+                setAxisPosition(isH ? position : 0, isH ? 0 : position)
+
+            } finally {
+
+                requestIntersectionsConnect()
+
+            }
+
+        }
+
+        DOMManipulationQueue.enqueue(settleTask).catch((error) => {
+
+            if (!viewportRef.current) return
+
+            reportError(callbacksRef, 'settleAxisAtEnd', errorMessage(error), [end])
+
+        })
+
+    }
+
+    // An element between the input's target and the viewport that can itself scroll the way the input goes: the
+    // input is that element's (a scrolling area inside a row), as the browser would have it
+    const scrollsWithin = (target, delta) => {
+
+        const isH = orientationRef.current == 'horizontal'
+
+        for (let element = target; element && (element !== viewportRef.current); element = element.parentElement) {
+
+            const
+                room = isH ? (element.scrollWidth - element.clientWidth) : (element.scrollHeight - element.clientHeight),
+                position = isH ? element.scrollLeft : element.scrollTop
+
+            if ((room <= 0) || !((delta < 0) ? (position > 0) : (position < room))) continue
+
+            const overflow = getComputedStyle(element)[isH ? 'overflowX' : 'overflowY']
+
+            if ((overflow == 'auto') || (overflow == 'scroll')) return true
+
+        }
+
+        return false
+
+    }
+
+    // A pull that starts at a fixed end's mark is the scroller's, taken before the browser scrolls for it: the
+    // browser's own answer to a scroll past the mark is one the elastic can only follow, a frame behind (the scroll
+    // is drawn, then the axis is moved under it). Taken, the input moves the transform alone (stretchEnd), and the
+    // scroll position stays where it is. It is read at the moment of the input: the end is fixed and stands, the
+    // viewport's edge is at the mark (within the pixel the axis rests on) and the input goes outward along the list,
+    // with nothing between its target and the viewport to scroll instead. While a stretch stands every input is the
+    // scroller's, until one goes back past the mark: that one, and what follows it, is the browser's, which scrolls
+    // on from where the content is. An input that cannot be cancelled, one under a hold, and one that arrives while
+    // a task has the queue are left to the browser as they were: the list is never made to wait for a pull
+    const takeEndInput = (event, delta, across) => {
+
+        if (!event.cancelable || holdRef.current.viewport || DOMManipulationQueue.isBusy()) return
+
+        for (const end of ['head', 'tail']) {
+
+            if (!isEndFixed(end) || !insideEndState(end)) continue
+
+            const
+                outward = (end == 'tail') ? delta : -delta,
+                gap = endGeometry(end).viewportEdge - endMark(end),
+                taken = (gap > 0)
+                    ? (gap + outward > 0)
+                    : (gap > -1) && (outward > 0) && (Math.abs(across) <= Math.abs(delta)) && !scrollsWithin(event.target, delta)
+
+            if (!taken) continue
+
+            event.preventDefault()
+
+            if (outward) stretchEnd(end, outward)
+
+            return
+
+        }
+
+    }
+
+    // The stretch of a taken input, a task of the queue like every other act on the list; the queue is idle when an
+    // input is taken, so it runs in the input's own event. Outward, the input is added to the travel the gap stands
+    // for and drawn on the curve; back toward the content, it is drawn one for one, as far as the mark. A slide
+    // still under way is taken up first, so the stretch goes on from where the content is drawn. The gap is read
+    // from the list as the task runs, and the return is left to the reading every scroll event takes: it is made
+    // when the input has faded
+    const stretchEnd = (end, outward) => {
+
+        const stretchTask = async () => {
+
+            try {
+
+                if (!viewportRef.current || holdRef.current.viewport || !isEndFixed(end) || !insideEndState(end)) return
+
+                foldSlide()
+
+                const
+                    { isH, viewportDim, viewportEdge, axisAt } = endGeometry(end),
+                    mark = endMark(end),
+                    gap = viewportEdge - mark
+
+                if (gap <= -1) return
+
+                const
+                    cap = endElasticCap(viewportDim),
+                    stretched = (outward > 0)
+                        ? Math.max(elasticGapAt(elasticTravelAt(gap, cap) + outward, cap), gap)
+                        : Math.max(gap + outward, Math.min(gap, 0)),
+                    position = axisAt(mark + stretched)
+
+                setAxisPosition(isH ? position : 0, isH ? 0 : position)
+
+                readEndElastic(end)
+                readViewportAtEnd(end, true)
+                readEndIndicators()
+
+            } finally {
+
+                requestIntersectionsConnect()
+
+            }
+
+        }
+
+        DOMManipulationQueue.enqueue(stretchTask).catch((error) => {
+
+            if (!viewportRef.current) return
+
+            reportError(callbacksRef, 'stretchEnd', errorMessage(error), [end])
+
+        })
 
     }
 
@@ -1138,11 +1350,12 @@ const useIntersections = ({
 
     }
 
-    // The smooth scroll of a viewport past the mark back to it, where the end stands: made inside a task of the
-    // queue (the re-ask's, the return's). A reading taken in the meantime would bring the viewport back a second
-    // time, so its timer is taken up here, and a bring-back already running to the same position is not started
-    // again. None is made under a held touch: the list stays where the finger holds it, and the touch's end reads the
-    // viewport (onEndTouchEnd)
+    // The bring-back of a viewport past the mark, where the end stands: made inside a task of the queue (the
+    // re-ask's, the return's). A reading taken in the meantime would bring the viewport back a second time, so its
+    // timer is taken up here. At an end the host has fixed, read as the bring-back is made, the content is slid back
+    // by the transform (slideToEndMark); at any other the viewport is scrolled back smoothly, and a scroll already
+    // running to the same position is not started again. None is made under a held touch: the list stays where the
+    // finger holds it, and the touch's end reads the viewport (onEndTouchEnd)
     const glideToEndMark = (end) => {
 
         const state = endStateRef.current[end]
@@ -1157,27 +1370,96 @@ const useIntersections = ({
             { isH, viewportEdge, scrollPositionAt } = endGeometry(end),
             position = scrollPositionAt(mark)
 
-        if ((viewportEdge <= mark) || (endStateRef.current.glidingTo === position)) return
+        if (viewportEdge <= mark) return
+
+        if (isEndFixed(end)) {
+            slideToEndMark(end)
+            return
+        }
+
+        if (endStateRef.current.glidingTo === position) return
 
         endStateRef.current.glidingTo = position
         viewportRef.current.scrollTo(isH ? {left:position, behavior:'smooth'} : {top:position, behavior:'smooth'})
 
     }
 
-    // Input during a bring-back. The user's hand has the viewport: the smooth scroll is ended where it is (an
-    // instant scroll to the position it has reached ends it) in the event itself, not on a turn of the queue, since
-    // the hand does not wait. The viewport is read again, so one the input leaves past a mark is brought back when
-    // the input is over
+    // The return of a fixed end's stretch. The axis is put where the viewport's edge is on the mark, on a whole
+    // pixel, at once: the list is at rest there for everything that reads it. What the user sees is the slide: the
+    // transform is drawn from where the content stood to where it now is, by the browser, with no scroll and no
+    // write of ours between its two ends. The gap is still drawn while it runs, so the indicator stands until the
+    // slide's own end, which is the one thing that follows it
+    const slideToEndMark = (end) => {
+
+        foldSlide()
+
+        const
+            { isH, axis, axisAt } = endGeometry(end),
+            rest = axisAt(endMark(end)),
+            position = (end == 'tail') ? Math.ceil(rest) : Math.floor(rest)
+
+        setAxisPosition(isH ? position : 0, isH ? 0 : position)
+
+        readEndElastic(end)
+
+        const slide = slideAxis(isH ? axis - position : 0, isH ? 0 : axis - position, END_RETURN)
+
+        endStateRef.current.sliding = {end, slide}
+
+        slide.finished.then(() => {
+
+            if (endStateRef.current.sliding?.slide !== slide) return
+
+            endStateRef.current.sliding = null
+
+            if (viewportRef.current) readEndIndicators()
+
+        }, () => {})
+
+    }
+
+    // A slide under way is taken up where it has reached: the axis is put where the slide draws the content at this
+    // moment, and the slide is ended, so the content does not move as the hand takes it. What is left of the slide
+    // is read before it is ended
+    const foldSlide = () => {
+
+        const sliding = endStateRef.current.sliding
+
+        if (sliding === null) return false
+
+        const left = readAxisSlide()
+
+        endStateRef.current.sliding = null
+        sliding.slide.cancel()
+
+        setAxisPosition(axisPositionRef.current.x + left.x, axisPositionRef.current.y + left.y)
+
+        readEndElastic(sliding.end)
+
+        return true
+
+    }
+
+    // Input during a bring-back. The user's hand has the list: a smooth scroll is ended where it is (an instant
+    // scroll to the position it has reached ends it) and a slide is taken up where it has reached (foldSlide), in
+    // the event itself, not on a turn of the queue, since the hand does not wait. The viewport is read again, so
+    // one the input leaves past a mark is brought back when the input is over
     const yieldBringBack = () => {
 
         const
             state = endStateRef.current,
             viewport = viewportRef.current
 
-        if ((state.glidingTo === null) || !viewport) return
+        if (!viewport) return
 
-        viewport.scrollTo(viewport.scrollLeft, viewport.scrollTop)
-        state.glidingTo = null
+        const folded = foldSlide()
+
+        if (!folded && (state.glidingTo === null)) return
+
+        if (state.glidingTo !== null) {
+            viewport.scrollTo(viewport.scrollLeft, viewport.scrollTop)
+            state.glidingTo = null
+        }
 
         rereadEnds()
 
@@ -1185,16 +1467,26 @@ const useIntersections = ({
 
     const isBringingBack = () => endStateRef.current.glidingTo !== null
 
-    // a wheel along the list's axis; one across it, or a pinch, does not scroll this list
+    // A wheel along the list's axis is input; one across it, or a pinch, does not scroll this list. A wheel measured
+    // in pixels is offered to the take, whichever way it goes: one across the list is still the scroller's while a
+    // stretch stands
     const onEndWheel = (event) => {
 
-        const delta = (orientationRef.current == 'vertical') ? event.deltaY : event.deltaX
+        const
+            isV = orientationRef.current == 'vertical',
+            delta = isV ? event.deltaY : event.deltaX
 
-        if (!delta || event.ctrlKey) return
+        if (event.ctrlKey) return
 
-        endStateRef.current.inputAt = performance.now()
+        if (delta) {
 
-        yieldBringBack()
+            endStateRef.current.inputAt = performance.now()
+
+            yieldBringBack()
+
+        }
+
+        if (event.deltaMode === 0) takeEndInput(event, delta, isV ? event.deltaX : event.deltaY)
 
     }
 
@@ -1223,12 +1515,36 @@ const useIntersections = ({
 
         for (let index = 0; index < event.changedTouches.length; index++) state.touches.add(event.changedTouches[index].identifier)
 
+        state.touchAt = (event.touches.length == 1) ? {id:event.touches[0].identifier, x:event.touches[0].clientX, y:event.touches[0].clientY} : null
+
         state.inputAt = performance.now()
 
         event.target.addEventListener('touchend', onEndTouchEnd, {passive:true})
         event.target.addEventListener('touchcancel', onEndTouchEnd, {passive:true})
 
         yieldBringBack()
+
+    }
+
+    // A finger's move, measured from where that finger last was and offered to the take as a wheel's travel is. Two
+    // fingers on the screen measure nothing: that is a pinch, or a second hand
+    const onEndTouchMove = (event) => {
+
+        const
+            state = endStateRef.current,
+            isH = orientationRef.current == 'horizontal',
+            last = state.touchAt,
+            touch = event.touches[0]
+
+        state.touchAt = (event.touches.length == 1) ? {id:touch.identifier, x:touch.clientX, y:touch.clientY} : null
+
+        if (!last || !state.touchAt || (last.id !== state.touchAt.id)) return
+
+        const
+            dx = last.x - touch.clientX,
+            dy = last.y - touch.clientY
+
+        takeEndInput(event, isH ? dx : dy, isH ? dy : dx)
 
     }
 
@@ -1387,6 +1703,10 @@ const useIntersections = ({
         if (hold.viewport && hold.endOfData && (hold.endOfData != end)) return // held at the other end
 
         if (!isViewportAtEnd(end)) return
+
+        // the answer's reason is the end's memory from here, so the entry's reading of the indicator has it (a failed
+        // answer reads as failed at once); the answer's caller marks again after the snap the entry may make
+        markQuiet(direction, reason)
 
         enterEndState(end, true)
 
@@ -1602,7 +1922,7 @@ const useIntersections = ({
 
     return {
         evaluateIntersections, followViewport, bringOutrunCradle, onEndScroll, onEndScrollingModeEnd, onEndWheel, onEndTouchStart,
-        isBringingBack, endStateReport,
+        onEndTouchMove, isBringingBack, endStateReport,
     }
 
 }
