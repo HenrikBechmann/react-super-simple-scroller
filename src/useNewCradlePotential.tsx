@@ -37,6 +37,7 @@ const useCradlePotential = ({
     trimCradle,
     getSeed,
     followViewport,
+    readEndsAfterResize,
     updateCurrentAxisReferenceID,
     bandMutationObserverRef,
 
@@ -67,11 +68,12 @@ const useCradlePotential = ({
             tailblock = tailblockRef.current,
             leadHeadblockBand = leadHeadblockBandRef.current,
             leadTailblockBand = leadTailblockBandRef.current,
-            bandMutationObserver = bandMutationObserverRef.current
+            bandMutationObserver = bandMutationObserverRef.current,
+            rebanded = (cradlePotential.cellsPerBand !== cradleActual.cellsPerBand)
 
         // 1. adjust to cradlePotential from cradleActual
 
-        if (cradlePotential.cellsPerBand !== cradleActual.cellsPerBand) {
+        if (rebanded) {
 
             // update head and tail blocks
             const newCellsPerBand = cradlePotential.cellsPerBand
@@ -263,6 +265,11 @@ const useCradlePotential = ({
 
             cradleActual.totalBands = cradleActual.backwardBands + cradleActual.forwardBands
             cradleActual.totalCells = cradleActual.backwardCells + cradleActual.forwardCells
+
+            // the resize held the cell at the axis where it was: where that leaves the viewport against each end is
+            // read here, after the layout and the fill, and nowhere else (no scroll follows a resize)
+            readEndsAfterResize(rebanded)
+
             requestIntersectionsConnect()
 
         }

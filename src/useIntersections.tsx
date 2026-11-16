@@ -1074,6 +1074,81 @@ const useIntersections = ({
 
     }
 
+    // The tail's mark has a floor that reads the head (endMark): a list that fits its viewport rests at its head. While
+    // the head is being asked and the cradle's rows fit the viewport, the host's answer there says whether the tail's
+    // mark is its rows' edge or that floor, so a reading of the tail taken for the list (not for a gesture) waits for
+    // the answer, and is taken again after it (rereadTailAfterHead)
+    const tailWaitsForHead = () => {
+
+        const { viewportDim } = endGeometry('tail')
+
+        return isFetchOpenAt('head') && !isQuietAt('backward') &&
+            ((1 - rowsEdgeAt('head') + viewportDim) > (rowsEdgeAt('tail') + endSlack('tail')))
+
+    }
+
+    // The rest after a resize of the viewport, read as the resize's own task ends, once its layout and its fill are
+    // done. A resize holds the cell at the axis where it is, so an end that stands can be left with the viewport past
+    // its mark, and no scroll says so. After a re-band (the cells per band changed) the rows at each end are other
+    // rows: each standing end's mark is entered again from its rows' edge, never carried across; the head first, as
+    // the tail's floor reads it. A viewport past a mark then comes back by the return a gesture's end takes; one short
+    // of its mark stays where the resize left it
+    const readEndsAfterResize = (rebanded) => {
+
+        if (!viewportRef.current) return
+
+        for (const end of ['head', 'tail']) {
+
+            if (!endStands(end)) continue
+
+            if (rebanded) {
+
+                endStateRef.current[end].markFromAxis = null
+                endMark(end)
+
+            }
+
+            if ((end == 'tail') && tailWaitsForHead()) continue
+
+            readViewportAtEnd(end, false, true)
+
+        }
+
+        readEndIndicators()
+
+    }
+
+    // An answer at the head may be the one a reading of the tail waited for. The tail is read again in a task of the
+    // queue, which runs after the answer's own: it reads the head as the answer left it, and waits again where the
+    // head is asked again
+    const rereadTailAfterHead = () => {
+
+        if (!endStands('tail')) return
+
+        const rereadTask = async () => {
+
+            try {
+
+                if (viewportRef.current && !tailWaitsForHead()) readViewportAtEnd('tail', false, true)
+
+            } finally {
+
+                requestIntersectionsConnect()
+
+            }
+
+        }
+
+        DOMManipulationQueue.enqueue(rereadTask).catch((error) => {
+
+            if (!viewportRef.current) return
+
+            reportError(callbacksRef, 'rereadTailAfterHead', errorMessage(error), [])
+
+        })
+
+    }
+
     // The pull past a fixed end is a small elastic, carried by the axis: the gap between the mark and the viewport's
     // edge is cap·t / (t + cap) of the travel t (one for one at the mark, never the cap), and travel back toward the
     // mark is drawn one for one, so the content follows the hand home, and a pull that turns outward again is damped
@@ -1693,6 +1768,8 @@ const useIntersections = ({
             end = (direction == 'forward')?'tail':'head',
             hold = holdRef.current
 
+        if (end == 'head') rereadTailAfterHead()
+
         if (reason == 'rows') {
 
             leaveEndState(end)
@@ -1864,7 +1941,7 @@ const useIntersections = ({
 
     return {
         evaluateIntersections, followViewport, bringOutrunCradle, onEndScroll, onEndScrollingModeEnd, onEndWheel, onEndTouchStart,
-        onEndTouchMove, isBringingBack, endStateReport,
+        onEndTouchMove, isBringingBack, endStateReport, readEndsAfterResize,
     }
 
 }

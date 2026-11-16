@@ -652,7 +652,7 @@ const Viewport = (props) =>{
 
         {
             evaluateIntersections, followViewport, bringOutrunCradle, onEndScroll, onEndScrollingModeEnd, onEndWheel,
-            onEndTouchStart, onEndTouchMove, isBringingBack, endStateReport,
+            onEndTouchStart, onEndTouchMove, isBringingBack, endStateReport, readEndsAfterResize,
         } = useIntersections({
 
             scrollerName,
@@ -767,6 +767,7 @@ const Viewport = (props) =>{
             trimCradle,
             getSeed,
             followViewport,
+            readEndsAfterResize,
             updateCurrentAxisReferenceID,
             bandMutationObserverRef,
 

@@ -79,5 +79,6 @@ declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortM
             contentEdge: any;
         };
     };
+    readEndsAfterResize: (rebanded: any) => void;
 };
 export default useIntersections;
