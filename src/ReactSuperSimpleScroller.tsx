@@ -36,6 +36,7 @@ import {
     validateOption,
     validateSpacing,
     validateCellDimensions,
+    observeCradleAlignment,
 } from './utilities'
 
 const
@@ -1281,6 +1282,19 @@ const Viewport = (props) =>{
         }
 
     },[operations.dispatchAttachedEvents])
+
+    useLayoutEffect(() => {
+        const observer = observeCradleAlignment({
+            blocks: [headblockRef.current, leadHeadblockBandRef.current, tailblockRef.current, leadTailblockBandRef.current],
+            readCradle: () => ({
+                headBandList: headBandListRef.current,
+                tailBandList: tailBandListRef.current,
+                cellsPerBand: cradleActualRef.current.cellsPerBand,
+                orientation: orientationRef.current,
+            }),
+        })
+        return () => observer.disconnect()
+    },[])
 
     // configure cradlePotential on change of cellDimensions, viewportDimensions, orientation, layout or runway
     useLayoutEffect(()=>{

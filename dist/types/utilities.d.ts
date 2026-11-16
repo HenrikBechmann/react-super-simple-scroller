@@ -61,3 +61,13 @@ export declare const removeEmptyBands: ({ headBandList, tailBandList, leadHeadbl
     leadTailblockBand: any;
     cradleActual: any;
 }) => void;
+export declare const alignCradleEnds: ({ headBandList, tailBandList, cellsPerBand, orientation }: {
+    headBandList: any;
+    tailBandList: any;
+    cellsPerBand: any;
+    orientation: any;
+}) => void;
+export declare const observeCradleAlignment: ({ blocks, readCradle }: {
+    blocks: any;
+    readCradle: any;
+}) => MutationObserver;

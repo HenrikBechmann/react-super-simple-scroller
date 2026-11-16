@@ -381,3 +381,62 @@ export const removeEmptyBands = ({headBandList, tailBandList, leadHeadblockBand,
     cradleActual.totalBands = headBandList.length + tailBandList.length
 
 }
+
+// a row of the grid can be split over the cradle's edge. The cradle's first band then holds the END of its row: its
+// cells stand in the last slots of the band, and the blanks stand before them, where the rest of the row arrives.
+// Every other band fills from its first slot, so a short last band has its blanks after it, and a band that is first
+// and last at once reads as a last one. Nothing about the data is consulted, only where the band stands.
+// The slots are derived, never kept: each pass reads the band lists as they are and writes every cell of the cradle,
+// so a band that fills, or stops being first, loses its slots in the pass that sees it. A slot written when a band
+// took its place and cleared somewhere else would outlive the place whenever the clearing was not reached; here there
+// is no earlier state to outlive. A slot counts from the end of the band, so a cell keeps its own when cells arrive
+// before it. The passes follow the cradle's child lists rather than the calls that change them: a band is filled,
+// emptied or moved from many places, some of them part-way through a queued task that then waits on the host, and an
+// observer's callback runs before the next paint whichever it was
+export const alignCradleEnds = ({headBandList, tailBandList, cellsPerBand, orientation}) => {
+
+    const
+        bands = headBandList.concat(tailBandList),
+        [slotProperty, otherProperty] = (orientation == 'vertical')
+            ? ['gridColumnEnd', 'gridRowEnd']
+            : ['gridRowEnd', 'gridColumnEnd'],
+        firstBand = bands[0],
+        firstCount = firstBand?.childElementCount ?? 0,
+        isEndOfRow = (bands.length > 1) && (firstCount < cellsPerBand)
+
+    for (const band of bands) {
+
+        const cells = band.children
+
+        for (let index = 0; index < cells.length; index++) {
+
+            const
+                style = cells[index].style,
+                slot = (isEndOfRow && (band === firstBand)) ? String(index - firstCount) : ''
+
+            if (style[slotProperty] != slot) style[slotProperty] = slot
+            if (style[otherProperty] != '') style[otherProperty] = ''
+
+        }
+
+    }
+
+}
+
+export const observeCradleAlignment = ({blocks, readCradle}) => {
+
+    const
+        align = () => {
+            const cradle = readCradle()
+            for (const band of cradle.headBandList.concat(cradle.tailBandList)) observer.observe(band, {childList:true})
+            alignCradleEnds(cradle)
+        },
+        observer = new MutationObserver(align)
+
+    for (const block of blocks) observer.observe(block, {childList:true})
+
+    align()
+
+    return observer
+
+}

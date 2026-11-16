@@ -814,25 +814,27 @@ const useCalls = ({
             // withdrawing it would leave the cradle empty
             if (!getCradleIDList().length && placeholdersRef.current.pending) return true
 
-            // the viewport is measured against the ends as they stand, before their memories are cleared: an end the
-            // host answered empty at is not a cradle the scroll has outrun, and it stands through this fill's ask
-            bringOutrunCradle()
-
-            // an explicit fill asks again at an end the host answered empty at; what stands and what is pending are kept
-            clearQuietMarks()
-
-            if (!cellPortalListRef.current.length) {
-
-                reportError(callbacksRef, 'fetchCradleCells',
-                    'the cradle is empty, so there is nothing to fill from; seed it with a referenceID')
-
-                return false
-
-            }
-
-            assertIntersectionsDisconnect()
-
+            // the measure disconnects the observers when it brings the cradle, so it stands under the reconnect's
+            // request with everything after it, the early return included
             try {
+
+                // the viewport is measured against the ends as they stand, before their memories are cleared: an end
+                // the host answered empty at is not a cradle the scroll has outrun, and it stands through this fill's ask
+                bringOutrunCradle()
+
+                // an explicit fill asks again at an end the host answered empty at; what stands and what is pending are kept
+                clearQuietMarks()
+
+                if (!cellPortalListRef.current.length) {
+
+                    reportError(callbacksRef, 'fetchCradleCells',
+                        'the cradle is empty, so there is nothing to fill from; seed it with a referenceID')
+
+                    return false
+
+                }
+
+                assertIntersectionsDisconnect()
 
                 await fillCradle()
 

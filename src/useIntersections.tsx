@@ -1797,28 +1797,6 @@ const useIntersections = ({
 
             }
 
-            // Clear any end-alignment left over from a previous tail position.
-            // 2026-05-21: disabled ragged-start (right-alignment of partial leading bands) — caused
-            // intermittent blank cell at column 1. Band boundary fell mid-logical-row when seed position
-            // was non-zero, making a partial head band appear to need ragged alignment even though
-            // the data starts at item 0. Left-alignment is correct; column position has no semantic meaning.
-            // Previous code (partial branch): gridColumn = n - count + i + 1
-            const newLeadingHeadBand = backwardBandList.at(-1)
-            if (newLeadingHeadBand) {
-                const prop = orientationRef.current === 'horizontal' ? 'gridRow' : 'gridColumn'
-                // const count = newLeadingHeadBand.childElementCount
-                // const n = cradleActual.cellsPerBand
-                // if (count > 0 && count < n) {
-                //     Array.from(newLeadingHeadBand.children).forEach((child, i) => {
-                //         (child as HTMLElement).style[prop] = String(n - count + i + 1)
-                //     })
-                // } else {
-                Array.from(newLeadingHeadBand.children).forEach((child) => {
-                    (child as HTMLElement).style[prop] = ''
-                })
-                // }
-            }
-
         } else { // 'backward'
 
             if (!backwardBandList.length) { // beginning of available cradle bands
@@ -1837,25 +1815,6 @@ const useIntersections = ({
                     backwardFirstBand = backwardBandList.pop(), // get the first band to move
                     backwardNextBand = backwardBandList.at(-1), // next in line, for shift to replace first
                     forwardFirstBand = forwardBandList[0] // for insert moved band after
-
-                // Clear any end-alignment from a previous tail position; partial-band pre-positioning disabled.
-                // 2026-05-21: disabled partial-band branch (ragged-start pre-positioning) — was setting
-                // gridColumn = n - cellCount + i + 1 on partial bands before moving them into view,
-                // to avoid a visible shuffle. No longer needed since ragged-start is disabled throughout.
-                {
-                    // const cellCount = backwardFirstBand.childElementCount
-                    // const n = cradleActual.cellsPerBand
-                    const prop = orientationRef.current === 'horizontal' ? 'gridRow' : 'gridColumn'
-                    // if (cellCount > 0 && cellCount < n) {
-                    //     Array.from(backwardFirstBand.children).forEach((child, i) => {
-                    //         (child as HTMLElement).style[prop] = String(n - cellCount + i + 1)
-                    //     })
-                    // } else {
-                    Array.from(backwardFirstBand.children).forEach((child) => {
-                        (child as HTMLElement).style[prop] = ''
-                    })
-                    // }
-                }
 
                 // move forward band out of the way of the incoming backward band
                 forwardFirstBand && leadTailblockBand.after(forwardFirstBand)
@@ -1894,23 +1853,6 @@ const useIntersections = ({
                 }
 
             }
-
-            // 2026-05-21: disabled ragged-start for leading tail band — direct cause of intermittent
-            // blank cell at column 1. When a partial head band (e.g. items 0-1 in a 3-col grid) shifted
-            // to tail while async forward-cell fill was still in-flight, this code set gridColumn on the
-            // 2 cells, pushing them to cols 2-3 and leaving col 1 blank. The blank persisted because
-            // no subsequent code cleared it. Fix: left-align partial bands throughout (items start at col 1).
-            // const leadingTailBand = forwardBandList[0]
-            // if (leadingTailBand) {
-            //     const count = leadingTailBand.childElementCount
-            //     const n = cradleActual.cellsPerBand
-            //     if (count > 0 && count < n) {
-            //         const prop = orientationRef.current === 'horizontal' ? 'gridRow' : 'gridColumn'
-            //         Array.from(leadingTailBand.children).forEach((child, i) => {
-            //             (child as HTMLElement).style[prop] = String(n - count + i + 1)
-            //         })
-            //     }
-            // }
 
         }
 
