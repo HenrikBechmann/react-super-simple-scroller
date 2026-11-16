@@ -1,5 +1,5 @@
 import { FC } from 'react';
-declare const useCalls: ({ runwayBandsRef, DOMManipulationQueueRef, scrollerName, operationsRef, portalIDListRef, cellPortalListRef, cellDataListRef, portalContainerMapRef, spacingRef, scrollTopRef, scrollLeftRef, viewportRef, headblockRef, tailblockRef, headBandListRef, tailBandListRef, leadHeadblockBandRef, cradleActualRef, cradlePotentialRef, cellDimensionsRef, viewportDimensionsRef, orientationRef, layoutRef, currentAxisReferenceIDRef, setPortalRenderList, updateCurrentAxisReferenceID, trimCradle, fillCradle, followViewport, bringOutrunCradle, reset, callbacksRef, assertIntersectionsDisconnect, requestIntersectionsConnect, bandMutationObserverRef, placeholdersRef, withdrawPlaceholders, clearQuietMarks, placeholderReport, endStateReport, }: {
+declare const useCalls: ({ runwayBandsRef, DOMManipulationQueueRef, scrollerName, operationsRef, portalIDListRef, cellPortalListRef, cellDataListRef, portalContainerMapRef, spacingRef, scrollTopRef, scrollLeftRef, viewportRef, headblockRef, tailblockRef, headBandListRef, tailBandListRef, leadHeadblockBandRef, cradleActualRef, cradlePotentialRef, cellDimensionsRef, viewportDimensionsRef, orientationRef, layoutRef, currentAxisReferenceIDRef, setPortalRenderList, updateCurrentAxisReferenceID, trimCradle, fillCradle, followViewport, bringOutrunCradle, reset, callbacksRef, assertIntersectionsDisconnect, requestIntersectionsConnect, bandMutationObserverRef, cellScrollsRef, placeholdersRef, withdrawPlaceholders, clearQuietMarks, placeholderReport, endStateReport, }: {
     runwayBandsRef: any;
     DOMManipulationQueueRef: any;
     scrollerName: any;
@@ -35,6 +35,7 @@ declare const useCalls: ({ runwayBandsRef, DOMManipulationQueueRef, scrollerName
     assertIntersectionsDisconnect: any;
     requestIntersectionsConnect: any;
     bandMutationObserverRef: any;
+    cellScrollsRef: any;
     placeholdersRef: any;
     withdrawPlaceholders: any;
     clearQuietMarks: any;

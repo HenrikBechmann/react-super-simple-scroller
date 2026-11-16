@@ -67,6 +67,7 @@ export type ReactSuperSimpleScrollerProps = {
     };
     operations?: {
         dispatchAttachedEvents?: boolean;
+        restoreCellScroll?: boolean;
         runway?: number;
         crossAxisChaining?: boolean;
         placeholderCap?: number;

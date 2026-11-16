@@ -149,7 +149,7 @@ The head and tail blocks contain a set of child _band_ elements (light one-row C
 
 With more than one cell per band, the rows of the grid are counted from the seed, and the band at either edge of the cradle can hold part of a row. A short first band holds the _end_ of its row: its cells stand in the last slots of the band and the blanks stand before them (to the left, or above in a horizontal list), where the rest of the row arrives: a cell's column is `(index − seed) mod columns` in every full row; a seed row cut short by the end of the list is filled from before the seed first (with three cells per band and a list that ends on its seed, `100 _ _` becomes `_ 96 97` and `98 99 100` as the cells before the seed arrive). A short last band holds the start of its row, with its blanks after its cells. At the head of the data this means that a list seeded part-way through a row shows the blanks of its first row before the first item: with three cells per band and the seed on the second item, the first row reads `_ _ 0` and the next `1 2 3`. A band that is first and last at once fills from its first slot (`0 1 _`). The scroller derives this from where each band stands in the cradle, whenever the bands or their cells change and before the next paint; nothing about the data is consulted and the host has nothing to set.
 
-The cell `container` elements are created by the scroller (with `createElement`) when creating _portals_ (`createPortal(component, container, key`). The portals are rendered to React’s virtual DOM as a single list in a hidden div, which ties the rendered components to the containers. Then the containers are placed, and moved, as needed within the scroller cradle using standard DOM manipulation. Moving the container elements does not disturb the React component states (with the exception of scroll positions — see below).
+The cell `container` elements are created by the scroller (with `createElement`) when creating _portals_ (`createPortal(component, container, key`). The portals are rendered to React’s virtual DOM as a single list in a hidden div, which ties the rendered components to the containers. Then the containers are placed, and moved, as needed within the scroller cradle using standard DOM manipulation. Moving the container elements does not disturb the React component states. A browser does reset what has scrolled inside a moved element, and the scroller puts that back (see **Restoring scroll positions** below).
 
 Finally, a number of one-pixel-height _trigger_ elements are strategically placed, and monitored by `IntersectionObserver` to generate the DOM manipulations required to maintain the illusion of a smooth flow of content while scrolling.
 
@@ -261,7 +261,7 @@ Setting the minWidth and maxWidth to the same number creates a fixedWidth cell. 
 
 All this may require some experimentation by developers.
 
-If **layout** is set to ‘uniform’, the height of the cell container is set to ‘maxHeight’. If layout is set to ‘variable’, the minHeight and maxHeight styles of the cell container are set to the matching `cellDimensions` values.
+If **layout** is set to ‘uniform’, the height of the cell container is set to ‘maxHeight’. If layout is set to ‘variable’, the minHeight and maxHeight styles of the cell container are set to the matching `cellDimensions` values (minWidth and maxWidth in a horizontal list), and the container is a flex container laid along the list's axis that cuts off what passes it: `display: flex`, `flex-direction: column` in a vertical list and `row` in a horizontal one, and `overflow: hidden`. In it a cell stretches across the axis and takes its own size along it. A cell that scrolls (`overflow: auto` on the cell itself) is held to the container's most and scrolls inside it; a cell that does not is cut off at the container's edge. To fill the container along the axis, give the cell `flex: 1`. A cell placed with `position: absolute; inset: 0` gives its container no size, so in variable layout the container collapses to its least (`minHeight`, or `minWidth` in a horizontal list): let a variable cell stand in the flow. The uniform container carries none of the flex styles.
 
 **fetchCells** can return fewer cellPacks than specified in the `count` argument. RS3 will keep requesting cells until the required number is met, or until `fetchCells` returns an empty array.
 
@@ -291,7 +291,7 @@ The following properties are optional, and are designed to support specific use 
 | callbacks:{<br> &nbsp;axisReferenceID,<br> &nbsp;removed,<br> &nbsp;resized,<br> &nbsp;failed,<br> &nbsp;error,<br> &nbsp;warning<br>} | host-provided functions to provide support for data synchronization, and feedback from the scroller. `error` reports what the scroller could not go on with; `warning` reports a value of the host's that the scroller replaced and went on without, and a call whose purpose was already met (a `remove` of an id the cradle does not hold). A fill on an empty cradle is an error: it cannot be met, and the host has to reposition the list with `fetchCradleCells(referenceID)` instead. Each callback is read when the report is made, and one that throws is caught and logged to the console. With no callback for a report, the report goes to the console, named by the scroller: an `error` to `console.error`, a `warning` or a `failed` batch to `console.warn`, as `react-super-simple-scroller (<scrollerName>): <source>: <message>` with the report's object beside it |
 | calls:{<br> &nbsp;insert, <br> &nbsp;remove, <br> &nbsp;move <br> &nbsp;replace, <br> &nbsp;dispatchEvent, <br> &nbsp;fetchCradleCells, <br> &nbsp;has, <br> &nbsp;getCradleIDList <br> &nbsp;getCradleSpecs, <br> &nbsp;restoreScrollPositions <br>} | Pass an empty object which will be populated by RS3. RS3 provided functions: 6 operations on the cradle, 3 ways to query the cradle, and `restoreScrollPositions` (see the section on restoring scroll positions below) |
 | spacing:{<br> &nbsp;cradleMargin:[start, end]<br> &nbsp;bandPadding:[start, end]<br> &nbsp;cellGap:number <br>} | all integers. cradleMargin is cross-axis spacing at the edges; bandPadding is axis spacing at the start and end of each band; cellGap is cross-axis spacing between cells  |
-| operations:{<br> &nbsp;dispatchAttachedEvents,<br> &nbsp;runway,<br> &nbsp;crossAxisChaining,<br> &nbsp;placeholderCap,<br> &nbsp;placeholderSpreadRatio,<br> &nbsp;placeholder,<br> &nbsp;placeholderContext,<br> &nbsp;endIndicator,<br> &nbsp;endIndicatorContext,<br> &nbsp;fixedEnds<br>} | when dispatchAttachedEvents is set to `true`, RS3 dispatches events to container components to alert them to the need to restore scroll positions. Default `false`. `runway` is the number of bands out of view, both start and end. Default 4. `crossAxisChaining` set to `false` keeps a gesture across the list's axis from going through to whatever scrolls behind the list. Default `true`. `placeholderCap` is the most placeholder cells the scroller stands ahead of the viewport at each end of the cradle while a fetch is out; `0` turns placeholders off; default a viewport and a half of cells. `placeholderSpreadRatio` (0 to 1) sizes a placeholder between the cell's minimum and maximum on the axis in variable layout; default `null`, which is the minimum. `placeholder` is the host's own placeholder component, and `placeholderContext` is passed to every placeholder untouched. `endIndicator` is the host's own component for the indicator shown in the gap a pull opens past an end of the data, and `endIndicatorContext` is passed to it untouched; the default indicator reads its texts from it. `fixedEnds` closes an end of the data: `true` for both, or `{start, end}` with `true` for each end closed. Nothing is looked for past a closed end once the host has answered that there is nothing more there, and a pull past it is a small elastic. Default `false`. See **Placeholders** and **The ends of the data** below |
+| operations:{<br> &nbsp;restoreCellScroll,<br> &nbsp;dispatchAttachedEvents,<br> &nbsp;runway,<br> &nbsp;crossAxisChaining,<br> &nbsp;placeholderCap,<br> &nbsp;placeholderSpreadRatio,<br> &nbsp;placeholder,<br> &nbsp;placeholderContext,<br> &nbsp;endIndicator,<br> &nbsp;endIndicatorContext,<br> &nbsp;fixedEnds<br>} | `restoreCellScroll` keeps what has scrolled inside a cell where it was when the scroller moves the cell, with no code in the host; `false` turns it off. Default `true`. When `dispatchAttachedEvents` is set to `true`, RS3 dispatches an `rs3attached` event to each cell it has moved, after its own restore, for what the scroller cannot put back itself. Default `false`. See **Restoring scroll positions** below for both. `runway` is the number of bands out of view, both start and end. Default 4. `crossAxisChaining` set to `false` keeps a gesture across the list's axis from going through to whatever scrolls behind the list. Default `true`. `placeholderCap` is the most placeholder cells the scroller stands ahead of the viewport at each end of the cradle while a fetch is out; `0` turns placeholders off; default a viewport and a half of cells. `placeholderSpreadRatio` (0 to 1) sizes a placeholder between the cell's minimum and maximum on the axis in variable layout; default `null`, which is the minimum. `placeholder` is the host's own placeholder component, and `placeholderContext` is passed to every placeholder untouched. `endIndicator` is the host's own component for the indicator shown in the gap a pull opens past an end of the data, and `endIndicatorContext` is passed to it untouched; the default indicator reads its texts from it. `fixedEnds` closes an end of the data: `true` for both, or `{start, end}` with `true` for each end closed. Nothing is looked for past a closed end once the host has answered that there is nothing more there, and a pull past it is a small elastic. Default `false`. See **Placeholders** and **The ends of the data** below |
 |scrollerName: string|for debugging, added to the viewport element as data-scrollername|
 
 Notes about the callbacks (the returned values are found in the arguments of the functions): 
@@ -328,7 +328,7 @@ The following three are specialized operations.
 
 **fetchCradleCells(referenceID?)** returns a promise of `true`, or of `false` for a reset that could not be done or a fill with nothing to fill from. This re-runs the fetching of cradle cells. Useful to initiate fetch after a change in the underlying data. If no referenceID is passed, uses the current axisReferenceID, and just tries to add cells to the existing cradle. An empty cradle (after a clear, or an `'at'` request that `fetchCells` answered with no row) has nothing to fill from: the call fetches nothing, reports to the `error` callback (`source` is `'fetchCradleCells'`), and resolves `false`. To clear the scroller, pass an empty string as the referenceID. When a referenceID is passed, the cradle is emptied and reset, which can be useful to reposition the cradle after, say, the end user has selected a cell (that may be out of scope) to view, or if the cell sort order has changed. The promise resolves `false`, and the reason is sent to the `error` callback, when the referenceID is invalid, and when the call is made before the scroller has measured its layout; in that second case the referenceID is held, and the scroller opens from it (in place of `seedReferenceID`) as soon as its layout is known. The promise does not reject for either. It resolves `true` when the reset ran, even if `fetchCells` then had nothing to return for that referenceID.
 
-**restoreScrollPositions()** returns a promise of `true` once the viewport has been scrolled to the position the scroller last recorded and, with `operations.dispatchAttachedEvents`, the `rs3attached` events have been dispatched to the cradle's cells. It runs as a queued cradle operation, after whatever operation is in flight, so it never lands in the middle of a band shift or a fill. The same restore runs when an `rs3restore` event is dispatched on the scroller's viewport.
+**restoreScrollPositions()** returns a promise of `true` once the viewport has been scrolled to the position the scroller last recorded, what has scrolled inside the cradle's cells has been put back (`operations.restoreCellScroll`) and, with `operations.dispatchAttachedEvents`, the `rs3attached` events have been dispatched to the cradle's cells, in that order. It runs as a queued cradle operation, after whatever operation is in flight, so it never lands in the middle of a band shift or a fill. The same restore runs when an `rs3restore` event is dispatched on the scroller's viewport.
 
 A call must not be awaited from inside `fetchCells`. Every fetch runs inside a queued cradle operation, and the calls are queued operations too, so a `fetchCells` that awaits `insert`, `remove`, `move`, `replace`, `fetchCradleCells` or `restoreScrollPositions` before it returns waits on an operation that is waiting on it, and the list stops. The scroller reports the stall once through the `warning` callback (`source` is `queue`) after 5 s, or to `console.warn` without one. Return the batch first, and make the call afterwards.
 
@@ -452,49 +452,33 @@ A horizontal list mirrors all of this, left for top and right for bottom. `getCr
 
 This section is relevant if your cells have scrolling content.
 
-Moving containers around the DOM does not disturb the contained React component states, except for scroll positions. The reason is that when a `container` or its `band` parent are moved with DOM manipulations, the `container` or `band` element tree are momentarily detached from the DOM, before being re-attached in a new location.
+A browser resets the scroll position of an element, and of every element inside it, when the element is moved in the DOM. RS3 moves cell containers, and the bands that hold them, whenever the axis shifts and whenever the cells are divided into bands again (a resize that changes the number of cells per band). React's state in a cell is untouched by the move. What has scrolled inside the cell would be back at 0.
 
-Fortunately restoring scroll positions is relatively straightforward.
+**By default nothing is needed.** RS3 keeps the scroll position of every element that scrolls inside a cell, at any depth and on both axes, and puts it back as the cell's container lands, before the browser paints. A scroller nested in a cell, wrapped in other elements or not, is restored too: it is told to restore itself, since its position is its own to keep. A cell component needs no listener and no ref for any of this.
 
-In brief, 
-- enable RS3’s restore-scroll-position support by setting the parameter `operations.dispatchAttachedEvents` to `true`
-- maintain the most recent scroll positions of your cell component with a ’scroll’ event listener
-- add an event listener in your component for the ‘rs3attached’ event
-- in the callback to the ‘rs3attached' listener, restore the scroll positions.
+What runs for it: one passive `scroll` listener on the viewport, in the capture phase, hears the scrolls inside the scroller's cells and keeps each element's `scrollTop` and `scrollLeft`. It returns at once for the list's own scroll and for a scroll inside a nested scroller's cells (those are the nested scroller's to keep), and it reads and writes nothing of the list's own scrolling. A placeholder is not recorded, so the row that takes a placeholder's container starts at 0. `operations.restoreCellScroll: false` turns the listener and the restore off; a value that is not a boolean is reported to `callbacks.error` (`source` is `operations.restoreCellScroll`) and the default is used.
 
-This is all done synchronously and quickly as soon as `MutationObserver` notifies RS3 of an attachment, and therefore is unlikely to interfere with your component's operation.
+### What the scroller cannot see
 
-Also, if your components contain components that use scrolling (like a nested RS3 scroller!), you’ll have to restore scroll positions in those children.
+RS3 puts back only what it heard scroll, on the element that scrolled. For the rest, set `operations.dispatchAttachedEvents` to `true`: RS3 then dispatches an `rs3attached` event to the first child of each cell container it has moved, after its own restore, so a listener there finds the cell's own scrolling already back. The cases:
 
-Specifically:
+- **Shadow DOM.** A scroll inside a shadow root is not heard outside it, so an element that scrolls in a shadow tree is not recorded.
+- **An iframe.** Its document is not the scroller's: its scrolls are not heard, and a browser loads an iframe again when it is moved.
+- **State the host keeps elsewhere.** A position held in the host's own state, and anything other than `scrollTop` and `scrollLeft` that the move disturbs, is the host's to put back.
+- **An element React rebuilds.** A position is kept against the element that scrolled. Where the host renders a new element in its place (a changed `key`, the other branch of a condition), the new element has no position kept and starts at 0.
 
-If your component relies on scrolling...
+The listener goes on the cell component's outermost element, which is the container's first child:
 
 ```
-const
-  outerElementRef = useRef(null), 
-  scrollPositionsRef = useRef({x:0, y:0})
+const outerElementRef = useRef(null)
 
 useEffect(()=>{
 
-  // track scroll positions
-  const scrollCallback = (event) => {
-    Object.assign(scrollPositionsRef.current,
-      {x:event.target.scrollLeft, y:event.target.scrollTop})
+  // put back what RS3 could not see
+  const attachedCallback = ()=>{
+    restoreWhatTheHostKeeps()
   }
 
-  // restore scroll positions
-  const attachedCallback = (event)=>{
-    const scrollPositions = scrollPositionsRef.current
-    outerElementRef.current.scrollTo(
-      scrollPositions.x, scrollPositions.y)
-  }
-
-  // set 'scroll' listener
-  outerElementRef.current.addEventListener(
-    'scroll', scrollCallback)
-      
-  // set 'rs3attached' listener
   outerElementRef.current.addEventListener(
     'rs3attached', attachedCallback)
 
@@ -507,15 +491,48 @@ return <div ref = {outerElementRef}>
 </div>
 ```
 
-If your component _contains_ a component that uses scrolling (here using RS3 as an example) the contained component will have to be notified to restore its scroll positions...
+`calls.restoreScrollPositions()`, and an `rs3restore` event dispatched on the scroller's viewport, run the same restore for every cell in the cradle: the list's own position, then the cells' scrolling, then `rs3attached` where it is asked for. A host uses them when it moves the scroller itself (the element the scroller stands in is moved in the DOM).
+
+### A scrolling cell with a border
+
+A recipe for the host's cells in variable layout, not something the scroller does. The cell container cuts off what passes it, so where a border stands decides whether its far edge is seen.
+
+A border alone goes on the scrolling cell itself:
 
 ```
-  const attachedCallback = (event)=>{
-    // restoreScrollPositions is a call available from RS3
-    scrollerCallsRef.current.restoreScrollPositions()
-  }
+const cellStyles = {
+  border: '1px solid gray',
+  overflow: 'auto',
+}
 ```
-See the Properties section above for details on obtaining scroller calls, and for setting the `operations` parameter.
+
+The cell is held to the container's most, its border stands inside the container, and its content scrolls inside the border.
+
+A border around a fixed header or footer needs a scrolling element inside the cell. The cell is a flex column held to the container, and the element between the header and the footer scrolls:
+
+```
+const cellStyles = {
+  border: '1px solid gray',
+  display: 'flex',
+  flexDirection: 'column',
+  minHeight: 0,
+  flex: 1, // to fill the container; leave it out for a cell as tall as its content
+}
+
+const bodyStyles = {
+  flex: 1,
+  minHeight: 0,
+  overflow: 'auto',
+}
+
+return <div style = {cellStyles}>
+  <header>{title}</header>
+  <div style = {bodyStyles}>{content}</div>
+  <footer>{actions}</footer>
+</div>
+```
+
+What holds the cell to the container is the cell's own `minHeight: 0`. A flex item is never smaller than its content unless it says so: without it the cell stands as tall as its content, however little the container allows, the container cuts off the cell's bottom border and its footer, and the body does not scroll.
 
 ## Licence
 

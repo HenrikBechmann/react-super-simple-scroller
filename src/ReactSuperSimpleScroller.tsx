@@ -19,6 +19,7 @@ import { SCROLLBLOCK_SPAN } from './orientationStyles'
 
 // sub-modules
 import { isValidID, reportError, reportWarning, errorMessage } from './utilities'
+import { createCellScrollState, recordCellScroll, restoreCellScroll } from './cellScroll'
 import useCells from './useCells'
 import { createPlaceholderState, DEFAULT_FETCH_CEILING } from './placeholders'
 import useNewCradlePotential from './useNewCradlePotential'
@@ -278,6 +279,7 @@ const Viewport = (props) =>{
         resizeObserverRef = useRef(null),
         cradleMutationObserverRef = useRef(null),
         bandMutationObserverRef = useRef(null),
+        cellScrollsRef = useRef(null), // what has scrolled inside each cell's frame (cellScroll.tsx); null while off
 
         // timeout id's
         scrollMomentumTimeoutIDRef = useRef(null),
@@ -586,7 +588,7 @@ const Viewport = (props) =>{
     // ===================[ breakout code to use* modules ]======================
 
     const 
-        {getCells, withdrawPlaceholders, abortFetches, clearPlaceholders, isFetchOpenAt, isEndFixed, markQuiet, isQuietAt, quietReasonAt, clearQuietMarks, clearQuietAt, isEndAskAt, endIndicatorComponentType, runAnchorIndex, rebuildPlaceholderPortals, placeholderReport} = useCells({
+        {getCells, withdrawPlaceholders, abortFetches, clearPlaceholders, isFetchOpenAt, isEndFixed, isCellScrollRestored, markQuiet, isQuietAt, quietReasonAt, clearQuietMarks, clearQuietAt, isEndAskAt, endIndicatorComponentType, runAnchorIndex, rebuildPlaceholderPortals, placeholderReport} = useCells({
 
             scrollerName,
 
@@ -820,6 +822,7 @@ const Viewport = (props) =>{
             assertIntersectionsDisconnect,
             requestIntersectionsConnect,
             bandMutationObserverRef,
+            cellScrollsRef,
             placeholdersRef,
             withdrawPlaceholders,
             clearQuietMarks,
@@ -1223,66 +1226,80 @@ const Viewport = (props) =>{
 
     // =========================[ reconfiguration effects ]=====================
 
+    // A cell's frame is moved whenever its cell crosses the axis, and a browser drops the scroll offsets of
+    // everything under a moved element. One pair of observers sees each frame land: the scroller first puts back
+    // what had scrolled inside it (operations.restoreCellScroll), then tells the host, if it asked
+    // (operations.dispatchAttachedEvents), so the host's listener finds the scroll already back.
+    // What has scrolled is heard by one listener. It reads and writes nothing of the list's own scrolling: the
+    // viewport's own scroll is left at once (recordCellScroll), and the scroll of a cell's content never reaches
+    // onViewportScroll, since scroll does not bubble
     useEffect(()=>{
 
-        let cradleMutationObserver, bandMutationObserver
-        if (operations.dispatchAttachedEvents) {
+        const
+            dispatchAttachedEvents = !!operations.dispatchAttachedEvents,
+            isRestored = isCellScrollRestored()
 
-            const event = new Event('rs3attached')
+        if (!isRestored) cellScrollsRef.current = null
+        else if (!cellScrollsRef.current) cellScrollsRef.current = createCellScrollState()
 
-            const 
-                cradleCallback = (mutationList) => {
-                    mutationList.forEach((mutationRecord) => {
-                        mutationRecord.addedNodes.forEach((band) => {
-                            for (let index = 0; index < band.children.length; index++) {
-                                const child = band.children[index]
-                                child.firstChild && child.firstChild.dispatchEvent(event)
-                            }
-                        })
+        if (!isRestored && !dispatchAttachedEvents) return
+
+        // React nulls viewportRef in the commit, before this cleanup runs, so the cleanup removes from what it added to
+        const
+            viewport = viewportRef.current,
+            cellScrolls = cellScrollsRef.current,
+            event = new Event('rs3attached'),
+            onCellScroll = (scrollEvent) => {
+                recordCellScroll(cellScrolls, viewport, scrollEvent.target)
+            },
+            landed = (container) => {
+                cellScrolls && restoreCellScroll(cellScrolls, container)
+                dispatchAttachedEvents && container.firstChild && container.firstChild.dispatchEvent(event)
+            },
+            cradleCallback = (mutationList) => {
+                mutationList.forEach((mutationRecord) => {
+                    mutationRecord.addedNodes.forEach((band) => {
+                        for (let index = 0; index < band.children.length; index++) {
+                            landed(band.children[index])
+                        }
                     })
-                }
-
-            const
-                bandCallback = (mutationList) => {
-                    mutationList.forEach((mutationRecord) => {
-                        mutationRecord.addedNodes.forEach((node) => {
-                            node.firstChild && node.firstChild.dispatchEvent(event)
-                        })
+                })
+            },
+            bandCallback = (mutationList) => {
+                mutationList.forEach((mutationRecord) => {
+                    mutationRecord.addedNodes.forEach((container) => {
+                        landed(container)
                     })
-                }
+                })
+            },
+            cradleMutationObserver = cradleMutationObserverRef.current = new MutationObserver(cradleCallback),
+            bandMutationObserver = bandMutationObserverRef.current = new MutationObserver(bandCallback)
 
-            cradleMutationObserverRef.current = cradleMutationObserver = new MutationObserver(cradleCallback)
+        cellScrolls && viewport.addEventListener('scroll', onCellScroll, { capture: true, passive: true })
 
-            cradleMutationObserver.observe(headblockRef.current, {childList:true})
-            cradleMutationObserver.observe(leadHeadblockBandRef.current, {childList:true})
-            cradleMutationObserver.observe(tailblockRef.current, {childList:true})
-            cradleMutationObserver.observe(leadTailblockBandRef.current, {childList:true})
+        cradleMutationObserver.observe(headblockRef.current, {childList:true})
+        cradleMutationObserver.observe(leadHeadblockBandRef.current, {childList:true})
+        cradleMutationObserver.observe(tailblockRef.current, {childList:true})
+        cradleMutationObserver.observe(leadTailblockBandRef.current, {childList:true})
 
-            bandMutationObserverRef.current = bandMutationObserver = new MutationObserver(bandCallback)
+        headBandListRef.current.forEach((band) => {
+            bandMutationObserver.observe(band, {childList:true})
+        })
 
-            const 
-                headBandList = headBandListRef.current,
-                tailBandList = tailBandListRef.current
-
-            headBandList.forEach((band) => {
-                bandMutationObserver.observe(band, {childList:true})
-            })
-
-            tailBandList.forEach((band) => {
-                bandMutationObserver.observe(band, {childList:true})
-            })
-
-        } else {
-            cradleMutationObserverRef.current && cradleMutationObserverRef.current.disconnect()
-            bandMutationObserverRef.current && bandMutationObserverRef.current.disconnect()
-        }
+        tailBandListRef.current.forEach((band) => {
+            bandMutationObserver.observe(band, {childList:true})
+        })
 
         return () => {
-            cradleMutationObserverRef.current && cradleMutationObserverRef.current.disconnect()
-            bandMutationObserverRef.current && bandMutationObserverRef.current.disconnect()
+            viewport.removeEventListener('scroll', onCellScroll, { capture: true })
+            cradleMutationObserver.disconnect()
+            bandMutationObserver.disconnect()
+            // a band made while neither is wanted must find no observer: observe() starts a disconnected one again
+            cradleMutationObserverRef.current = null
+            bandMutationObserverRef.current = null
         }
 
-    },[operations.dispatchAttachedEvents])
+    },[operations.dispatchAttachedEvents, operations.restoreCellScroll])
 
     useLayoutEffect(() => {
         const observer = observeCradleAlignment({
@@ -1604,6 +1621,7 @@ export type ReactSuperSimpleScrollerProps = {
     },
     operations?: {
         dispatchAttachedEvents?:boolean,
+        restoreCellScroll?: boolean, // default true: what has scrolled inside a cell is put back when the scroller moves the cell
         runway?: number,
         crossAxisChaining?: boolean, // default true
         placeholderCap?: number, // placeholders ahead of the viewport at each end; 0 turns them off; default 1.5 × a viewport's cells

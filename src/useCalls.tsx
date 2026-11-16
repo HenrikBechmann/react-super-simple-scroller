@@ -6,6 +6,7 @@ import React, {FC} from 'react'
 import { createPortal } from 'react-dom'
 
 import { createContainer, createBand, isValidID, isReservedID, reportError, reportWarning } from './utilities'
+import { restoreCellScroll } from './cellScroll'
 
 /*
     - calls available to host
@@ -66,6 +67,7 @@ const useCalls = ({
     assertIntersectionsDisconnect,
     requestIntersectionsConnect,
     bandMutationObserverRef,
+    cellScrollsRef,
     placeholdersRef,
     withdrawPlaceholders,
     clearQuietMarks,
@@ -863,13 +865,19 @@ const useCalls = ({
 
                 viewportRef.current.scrollTo(scrollLeftRef.current, scrollTopRef.current)
 
-                if (operationsRef.current.dispatchAttachedEvents) {
+                // what had scrolled inside each cell first, then the host's event, whose listener finds it back
+                const
+                    cellScrolls = cellScrollsRef.current,
+                    dispatchAttachedEvents = operationsRef.current.dispatchAttachedEvents
+
+                if (cellScrolls || dispatchAttachedEvents) {
                     const
                         event = new Event('rs3attached'),
                         placeholderMap = placeholdersRef.current.map
                     portalContainerMapRef.current.forEach((container, id) => {
                         if (placeholderMap.has(id)) return // the scroller's own, not the host's
-                        container.firstChild && container.firstChild.dispatchEvent(event)
+                        cellScrolls && restoreCellScroll(cellScrolls, container)
+                        dispatchAttachedEvents && container.firstChild && container.firstChild.dispatchEvent(event)
                     })
                 }
 

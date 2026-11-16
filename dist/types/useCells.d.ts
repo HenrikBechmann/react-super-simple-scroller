@@ -38,6 +38,7 @@ declare const useCells: ({ scrollerName, DOMManipulationQueueRef, viewportRef, o
     clearPlaceholders: () => void;
     isFetchOpenAt: (end: any) => boolean;
     isEndFixed: (end: any) => boolean;
+    isCellScrollRestored: () => boolean;
     markQuiet: (direction: any, reason: any) => {
         reason: any;
         cradleActual: any;

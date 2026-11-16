@@ -251,6 +251,18 @@ export const validateCellDimensions = (cellDimensions, lastGood = null, orientat
 
 }
 
+// A variable frame has a least and a most size on the axis and no size of its own, so a percentage in the cell has
+// nothing to resolve against, and a cell that is to scroll past the most could only repeat cellDimensions. As a
+// flex item along the axis the cell takes its content's size up to the frame's most; one that scrolls is held to
+// it and scrolls, and one that does not is cut off at it
+const setVariableFrame = (container, flexDirection) => {
+
+    container.style.display = 'flex'
+    container.style.flexDirection = flexDirection
+    container.style.overflow = 'hidden'
+
+}
+
 export const createContainer = (id, cellDimensions,cellsPerBand, orientation, layout) => {
 
     const container = document.createElement('div')
@@ -268,6 +280,7 @@ export const createContainer = (id, cellDimensions,cellsPerBand, orientation, la
         } else { // variable
             container.style.minHeight = cellDimensions.minHeight + 'px'
             container.style.maxHeight = cellDimensions.maxHeight + 'px'
+            setVariableFrame(container, 'column')
         }
 
     } else { 'horizontal'
@@ -279,6 +292,7 @@ export const createContainer = (id, cellDimensions,cellsPerBand, orientation, la
         } else { // variable
             container.style.minWidth = cellDimensions.minWidth + 'px'
             container.style.maxWidth = cellDimensions.maxWidth + 'px'
+            setVariableFrame(container, 'row')
         }
 
     }    

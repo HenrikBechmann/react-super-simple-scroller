@@ -164,6 +164,20 @@ const useCells = ({
 
     }
 
+    // operations.restoreCellScroll: what has scrolled inside a cell is put back when the cell's frame is moved,
+    // unless the host gives false
+    const isCellScrollRestored = () => {
+
+        const restoreCellScroll = operationsRef.current?.restoreCellScroll
+
+        if (restoreCellScroll === undefined || restoreCellScroll === null || (typeof restoreCellScroll == 'boolean')) return restoreCellScroll !== false
+
+        reportBadOption('operations.restoreCellScroll', restoreCellScroll, 'must be a boolean; the default is used')
+
+        return true
+
+    }
+
     // -------------------------[ the host's fetch ]-------------------------
 
     // the signal given to a fetch made with placeholders off: it fires at a reset and at the unmount
@@ -1486,6 +1500,7 @@ const useCells = ({
         clearPlaceholders,
         isFetchOpenAt,
         isEndFixed,
+        isCellScrollRestored,
         markQuiet,
         isQuietAt,
         quietReasonAt,
