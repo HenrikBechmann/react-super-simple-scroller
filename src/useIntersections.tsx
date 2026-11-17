@@ -733,8 +733,8 @@ const useIntersections = ({
     // is the end indicator, which stands in the content on the end's mark (shown is what it reads at that end: null,
     // 'end', 'failed' or 'searching', and shownAt is the mark it stands on; readEndIndicators)
     const endStateRef = useRef({
-        head:{markFromAxis:null, reaskOpen:false, gestureTimeoutID:null, travel:0, drawn:0, shown:null, shownAt:null},
-        tail:{markFromAxis:null, reaskOpen:false, gestureTimeoutID:null, travel:0, drawn:0, shown:null, shownAt:null},
+        head:{markFromAxis:null, reaskOpen:false, gestureTimeoutID:null, travel:0, drawn:0, short:false, shown:null, shownAt:null},
+        tail:{markFromAxis:null, reaskOpen:false, gestureTimeoutID:null, travel:0, drawn:0, short:false, shown:null, shownAt:null},
         glidingTo:null,
         sliding:null,
         touches:new Set(),
@@ -1110,7 +1110,8 @@ const useIntersections = ({
     // its mark, and no scroll says so. After a re-band (the cells per band changed) the rows at each end are other
     // rows: each standing end's mark is entered again from its rows' edge, never carried across; the head first, as
     // the tail's floor reads it. A viewport past a mark then comes back by the return a gesture's end takes; one short
-    // of its mark stays where the resize left it
+    // of its mark stays where the resize left it. The elastic's numbers are read where the resize left the viewport,
+    // before either: the scroll that follows is measured from there, and one from short of the mark arrives at it
     const readEndsAfterResize = (rebanded) => {
 
         if (!viewportRef.current) return
@@ -1125,6 +1126,8 @@ const useIntersections = ({
                 endMark(end)
 
             }
+
+            readEndElastic(end)
 
             if ((end == 'tail') && tailWaitsForHead()) continue
 
@@ -1177,8 +1180,13 @@ const useIntersections = ({
 
     const elasticGapAt = (travel, cap) => (travel <= 0) ? travel : (travel < Infinity) ? cap * travel / (travel + cap) : cap
 
-    // A viewport that the browser has scrolled past a fixed end (a drag or a momentum that arrives there, or a pull
-    // the scroller could not take) is drawn on the same curve. Past the mark the scroll position travels as the
+    // A pull the browser makes at a fixed end (one the scroller could not take) is drawn on the same curve: a scroll
+    // that begins at rest on the mark, within the pixel the axis is seated on, and every scroll after it for as long
+    // as the pull stands (travel). Any other scroll that carries the viewport past the mark arrives there, as a
+    // scroll arrives at an end whose answer comes back empty: one in flight, and one that came from a pixel or more
+    // short of the mark (short, the reading the last scroll left). The axis is put where the content's edge is on
+    // the mark under the viewport, as the return leaves it, and the scroll is held: a momentum is the compositor's,
+    // and a write of the axis in its scroll events is a frame behind it. Past the mark the scroll position travels as the
     // browser scrolls it, and the axis goes with it, short of the part of the travel that is drawn. Here the axis
     // moves by whole pixels, as a shift moves it, and never draws past the curve; the travel is kept unrounded, so a
     // slow pull adds up as a fast one does. A gap the elastic did not draw (a viewport found out past the cap) is
@@ -1192,20 +1200,35 @@ const useIntersections = ({
 
         if (!isEndFixed(end) || !insideEndState(end)) {
             state.travel = state.drawn = 0
+            state.short = false
             return
         }
 
         const
-            { isH, axis, viewportDim, viewportEdge } = endGeometry(end),
-            gap = Math.max(viewportEdge - endMark(end), 0),
+            { isH, axis, viewportDim, viewportEdge, axisAt } = endGeometry(end),
+            past = viewportEdge - endMark(end),
+            gap = Math.max(past, 0),
             cap = endElasticCap(viewportDim),
             moved = gap - state.drawn
 
         if (moved <= 0) {
             state.drawn = gap
             state.travel = elasticTravelAt(gap, cap)
+            state.short = past <= -1
             if (!gap && !Number.isInteger(axis)) settleAxisAtEnd(end)
             return
+        }
+
+        if (!state.travel && (state.short || isScrollInputRecent())) {
+
+            const rest = axisAt(endMark(end)), seat = (end == 'tail') ? Math.ceil(rest) : Math.floor(rest)
+
+            setAxisPosition(isH ? seat : 0, isH ? 0 : seat)
+            readEndElastic(end)
+            holdScrolling(end)
+
+            return
+
         }
 
         const
@@ -1221,23 +1244,27 @@ const useIntersections = ({
 
     }
 
-    // the elastic's two numbers, read again from where the content stands: the scroller has moved the transform
-    // itself (a pull it took, a return, a slide taken up), and the next scroll event is measured from there
+    // the elastic's numbers, read again from where the content stands: the scroller has moved the transform itself
+    // (a pull it took, a return, an arrival, a slide taken up) or a resize has moved the viewport's edge, and the
+    // next scroll event is measured from there
     const readEndElastic = (end) => {
 
         const state = endStateRef.current[end]
 
         if (!isEndFixed(end) || !insideEndState(end)) {
             state.travel = state.drawn = 0
+            state.short = false
             return
         }
 
         const
             { viewportDim, viewportEdge } = endGeometry(end),
-            gap = Math.max(viewportEdge - endMark(end), 0)
+            past = viewportEdge - endMark(end),
+            gap = Math.max(past, 0)
 
         state.drawn = gap
         state.travel = elasticTravelAt(gap, endElasticCap(viewportDim))
+        state.short = past <= -1
 
     }
 
