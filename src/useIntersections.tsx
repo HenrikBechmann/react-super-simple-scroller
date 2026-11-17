@@ -93,7 +93,7 @@ const useIntersections = ({
     const isScrollInputRecent = () =>
         immediateIsScrollingRef.current || ((performance.now() - lastScrollEventTimeRef.current) < standardMomentumFadeRef.current)
 
-    const holdRef = useRef({viewport:null, onWheel:null, endOfData:null, count:0})
+    const holdRef = useRef({viewport:null, onWheel:null, endOfData:null, count:0, keeper:null})
 
     // -------------------------[ shift measurement ]-------------------------
 
@@ -574,9 +574,15 @@ const useIntersections = ({
     // -------------------------[ scrolling hold ]-------------------------
 
     // The viewport is pinned where it is and cannot be scrolled until the hold is released.
-    // overflow:hidden is what stops the browser's own momentum. A browser scrolls on its
-    // compositor first, so a list held by scrollTo alone is painted displaced, then put back,
-    // on every momentum event (Safari shakes and can lose its place).
+    // overflow hidden along the list's axis is what stops the browser's own momentum. A browser
+    // scrolls on its compositor first, so a list held by scrollTo alone is painted displaced, then
+    // put back, on every momentum event (Safari shakes and can lose its place).
+    // The hold closes the list's axis only, and the viewport stays the scroll container the gesture
+    // began in: the cross axis is left open over the keeper, an inert element that gives it 1px of
+    // range. With both axes hidden nothing is left for the viewport to scroll; Safari then drops the
+    // gesture's hold on it and gives the rest of a fling's momentum to the nearest scrollable box
+    // around the list. The range is what keeps it: an open cross axis with nothing to scroll is
+    // dropped the same way. The pin (onViewportScroll) keeps the cross axis where it was.
     // A hold is the entry of the end state (below) at an end of the data, the same at the head and
     // the tail: it is released STANDARD_SCROLL_MOMENTUM_FADE after it began, or at once by a wheel
     // away from that end. No wheel is cancelled and no quiet is waited for, since the state keeps
@@ -585,9 +591,19 @@ const useIntersections = ({
 
         const
             hold = holdRef.current,
-            viewport = viewportRef.current
+            viewport = viewportRef.current,
+            vertical = (orientationRef.current == 'vertical'),
+            keeper = hold.keeper ?? document.createElement('div')
 
-        viewport.style.overflow = 'hidden'
+        // 1px past the viewport on each side across the axis, so the range is there in a right-to-left box too
+        keeper.dataset.type = 'hold-keeper'
+        keeper.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;' + (vertical
+            ?'top:0;left:-1px;width:calc(100% + 2px);height:1px'
+            :'left:0;top:-1px;height:calc(100% + 2px);width:1px')
+        if (keeper.parentNode !== viewport) viewport.append(keeper)
+        hold.keeper = keeper
+        viewport.style.overflowX = vertical?'auto':'hidden'
+        viewport.style.overflowY = vertical?'hidden':'auto'
         immediateStopScrollingRef.current = true
         hold.endOfData = endOfData
         hold.count++
@@ -644,6 +660,8 @@ const useIntersections = ({
         clearTimeout(restoreScrollingTimeoutIDRef.current)
         immediateStopScrollingRef.current = false
         viewportRef.current && (viewportRef.current.style.overflow = 'auto')
+        hold.keeper?.remove()
+        hold.keeper = null
         hold.viewport?.removeEventListener('wheel', hold.onWheel)
         hold.viewport = null
         hold.endOfData = null

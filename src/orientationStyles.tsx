@@ -28,8 +28,9 @@ const TAIL_OVERFLOW_TRIGGER_OFFSET = 4
 // overscroll is contained on the axis the scroller scrolls along: a scroll that reaches the end of the list
 // stops there, and that containment is what holds the list at an end of its data (see useIntersections).
 // on the other axis a gesture goes through to whatever scrolls behind the list, unless the host sets
-// operations.crossAxisChaining to false. overflow stays 'auto' in every variant: a hold writes
-// viewport.style.overflow directly, and React leaves a property alone when a style object swap does not change it
+// operations.crossAxisChaining to false. overflow stays 'auto' in every variant: a hold writes the
+// viewport's overflow directly (hidden along the list's axis; its release writes 'auto' back), and React
+// leaves a property alone when a style object swap does not change it
 const baseViewportStyles = {
     position:'absolute',
     inset:0,
