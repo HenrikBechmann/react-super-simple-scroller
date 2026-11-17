@@ -58,6 +58,7 @@ const useIntersections = ({
     immediateIsScrollingRef,
     lastScrollEventTimeRef,
     immediateStopScrollingRef,
+    holdCrossOpenRef,
     restoreScrollingTimeoutIDRef,
 
     // methods
@@ -582,7 +583,10 @@ const useIntersections = ({
     // range. With both axes hidden nothing is left for the viewport to scroll; Safari then drops the
     // gesture's hold on it and gives the rest of a fling's momentum to the nearest scrollable box
     // around the list. The range is what keeps it: an open cross axis with nothing to scroll is
-    // dropped the same way. The pin (onViewportScroll) keeps the cross axis where it was.
+    // dropped the same way. The pin (onViewportScroll) keeps the cross axis where it was, so the
+    // keeper's pixel is never shown. A list with room across of its own (bands wider than the
+    // viewport) is not kept there: its cross axis has a range without the keeper, and stays the
+    // gesture's while the hold stands. The pin then puts back the list's axis alone.
     // A hold is the entry of the end state (below) at an end of the data, the same at the head and
     // the tail: it is released STANDARD_SCROLL_MOMENTUM_FADE after it began, or at once by a wheel
     // away from that end. No wheel is cancelled and no quiet is waited for, since the state keeps
@@ -600,7 +604,15 @@ const useIntersections = ({
         keeper.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none;' + (vertical
             ?'top:0;left:-1px;width:calc(100% + 2px);height:1px'
             :'left:0;top:-1px;height:calc(100% + 2px);width:1px')
-        if (keeper.parentNode !== viewport) viewport.append(keeper)
+        if (keeper.parentNode !== viewport) {
+
+            // read as the hold opens, before the keeper is in: with it every viewport has a range across
+            holdCrossOpenRef.current = vertical
+                ?(viewport.scrollWidth > viewport.clientWidth)
+                :(viewport.scrollHeight > viewport.clientHeight)
+            viewport.append(keeper)
+
+        }
         hold.keeper = keeper
         viewport.style.overflowX = vertical?'auto':'hidden'
         viewport.style.overflowY = vertical?'hidden':'auto'

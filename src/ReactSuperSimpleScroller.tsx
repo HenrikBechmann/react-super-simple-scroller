@@ -271,6 +271,7 @@ const Viewport = (props) =>{
         immediateIsScrollingRef = useRef(false),
         lastScrollEventTimeRef = useRef(-Infinity),
         immediateStopScrollingRef = useRef(false),
+        holdCrossOpenRef = useRef(false), // a held list has room across of its own; written as a hold opens
         scrollendSupportedRef = useRef(false), // read once at mount; see the listener there
 
         // observers
@@ -668,6 +669,7 @@ const Viewport = (props) =>{
             lastScrollEventTimeRef,
             viewportRef,
             immediateStopScrollingRef,
+            holdCrossOpenRef,
             scrollTopRef,
             scrollLeftRef,
             restoreScrollingTimeoutIDRef,
@@ -1179,7 +1181,22 @@ const Viewport = (props) =>{
         clearTimeout(scrollMomentumTimeoutIDRef.current)
         if (immediateStopScrollingRef.current) {
 
-            target.scrollTo(scrollLeftRef.current, scrollTopRef.current)
+            // where the list has room across of its own, the cross axis stays the gesture's and the record follows it
+            if (!holdCrossOpenRef.current) {
+
+                target.scrollTo(scrollLeftRef.current, scrollTopRef.current)
+
+            } else if (orientationRef.current == 'vertical') {
+
+                scrollLeftRef.current = target.scrollLeft
+                target.scrollTop = scrollTopRef.current
+
+            } else {
+
+                scrollTopRef.current = target.scrollTop
+                target.scrollLeft = scrollLeftRef.current
+
+            }
 
         } else {
 

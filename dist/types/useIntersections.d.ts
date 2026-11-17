@@ -1,4 +1,4 @@
-declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortMomentumFadeRef, AXIS_START_POSITION, DOMManipulationQueueRef, orientationRef, layoutRef, viewportRef, headblockRef, leadHeadblockBandRef, headblockOverflowTriggerRef, tailblockRef, tailblockOverflowTriggerRef, leadTailblockBandRef, cradleActualRef, cradlePotentialRef, headBandListRef, tailBandListRef, intersectionsMapRef, scrollTopRef, scrollLeftRef, axisPositionRef, portalIDListRef, immediateIsScrollingRef, lastScrollEventTimeRef, immediateStopScrollingRef, restoreScrollingTimeoutIDRef, callbacksRef, setAxisPosition, slideAxis, readAxisSlide, assertIntersectionsDisconnect, requestIntersectionsConnect, fillCradle, updateCurrentAxisReferenceID, trimCradle, isFetchOpenAt, isEndFixed, markQuiet, isQuietAt, quietReasonAt, clearQuietAt, isEndAskAt, onRunEndedRef, bringOutrunCradleRef, setEndIndicators, }: {
+declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortMomentumFadeRef, AXIS_START_POSITION, DOMManipulationQueueRef, orientationRef, layoutRef, viewportRef, headblockRef, leadHeadblockBandRef, headblockOverflowTriggerRef, tailblockRef, tailblockOverflowTriggerRef, leadTailblockBandRef, cradleActualRef, cradlePotentialRef, headBandListRef, tailBandListRef, intersectionsMapRef, scrollTopRef, scrollLeftRef, axisPositionRef, portalIDListRef, immediateIsScrollingRef, lastScrollEventTimeRef, immediateStopScrollingRef, holdCrossOpenRef, restoreScrollingTimeoutIDRef, callbacksRef, setAxisPosition, slideAxis, readAxisSlide, assertIntersectionsDisconnect, requestIntersectionsConnect, fillCradle, updateCurrentAxisReferenceID, trimCradle, isFetchOpenAt, isEndFixed, markQuiet, isQuietAt, quietReasonAt, clearQuietAt, isEndAskAt, onRunEndedRef, bringOutrunCradleRef, setEndIndicators, }: {
     scrollerName: any;
     standardMomentumFadeRef: any;
     shortMomentumFadeRef: any;
@@ -25,6 +25,7 @@ declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortM
     immediateIsScrollingRef: any;
     lastScrollEventTimeRef: any;
     immediateStopScrollingRef: any;
+    holdCrossOpenRef: any;
     restoreScrollingTimeoutIDRef: any;
     callbacksRef: any;
     setAxisPosition: any;
