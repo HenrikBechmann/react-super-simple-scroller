@@ -272,6 +272,8 @@ const Viewport = (props) =>{
         lastScrollEventTimeRef = useRef(-Infinity),
         immediateStopScrollingRef = useRef(false),
         holdCrossOpenRef = useRef(false), // a held list has room across of its own; written as a hold opens
+        canTakeEndInputRef = useRef(false), // the viewport hears a wheel and a finger's moves so that they can be cancelled
+        endInputListenersRef = useRef(null), // the wheel and touchmove listeners on the viewport, and how they were put on
         scrollendSupportedRef = useRef(false), // read once at mount; see the listener there
 
         // observers
@@ -670,6 +672,7 @@ const Viewport = (props) =>{
             viewportRef,
             immediateStopScrollingRef,
             holdCrossOpenRef,
+            canTakeEndInputRef,
             scrollTopRef,
             scrollLeftRef,
             restoreScrollingTimeoutIDRef,
@@ -955,14 +958,11 @@ const Viewport = (props) =>{
 
         // The end state hears the user's input: its bring-back stops for it, and a pull that starts at a fixed
         // end's mark is the scroller's to draw. Native listeners: the cells are portals rendered beside the
-        // viewport, and their React events do not pass through it. A wheel and a finger's move are heard by
-        // listeners that are not passive, since only such a listener may cancel one; they stand for the scroller's
-        // life, whichever ends are fixed, because whether a touch's moves can be cancelled is settled as the touch
-        // starts, before the list is known to reach a fixed end under it. All read the hook's refs alone, so the
-        // mount's closures serve the scroller's life
-        viewport.addEventListener('wheel', onEndWheel, { passive: false })
+        // viewport, and their React events do not pass through it. A touch's start is never cancelled, so it is
+        // heard passively, for the scroller's life; the wheel and a finger's moves are the next effect's. The
+        // handlers read the hook's refs alone, so the closures of the render that put them on serve until they
+        // are taken off
         viewport.addEventListener('touchstart', onEndTouchStart, { passive: true })
-        viewport.addEventListener('touchmove', onEndTouchMove, { passive: false })
 
         return () => {
             isMountedRef.current = false
@@ -975,14 +975,47 @@ const Viewport = (props) =>{
             resizeObserverRef.current.disconnect()
             viewport.removeEventListener('rs3restore', handleRs3Restore)
             viewport.removeEventListener('scrollend', onViewportScrollEnd)
-            viewport.removeEventListener('wheel', onEndWheel)
             viewport.removeEventListener('touchstart', onEndTouchStart)
-            viewport.removeEventListener('touchmove', onEndTouchMove)
+            viewport.removeEventListener('wheel', endInputListenersRef.current?.onEndWheel)
+            viewport.removeEventListener('touchmove', endInputListenersRef.current?.onEndTouchMove)
+            endInputListenersRef.current = null
             abortFetches()
             queue.stop(false)
         }
 
     },[])
+
+    // A wheel and a finger's move can be cancelled only by a listener that is not passive, and the browser waits
+    // for such a listener before it scrolls. The one input the scroller cancels is a pull at a fixed end's mark, so
+    // the two are heard that way only by a list that operations.fixedEnds gives a fixed end, and passively by every
+    // other list. The choice follows the option and not the end state: whether a touch's moves can be cancelled is
+    // settled as the touch starts, before the list is known to reach a fixed end under it. The option is read after
+    // every render, and not in one, since a value that cannot be used is reported to the host as it is read; the
+    // listeners are changed only where the reading has, and the mount's cleanup takes off what stands. The option
+    // is read each time it is used and the listeners follow it at a render, so the take is told how the viewport
+    // hears (canTakeEndInputRef) and cancels nothing it hears passively
+    useEffect(()=>{
+
+        const
+            viewport = viewportRef.current,
+            heard = endInputListenersRef.current,
+            takesEndInput = isEndFixed('head') || isEndFixed('tail')
+
+        if (heard?.takesEndInput === takesEndInput) return
+
+        if (heard) {
+            viewport.removeEventListener('wheel', heard.onEndWheel)
+            viewport.removeEventListener('touchmove', heard.onEndTouchMove)
+        }
+
+        const options = { passive: !takesEndInput }
+
+        viewport.addEventListener('wheel', onEndWheel, options)
+        viewport.addEventListener('touchmove', onEndTouchMove, options)
+        endInputListenersRef.current = { takesEndInput, onEndWheel, onEndTouchMove }
+        canTakeEndInputRef.current = takesEndInput
+
+    })
 
     // cradle position initialization
     useEffect(()=>{

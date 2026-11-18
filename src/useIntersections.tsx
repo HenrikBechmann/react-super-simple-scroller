@@ -59,6 +59,7 @@ const useIntersections = ({
     lastScrollEventTimeRef,
     immediateStopScrollingRef,
     holdCrossOpenRef,
+    canTakeEndInputRef,
     restoreScrollingTimeoutIDRef,
 
     // methods
@@ -1370,8 +1371,12 @@ const useIntersections = ({
     // with nothing between its target and the viewport to scroll instead. While a stretch stands every input is the
     // scroller's, until one goes back past the mark: that one, and what follows it, is the browser's, which scrolls
     // on from where the content is. An input that cannot be cancelled, one under a hold, and one that arrives while
-    // a task has the queue are left to the browser as they were: the list is never made to wait for a pull
+    // a task has the queue are left to the browser as they were: the list is never made to wait for a pull. So is
+    // one the viewport hears passively (canTakeEndInputRef): the browser ignores a cancel asked there and scrolls,
+    // and a stretch drawn for that input would be drawn beside the scroll
     const takeEndInput = (event, delta, across) => {
+
+        if (!canTakeEndInputRef.current) return
 
         if (!event.cancelable || holdRef.current.viewport || DOMManipulationQueue.isBusy()) return
 
