@@ -863,6 +863,12 @@ const useIntersections = ({
 
     }
 
+    // The viewport's forward edge, from the axis, with its leading edge at the head's rest. The head's repositioning
+    // rests the viewport a pixel short of the first row's edge (as isViewportAtEnd reads it); a fixed head rests on
+    // that edge, its mark (enterEndState). One line, for the tail's floor (endMark) and its wait for the head
+    // (tailWaitsForHead): a list that fits its viewport with both ends fixed then rests on both marks
+    const forwardEdgeAtHeadRest = (viewportDim) => (isEndFixed('head') ? 0 : 1) - rowsEdgeAt('head') + viewportDim
+
     // The mark (markFromAxis) is the rows' edge plus that end's slack, or the previous mark where that is further out:
     // growth moves it on, and a shrink leaves the room the viewport had shown. A viewport whose edge is short of the
     // rows' edge has scrolled back to see the content's end, and the mark is reset to it. One definition: nothing
@@ -870,10 +876,10 @@ const useIntersections = ({
     // stands, or on entry.
     // A content shorter than the viewport is at its head and its tail at once, and it rests at its head. Where the
     // head stands (its own end state, through its re-ask, or the host's empty answer there), the tail's mark is never
-    // short of the viewport's forward edge with its leading edge at the head's rest (a pixel past the first row's
-    // edge, as isViewportAtEnd reads it): a mark the viewport could reach only by going past the head's would have
-    // each end bring the viewport back from the other's, in turns, for as long as the list stood. A cradle with rows
-    // above still to come is crossed, which is how the head is asked for them
+    // short of the viewport's forward edge with its leading edge at the head's rest (forwardEdgeAtHeadRest): a mark
+    // the viewport could reach only by going past the head's would have each end bring the viewport back from the
+    // other's, in turns, for as long as the list stood. A cradle with rows above still to come is crossed, which is
+    // how the head is asked for them
     const endMark = (end) => {
 
         const
@@ -881,7 +887,7 @@ const useIntersections = ({
             { viewportEdge, viewportDim } = endGeometry(end),
             rowsEdge = rowsEdgeAt(end),
             headStands = (end == 'tail') && (endStands('head') || isQuietAt('backward')),
-            floor = Math.max(rowsEdge + endSlack(end), headStands ? (1 - rowsEdgeAt('head') + viewportDim) : 0)
+            floor = Math.max(rowsEdge + endSlack(end), headStands ? forwardEdgeAtHeadRest(viewportDim) : 0)
 
         state.markFromAxis = (viewportEdge < rowsEdge) ? floor : Math.max(state.markFromAxis ?? floor, floor)
 
@@ -991,7 +997,13 @@ const useIntersections = ({
     // no quiet window and no wheel cancelling, since the state does from here what a longer hold would. A re-entry
     // during a bring-back neither snaps nor holds: the smooth scroll is already taking the viewport to the mark. An
     // answer that stands the state up again on a kept mark reads the viewport against it: one still past the mark is
-    // returned to it
+    // returned to it.
+    // A fixed head rests on its mark. The mount and the head's repositioning rest the viewport a pixel short of the
+    // first row (isViewportAtEnd), which keeps the head's triggers before the viewport while the head may still
+    // bring rows. From the entry they are not consulted, and a pull is taken from the mark and from no pixel short
+    // of it (takeEndInput), so the pixel is given up here: the axis is put under the viewport, as an arrival seats
+    // it (drawEndElastic), and the viewport is not scrolled. The content moves by that pixel, once. A viewport that
+    // is further from the mark has scrolled there, is left where it is, and arrives. The tail has no such pixel
     const enterEndState = (end, onlyIfPast) => {
 
         const direction = directionAt(end)
@@ -1011,6 +1023,15 @@ const useIntersections = ({
         if (endStateRef.current.glidingTo === null) {
 
             snapToEndMark(end, mark, onlyIfPast)
+
+            if ((end == 'head') && isEndFixed(end) && isViewportAtEnd(end) && (endGeometry(end).viewportEdge < mark)) {
+
+                const { isH, axisAt } = endGeometry(end), seat = Math.floor(axisAt(mark))
+
+                setAxisPosition(isH ? seat : 0, isH ? 0 : seat)
+                readEndElastic(end)
+
+            }
 
             if (holdRef.current.viewport || isScrollInputRecent()) holdScrolling(end)
 
@@ -1113,7 +1134,7 @@ const useIntersections = ({
         const { viewportDim } = endGeometry('tail')
 
         return isFetchOpenAt('head') && !isQuietAt('backward') &&
-            ((1 - rowsEdgeAt('head') + viewportDim) > (rowsEdgeAt('tail') + endSlack('tail')))
+            (forwardEdgeAtHeadRest(viewportDim) > (rowsEdgeAt('tail') + endSlack('tail')))
 
     }
 
