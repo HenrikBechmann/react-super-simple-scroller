@@ -26,6 +26,7 @@ const useRemoveCells = ({
     
     cradleActualRef,
     placeholdersRef,
+    tellEnd,
     callbacksRef,
     
 }) => {
@@ -49,6 +50,10 @@ const useRemoveCells = ({
         const 
             forwardCellIDsToRemove = forwardCellsToRemoveCount?portalIDList.splice(-forwardCellsToRemoveCount):[],
             backwardCellIDsToRemove = portalIDList.splice(0,backwardCellsToRemoveCount)
+
+        // the row at a trimmed end has changed: what was known of the data's end there no longer holds (endMachine)
+        if (forwardCellsToRemoveCount) tellEnd({type: 'invalidated', end: 'tail'})
+        if (backwardCellsToRemoveCount) tellEnd({type: 'invalidated', end: 'head'})
 
         forwardCellIDsToRemove.forEach((ID)=>{
 

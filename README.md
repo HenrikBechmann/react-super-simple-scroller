@@ -454,6 +454,8 @@ A gesture past the mark is not fought while it runs: the viewport is never pinne
 
 A horizontal list mirrors all of this, left for top and right for bottom. `getCradleSpecs().cradleActual.endState` reads both states.
 
+**Inside the scroller (internal, no behaviour change).** The end state is also declared in one place, `src/endMachine.tsx`, as one record with one writer: each end is `away`, `known`, `standing` or `asking`, and the viewport does at most one thing at an end (it is `past` the mark, `returning` to it or `held` on it). The scroller tells that writer each event where it happens. The record runs beside the fields the scroller acts on, and nothing reads it: it is not exported, it is not in `getCradleSpecs()`, and everything above is decided as it was before the record existed.
+
 ## Restoring scroll positions
 
 This section is relevant if your cells have scrolling content.

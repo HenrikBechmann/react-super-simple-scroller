@@ -60,6 +60,7 @@ const useIntersections = ({
     immediateStopScrollingRef,
     holdCrossOpenRef,
     canTakeEndInputRef,
+    tellEnd,
     restoreScrollingTimeoutIDRef,
 
     // methods
@@ -678,6 +679,7 @@ const useIntersections = ({
         hold.viewport?.removeEventListener('wheel', hold.onWheel)
         hold.viewport = null
         hold.endOfData = null
+        tellEnd({type: 'holdReleased'})
 
     }
 
@@ -905,6 +907,7 @@ const useIntersections = ({
 
         if (tail.markFromAxis !== null) tail.markFromAxis -= delta
         if (head.markFromAxis !== null) head.markFromAxis += delta
+        tellEnd({type: 'shifted', delta})
 
         if ((head.shown !== null) || (tail.shown !== null)) readEndIndicators()
 
@@ -942,6 +945,7 @@ const useIntersections = ({
         clearTimeout(state.gestureTimeoutID)
         state.gestureTimeoutID = null
         state.markFromAxis = null
+        tellEnd({type: 'invalidated', end})
 
         yieldBringBack()
 
@@ -1014,12 +1018,15 @@ const useIntersections = ({
         if (insideEndState(end)) {
 
             readViewportAtEnd(end, false)
+            tellEnd({type: 'arrived', end, mark: endStateRef.current[end].markFromAxis, enters: false, inputRecent: false})
             readEndIndicators()
             return
 
         }
 
         const mark = endMark(end)
+
+        tellEnd({type: 'arrived', end, mark, enters: true, inputRecent: isScrollInputRecent()})
 
         if (endStateRef.current.glidingTo === null) {
 
@@ -1085,11 +1092,14 @@ const useIntersections = ({
         clearTimeout(state.gestureTimeoutID)
         state.gestureTimeoutID = null
 
+        if (viewportEdge <= mark) tellEnd({type: 'scrolled', end, read: 'clock', mark, past: false, armed: false})
         if (viewportEdge <= mark) return
 
         const wait = ask
             ? shortMomentumFadeRef.current
             : (endStateRef.current.glidingTo !== null) ? 0 : quietWindowLeft()
+
+        tellEnd({type: 'scrolled', end, read: 'clock', mark, past: true, armed: wait > 0})
 
         if (wait > 0) state.gestureTimeoutID = setTimeout(() => bringBackToEndMark(end, ask), wait)
         else if (inTask) glideToEndMark(end)
@@ -1158,6 +1168,7 @@ const useIntersections = ({
 
                 endStateRef.current[end].markFromAxis = null
                 endMark(end)
+                tellEnd({type: 'resized', end, mark: endStateRef.current[end].markFromAxis})
 
             }
 
@@ -1235,6 +1246,7 @@ const useIntersections = ({
         if (!isEndFixed(end) || !insideEndState(end)) {
             state.travel = state.drawn = 0
             state.short = false
+            tellEnd({type: 'scrolled', end, read: 'stretch', travel: 0, drawn: 0})
             return
         }
 
@@ -1249,6 +1261,7 @@ const useIntersections = ({
             state.drawn = gap
             state.travel = elasticTravelAt(gap, cap)
             state.short = past <= -1
+            tellEnd({type: 'scrolled', end, read: 'stretch', travel: state.travel, drawn: gap})
             if (!gap && !Number.isInteger(axis)) settleAxisAtEnd(end)
             return
         }
@@ -1260,6 +1273,7 @@ const useIntersections = ({
             setAxisPosition(isH ? seat : 0, isH ? 0 : seat)
             readEndElastic(end)
             holdScrolling(end)
+            tellEnd({type: 'scrolled', end, read: 'arrival'})
 
             return
 
@@ -1275,6 +1289,7 @@ const useIntersections = ({
 
         state.travel = travel
         state.drawn = gap - along
+        tellEnd({type: 'scrolled', end, read: 'stretch', travel, drawn: gap - along})
 
     }
 
@@ -1288,6 +1303,7 @@ const useIntersections = ({
         if (!isEndFixed(end) || !insideEndState(end)) {
             state.travel = state.drawn = 0
             state.short = false
+            tellEnd({type: 'scrolled', end, read: 'stretch', travel: 0, drawn: 0})
             return
         }
 
@@ -1299,6 +1315,7 @@ const useIntersections = ({
         state.drawn = gap
         state.travel = elasticTravelAt(gap, endElasticCap(viewportDim))
         state.short = past <= -1
+        tellEnd({type: 'scrolled', end, read: 'stretch', travel: state.travel, drawn: gap})
 
     }
 
@@ -1486,6 +1503,7 @@ const useIntersections = ({
 
         if (scrollUnheard) onEndScroll()
         endStateRef.current.glidingTo = null
+        tellEnd({type: 'returned', way: 'glide'})
         rereadEnds()
 
     }
@@ -1505,6 +1523,7 @@ const useIntersections = ({
 
         if (!ask || isEndFixed(end)) readViewportAtEnd(end, false)
         else if (insideEndState(end)) reaskEnd(end)
+        else tellEnd({type: 'gestureEnded', end, part: 'clock', ask: false, finger: endStateRef.current.touches.size > 0})
 
     }
 
@@ -1520,6 +1539,7 @@ const useIntersections = ({
 
         clearTimeout(state.gestureTimeoutID)
         state.gestureTimeoutID = null
+        tellEnd({type: 'gestureEnded', end, part: 'clock', ask: false, finger: endStateRef.current.touches.size > 0})
 
         if (!viewportRef.current || !endStands(end) || endStateRef.current.touches.size) return
 
@@ -1528,12 +1548,15 @@ const useIntersections = ({
             { isH, viewportEdge, scrollPositionAt } = endGeometry(end),
             position = scrollPositionAt(mark)
 
+        if (viewportEdge <= mark) tellEnd({type: 'scrolled', end, read: 'clock', mark, past: false, armed: false})
         if (viewportEdge <= mark) return
 
         if (isEndFixed(end)) {
             slideToEndMark(end)
             return
         }
+
+        tellEnd({type: 'gestureEnded', end, part: 'return', way: 'glide', target: position})
 
         if (endStateRef.current.glidingTo === position) return
 
@@ -1563,12 +1586,14 @@ const useIntersections = ({
         const slide = slideAxis(isH ? axis - position : 0, isH ? 0 : axis - position, END_RETURN)
 
         endStateRef.current.sliding = {end, slide}
+        tellEnd({type: 'gestureEnded', end, part: 'return', way: 'slide', target: position})
 
         slide.finished.then(() => {
 
             if (endStateRef.current.sliding?.slide !== slide) return
 
             endStateRef.current.sliding = null
+            tellEnd({type: 'returned', way: 'slide'})
 
             if (viewportRef.current) readEndIndicators()
 
@@ -1589,6 +1614,7 @@ const useIntersections = ({
 
         endStateRef.current.sliding = null
         sliding.slide.cancel()
+        tellEnd({type: 'input', way: 'slide'})
 
         setAxisPosition(axisPositionRef.current.x + left.x, axisPositionRef.current.y + left.y)
 
@@ -1617,6 +1643,7 @@ const useIntersections = ({
         if (state.glidingTo !== null) {
             viewport.scrollTo(viewport.scrollLeft, viewport.scrollTop)
             state.glidingTo = null
+            tellEnd({type: 'input', way: 'glide'})
         }
 
         rereadEnds()
@@ -1737,6 +1764,7 @@ const useIntersections = ({
     // out past the mark while the answer is out is read as anywhere the end stands)
     const reaskEnd = (end) => {
 
+        tellEnd({type: 'gestureEnded', end, part: 'clock', ask: true, finger: endStateRef.current.touches.size > 0})
         endStateRef.current[end].reaskOpen = true
 
         const task = async () => {
@@ -1796,6 +1824,7 @@ const useIntersections = ({
 
             if (cellsAtEnd() > cellsBefore || isFetchOpenAt(end)) return false
 
+            if (!isQuietAt(direction) && !isCradleShortAt(end)) tellEnd({type: 'invalidated', end})
             if (!isQuietAt(direction) && !isCradleShortAt(end)) return false
 
             enterEndState(end, onlyIfPast)

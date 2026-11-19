@@ -22,6 +22,7 @@ import { isValidID, reportError, reportWarning, errorMessage } from './utilities
 import { createCellScrollState, recordCellScroll, restoreCellScroll } from './cellScroll'
 import useCells from './useCells'
 import { createPlaceholderState, DEFAULT_FETCH_CEILING } from './placeholders'
+import { createEndMachine } from './endMachine'
 import useNewCradlePotential from './useNewCradlePotential'
 import useRemoveCells from './useRemoveCells'
 import useIntersections from './useIntersections'
@@ -204,6 +205,9 @@ const Viewport = (props) =>{
 
         // the placeholder cells and the one fetch out at a time (useCells); a holder of its own, as callbacksRef
         placeholdersRef = useState(() => ({current: createPlaceholderState()}))[0],
+        // the end state declared as one record with one writer (endMachine). The hooks tell it each event beside the
+        // fields they act on, and nothing reads it
+        tellEnd = useState(createEndMachine)[0].tell,
         // the intersections' answer to an empty fetch at an end (useIntersections sets it, useCells calls it)
         onRunEndedRef = useRef(null),
         // the intersections' bring of a cradle the scroll has outrun, for the answer's task (useIntersections sets
@@ -629,6 +633,7 @@ const Viewport = (props) =>{
             fetchCeilingRef,
             placeholdersRef,
             onRunEndedRef,
+            tellEnd,
             bringOutrunCradleRef,
             resetRef,
             updateCurrentAxisReferenceID,
@@ -654,6 +659,7 @@ const Viewport = (props) =>{
 
             cradleActualRef,
             placeholdersRef,
+            tellEnd,
 
             callbacksRef,
 
@@ -677,6 +683,7 @@ const Viewport = (props) =>{
             immediateStopScrollingRef,
             holdCrossOpenRef,
             canTakeEndInputRef,
+            tellEnd,
             scrollTopRef,
             scrollLeftRef,
             restoreScrollingTimeoutIDRef,

@@ -1,4 +1,4 @@
-declare const useRemoveCells: ({ portalIDListRef, cellPortalListRef, cellDataListRef, portalContainerMapRef, headBandListRef, tailBandListRef, leadHeadblockBandRef, leadTailblockBandRef, cradleActualRef, placeholdersRef, callbacksRef, }: {
+declare const useRemoveCells: ({ portalIDListRef, cellPortalListRef, cellDataListRef, portalContainerMapRef, headBandListRef, tailBandListRef, leadHeadblockBandRef, leadTailblockBandRef, cradleActualRef, placeholdersRef, tellEnd, callbacksRef, }: {
     portalIDListRef: any;
     cellPortalListRef: any;
     cellDataListRef: any;
@@ -9,6 +9,7 @@ declare const useRemoveCells: ({ portalIDListRef, cellPortalListRef, cellDataLis
     leadTailblockBandRef: any;
     cradleActualRef: any;
     placeholdersRef: any;
+    tellEnd: any;
     callbacksRef: any;
 }) => ({ backwardCellsToRemoveCount, forwardCellsToRemoveCount, }: {
     backwardCellsToRemoveCount: any;

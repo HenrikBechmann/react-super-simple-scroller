@@ -65,6 +65,7 @@ const useCells = ({
     fetchCeilingRef,
     placeholdersRef,
     onRunEndedRef,
+    tellEnd,
     bringOutrunCradleRef,
     resetRef,
     updateCurrentAxisReferenceID,
@@ -464,6 +465,8 @@ const useCells = ({
     // moves the viewport with no input, and a mark keyed on the position dropped on every shift and asked again
     const markQuiet = (direction, reason) => {
 
+        tellEnd({type: 'runEnded', end: (direction == 'forward')?'tail':'head', reason})
+
         return placeholderState().quiet[direction] = {
             reason,
             cradleActual: cradleActualRef.current,
@@ -503,6 +506,8 @@ const useCells = ({
         state.quiet.backward = null
         state.endAsk.forward = null
         state.endAsk.backward = null
+        tellEnd({type: 'invalidated', end: 'head'})
+        tellEnd({type: 'invalidated', end: 'tail'})
     }
 
     // a gesture past an end's mark asks there again (the end state's re-ask). With placeholders on, that ask stands
@@ -757,6 +762,7 @@ const useCells = ({
 
                 if (!room) {
                     placeholderState().endAsk[direction] = null
+                    tellEnd({type: 'invalidated', end: (direction == 'forward')?'tail':'head'})
                     continue
                 }
 
@@ -963,8 +969,14 @@ const useCells = ({
             return
         }
 
+        // the answer to an end's ask has passed every gate above: the declared end state is told it (endMachine)
+        const tellAnswered = (outcome) => {
+            if (endAsk) tellEnd({type: 'answered', end: (direction == 'forward')?'tail':'head', outcome})
+        }
+
         if (!answer.ok) {
             reportError(callbacksRef, source, `fetchCells rejected: ${errorMessage(answer.error)}`, args, {attempt})
+            tellAnswered('failed')
             return withdrawRun(direction, startCode, referenceID)
         }
 
@@ -972,6 +984,7 @@ const useCells = ({
 
         if (!Array.isArray(cells)) {
             reportError(callbacksRef, source, 'fetchCells must return an array of cellPacks', args, {return: cells})
+            tellAnswered('failed')
             return withdrawRun(direction, startCode, referenceID)
         }
 
@@ -981,6 +994,7 @@ const useCells = ({
             reportFailed(callbacksRef, source, 'too many cellPacks; excess not loaded', excessIDList)
         }
 
+        if (!cells.length) tellAnswered('none')
         if (!cells.length) return endRun(direction, startCode, referenceID) // the end of the data at this end
 
         // a repeat within the batch is skipped and reported, as the inline path takes it; the rest still fill
@@ -988,6 +1002,7 @@ const useCells = ({
 
         if (!cells.every((cellPack) => isValidCellPack(cellPack, source))) {
             reportError(callbacksRef, source, 'one or more errors found in fetched cellPacks. Loading aborted', args, {return: cells})
+            tellAnswered('failed')
             return withdrawRun(direction, startCode, referenceID)
         }
 
@@ -1026,6 +1041,8 @@ const useCells = ({
 
         setPortalRenderList([...cellPortalListRef.current])
         updateCurrentAxisReferenceID()
+
+        tellAnswered('rows')
 
         // rows at an end are not that end's end of the data: an end state standing there is left (useIntersections)
         if (placed) onRunEndedRef.current && onRunEndedRef.current(direction, 'rows')
