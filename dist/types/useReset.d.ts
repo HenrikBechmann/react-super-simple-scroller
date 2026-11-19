@@ -1,4 +1,4 @@
-declare const useReset: ({ DOMManipulationQueueRef, cradlePotentialRef, portalContainerMapRef, portalIDListRef, cellPortalListRef, cellDataListRef, tailBandListRef, headBandListRef, cradleActualRef, setPortalRenderList, assertIntersectionsDisconnect, requestIntersectionsConnect, getSeed, callbacksRef, heldSeedReferenceIDRef, currentAxisReferenceIDRef, resetAxisPosition, clearPlaceholders, }: {
+declare const useReset: ({ DOMManipulationQueueRef, cradlePotentialRef, portalContainerMapRef, portalIDListRef, cellPortalListRef, cellDataListRef, tailBandListRef, headBandListRef, cradleActualRef, setPortalRenderList, assertIntersectionsDisconnect, requestIntersectionsConnect, getSeed, callbacksRef, heldSeedReferenceIDRef, currentAxisReferenceIDRef, resetAxisPosition, clearPlaceholders, resetRef, }: {
     DOMManipulationQueueRef: any;
     cradlePotentialRef: any;
     portalContainerMapRef: any;
@@ -17,5 +17,6 @@ declare const useReset: ({ DOMManipulationQueueRef, cradlePotentialRef, portalCo
     currentAxisReferenceIDRef: any;
     resetAxisPosition: any;
     clearPlaceholders: any;
+    resetRef: any;
 }) => any;
 export default useReset;

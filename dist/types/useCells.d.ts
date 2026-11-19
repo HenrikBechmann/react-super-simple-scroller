@@ -1,4 +1,4 @@
-declare const useCells: ({ scrollerName, DOMManipulationQueueRef, viewportRef, orientationRef, layoutRef, spacingRef, cradlePotentialRef, cradleActualRef, cellPortalListRef, portalIDListRef, cellDataListRef, portalContainerMapRef, cellDimensionsRef, tailblockRef, tailBandListRef, leadTailblockBandRef, headblockRef, headBandListRef, leadHeadblockBandRef, setPortalRenderList, fetchCellsRef, operationsRef, fetchCeilingRef, placeholdersRef, onRunEndedRef, bringOutrunCradleRef, updateCurrentAxisReferenceID, currentAxisReferenceIDRef, callbacksRef, bandMutationObserverRef, requestIntersectionsConnect, trimCradle, }: {
+declare const useCells: ({ scrollerName, DOMManipulationQueueRef, viewportRef, orientationRef, layoutRef, spacingRef, cradlePotentialRef, cradleActualRef, cellPortalListRef, portalIDListRef, cellDataListRef, portalContainerMapRef, cellDimensionsRef, tailblockRef, tailBandListRef, leadTailblockBandRef, headblockRef, headBandListRef, leadHeadblockBandRef, setPortalRenderList, fetchCellsRef, operationsRef, fetchCeilingRef, placeholdersRef, onRunEndedRef, bringOutrunCradleRef, resetRef, updateCurrentAxisReferenceID, currentAxisReferenceIDRef, callbacksRef, bandMutationObserverRef, requestIntersectionsConnect, trimCradle, }: {
     scrollerName: any;
     DOMManipulationQueueRef: any;
     viewportRef: any;
@@ -25,6 +25,7 @@ declare const useCells: ({ scrollerName, DOMManipulationQueueRef, viewportRef, o
     placeholdersRef: any;
     onRunEndedRef: any;
     bringOutrunCradleRef: any;
+    resetRef: any;
     updateCurrentAxisReferenceID: any;
     currentAxisReferenceIDRef: any;
     callbacksRef: any;

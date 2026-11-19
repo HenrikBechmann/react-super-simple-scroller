@@ -66,6 +66,7 @@ const useCells = ({
     placeholdersRef,
     onRunEndedRef,
     bringOutrunCradleRef,
+    resetRef,
     updateCurrentAxisReferenceID,
     currentAxisReferenceIDRef,
     callbacksRef,
@@ -832,7 +833,7 @@ const useCells = ({
                     // scroller's response to it still to run. The cradle is brought first and the run stood from
                     // there, so the rows fill under the viewport; an ask that fill lets go is answered late
                     if (bringOutrunCradleRef.current && bringOutrunCradleRef.current()) fillWithPlaceholders()
-                    applyAnswer(pending, attempt, answer)
+                    await applyAnswer(pending, attempt, answer) // with the seed it makes for a cradle it left empty
                 } finally {
                     requestIntersectionsConnect()
                 }
@@ -964,16 +965,14 @@ const useCells = ({
 
         if (!answer.ok) {
             reportError(callbacksRef, source, `fetchCells rejected: ${errorMessage(answer.error)}`, args, {attempt})
-            withdrawRun(direction)
-            return
+            return withdrawRun(direction, startCode, referenceID)
         }
 
         let cells = answer.cells
 
         if (!Array.isArray(cells)) {
             reportError(callbacksRef, source, 'fetchCells must return an array of cellPacks', args, {return: cells})
-            withdrawRun(direction)
-            return
+            return withdrawRun(direction, startCode, referenceID)
         }
 
         if (cells.length > count) {
@@ -982,18 +981,14 @@ const useCells = ({
             reportFailed(callbacksRef, source, 'too many cellPacks; excess not loaded', excessIDList)
         }
 
-        if (!cells.length) { // the end of the data at this end
-            endRun(direction, startCode)
-            return
-        }
+        if (!cells.length) return endRun(direction, startCode, referenceID) // the end of the data at this end
 
         // a repeat within the batch is skipped and reported, as the inline path takes it; the rest still fill
         cells = dropRepeats(cells, source)
 
         if (!cells.every((cellPack) => isValidCellPack(cellPack, source))) {
             reportError(callbacksRef, source, 'one or more errors found in fetched cellPacks. Loading aborted', args, {return: cells})
-            withdrawRun(direction)
-            return
+            return withdrawRun(direction, startCode, referenceID)
         }
 
         // either answer starts nearest the real rows: 'after' is REF+1, REF+2, …, and 'before' is REF-1, REF-2, …,
@@ -1082,14 +1077,27 @@ const useCells = ({
 
     }
 
+    // A run's answer that leaves no row and no placeholder standing is not an empty list. The run stood alone: the
+    // rows it was asked beside left while its ask was out (a resize's cut reads no run's anchor), and nothing that
+    // fills a cradle starts from an empty one. Only the opening's ask ('at') may leave the cradle empty: there, and
+    // only there, an empty cradle is an empty list
+    const isEmptiedByRun = (startCode) => (startCode != 'at') && !portalIDListRef.current.length
+
+    // the list is seeded again at the row the ask named, inside the answer's own task. The seed's ask is the
+    // opening's: answered with no rows, or failed, it leaves the empty list to the host, so one such answer is
+    // followed by one seed and never by a second
+    const seedAgain = (referenceID) => resetRef.current(referenceID)
+
     // an empty answer: the positions at that end are taken down, and the end state is told
-    const endRun = (direction, startCode) => {
+    const endRun = (direction, startCode, referenceID) => {
 
         removePlaceholderCells(standingAt(direction))
 
         trimCradle() // the run has answered: the trim it deferred, as applyAnswer takes it
 
         setPortalRenderList([...cellPortalListRef.current])
+
+        if (isEmptiedByRun(startCode)) return seedAgain(referenceID)
 
         if (!portalIDListRef.current.length) {
 
@@ -1119,13 +1127,16 @@ const useCells = ({
     // a failed answer: the run is withdrawn, and the next scroll asks again. A viewport that had scrolled onto the
     // placeholders is brought back as on an empty answer: left past the last row, the overflow would be seen again
     // on the reconnect and ask again, once a frame, for as long as the scroll input is recent
-    const withdrawRun = (direction) => {
+    const withdrawRun = (direction, startCode, referenceID) => {
 
         removePlaceholderCells(standingAt(direction))
 
         trimCradle() // the run has answered: the trim it deferred, as applyAnswer takes it
 
         setPortalRenderList([...cellPortalListRef.current])
+
+        if (isEmptiedByRun(startCode)) return seedAgain(referenceID)
+
         updateCurrentAxisReferenceID()
         onRunEndedRef.current && onRunEndedRef.current(direction, 'failed')
         markQuiet(direction, 'failed') // after the snap, as endRun marks

@@ -31,6 +31,7 @@ const useReset = ({
 
     resetAxisPosition,
     clearPlaceholders,
+    resetRef,
 
 }) => {
 
@@ -161,6 +162,8 @@ const useReset = ({
         return true
 
     },[])
+
+    resetRef.current = reset
 
     return reset
 

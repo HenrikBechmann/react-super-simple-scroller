@@ -209,6 +209,9 @@ const Viewport = (props) =>{
         // the intersections' bring of a cradle the scroll has outrun, for the answer's task (useIntersections sets
         // it, useCells calls it)
         bringOutrunCradleRef = useRef(null),
+        // the reset of the cradle to a seed, for a run's answer that leaves the cradle empty (useReset sets it,
+        // useCells calls it)
+        resetRef = useRef(null),
 
         // the mount-time seed; the prop is inert after mount
         seedReferenceIDRef = useRef(seedReferenceID),
@@ -627,6 +630,7 @@ const Viewport = (props) =>{
             placeholdersRef,
             onRunEndedRef,
             bringOutrunCradleRef,
+            resetRef,
             updateCurrentAxisReferenceID,
             currentAxisReferenceIDRef,
             callbacksRef,
@@ -739,6 +743,7 @@ const Viewport = (props) =>{
             currentAxisReferenceIDRef,
             resetAxisPosition,
             clearPlaceholders,
+            resetRef,
 
         }),
 
