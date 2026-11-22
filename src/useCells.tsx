@@ -429,13 +429,44 @@ const useCells = ({
         return undefined
     }
 
-    // the index of the real row the run standing at an end is anchored on, or -1 where no run stands there. The
-    // trim reads it: that row is never trimmed, because the next ask is made from it and an empty answer leaves
+    // the opening stands while its ask is out and no row has come: nothing stands to act on or to fill from, and no
+    // other ask brings the first rows, so neither a structural call nor a fill the host calls for withdraws it
+    const openingStands = () => !!placeholderState().pending && (lastRealID() === undefined)
+
+    // the index of the real row the run standing at an end is anchored on, or -1 where no run stands there. A cut
+    // reads it (cutLimits): that row is never cut, because the next ask is made from it and an empty answer leaves
     // the cradle standing on it
     const runAnchorIndex = (direction) => {
         if (!standingAt(direction).length) return -1
         const anchor = (direction == 'forward')?lastRealID():firstRealID()
         return (anchor === undefined)?-1:portalIDListRef.current.indexOf(anchor)
+    }
+
+    // the most a cut may take from each end of the cradle while a placeholder run stands, read when the cut is made.
+    // Both cuts take it: the trim, and the resize's when it lays the cradle out again. A cut never removes the real
+    // row a run is anchored on: the cut at the head stops short of the forward run's anchor, the cut at the tail of
+    // the backward run's. An axis standing inside a run is a shift onto rows not yet answered for: the cut behind it
+    // waits for the answer, because an empty one brings the viewport back to the anchor, and the rows behind the
+    // anchor are what it then shows
+    const cutLimits = () => {
+
+        const
+            forwardAnchor = runAnchorIndex('forward'),
+            backwardAnchor = runAnchorIndex('backward'),
+            axisIndex = portalIDListRef.current.length - cradleActualRef.current.forwardCells,
+            axisInForwardRun = (forwardAnchor != -1) && (axisIndex > forwardAnchor),
+            axisInBackwardRun = (backwardAnchor != -1) && (axisIndex < backwardAnchor)
+
+        return {
+            forwardCut: axisInBackwardRun?0:
+                ((backwardAnchor == -1)?Infinity:(portalIDListRef.current.length - 1 - backwardAnchor)),
+            backwardCut: axisInForwardRun?0:
+                ((forwardAnchor == -1)?Infinity:forwardAnchor),
+            forwardAnchor,
+            axisIndex,
+            axisInForwardRun,
+        }
+
     }
 
     const forwardRoom = () => {
@@ -1162,10 +1193,13 @@ const useCells = ({
 
     }
 
-    // every standing placeholder goes, and the pending answer with it: a structural call is about to move rows
+    // every standing placeholder goes, and the pending answer with it: a structural call is about to move rows. The
+    // opening is left as it stands: the call has no row to move, and only the opening's answer brings one
     const withdrawPlaceholders = () => {
 
         const state = placeholderState()
+
+        if (openingStands()) return false
 
         dropPending()
         clearQuietMarks()
@@ -1536,7 +1570,8 @@ const useCells = ({
         clearQuietAt,
         isEndAskAt,
         endIndicatorComponentType,
-        runAnchorIndex,
+        cutLimits,
+        openingStands,
         rebuildPlaceholderPortals,
         placeholderReport,
     }

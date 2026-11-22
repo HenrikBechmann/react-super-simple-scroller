@@ -70,6 +70,7 @@ const useCalls = ({
     cellScrollsRef,
     placeholdersRef,
     withdrawPlaceholders,
+    openingStands,
     clearQuietMarks,
     placeholderReport,
     endStateReport,
@@ -814,7 +815,7 @@ const useCalls = ({
 
             // the opening ask is the fill in progress: nothing stands to fill from until it is answered, and
             // withdrawing it would leave the cradle empty
-            if (!getCradleIDList().length && placeholdersRef.current.pending) return true
+            if (openingStands()) return true
 
             // the measure disconnects the observers when it brings the cradle, so it stands under the reconnect's
             // request with everything after it, the early return included

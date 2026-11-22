@@ -462,16 +462,10 @@ const Viewport = (props) =>{
             tailCellOffset = (cradleActual.cellsPerBand - tailBandList[0].childElementCount)
         }
 
-        // the trim never removes the real row a standing placeholder run is anchored on: the head trim stops short
-        // of the forward run's anchor, the tail trim of the backward run's. An axis standing inside a run is a
-        // shift onto rows not yet answered for: the trim behind it waits for the answer, because an empty one
-        // brings the viewport back to the anchor, and the rows behind the anchor are what it then shows
+        // what the trim may take while a placeholder run stands is the reading every cut takes (cutLimits): never
+        // the real row a run is anchored on, and nothing behind an axis standing inside a run
         const
-            forwardAnchor = runAnchorIndex('forward'),
-            backwardAnchor = runAnchorIndex('backward'),
-            axisIndex = portalIDListRef.current.length - cradleActual.forwardCells,
-            axisInForwardRun = (forwardAnchor != -1) && (axisIndex > forwardAnchor),
-            axisInBackwardRun = (backwardAnchor != -1) && (axisIndex < backwardAnchor)
+            {forwardCut, backwardCut, forwardAnchor, axisIndex, axisInForwardRun} = cutLimits()
 
         // the trim behind the axis also keeps the rows a put-back would stand on. A viewport whose forward edge stands
         // past the real rows ahead of the axis (a crossing on a full cradle, an outrun) is a bet that rows are coming;
@@ -516,12 +510,12 @@ const Viewport = (props) =>{
         }
 
         const
-            forwardCellsToRemoveCount = axisInBackwardRun?0:Math.min(
+            forwardCellsToRemoveCount = Math.min(
                 Math.max(cradleActual.forwardCells - (cradlePotential.forwardCells - tailCellOffset),0),
-                (backwardAnchor == -1)?Infinity:(portalIDListRef.current.length - 1 - backwardAnchor)),
-            backwardCellsToRemoveCount = axisInForwardRun?0:Math.min(
+                forwardCut),
+            backwardCellsToRemoveCount = Math.min(
                 Math.max(cradleActual.backwardCells - cradlePotential.backwardCells - putBackKeep(),0),
-                (forwardAnchor == -1)?Infinity:forwardAnchor)
+                backwardCut)
 
         removeCells({
             forwardCellsToRemoveCount,
@@ -598,7 +592,7 @@ const Viewport = (props) =>{
     // ===================[ breakout code to use* modules ]======================
 
     const 
-        {getCells, withdrawPlaceholders, abortFetches, clearPlaceholders, isFetchOpenAt, isEndFixed, isCellScrollRestored, markQuiet, isQuietAt, quietReasonAt, clearQuietMarks, clearQuietAt, isEndAskAt, endIndicatorComponentType, runAnchorIndex, rebuildPlaceholderPortals, placeholderReport} = useCells({
+        {getCells, withdrawPlaceholders, abortFetches, clearPlaceholders, isFetchOpenAt, isEndFixed, isCellScrollRestored, markQuiet, isQuietAt, quietReasonAt, clearQuietMarks, clearQuietAt, isEndAskAt, endIndicatorComponentType, cutLimits, openingStands, rebuildPlaceholderPortals, placeholderReport} = useCells({
 
             scrollerName,
 
@@ -783,6 +777,7 @@ const Viewport = (props) =>{
             requestIntersectionsConnect,
             setPortalRenderList,
             removeCells,
+            cutLimits,
             trimCradle,
             getSeed,
             followViewport,
@@ -842,6 +837,7 @@ const Viewport = (props) =>{
             cellScrollsRef,
             placeholdersRef,
             withdrawPlaceholders,
+            openingStands,
             clearQuietMarks,
             placeholderReport,
             endStateReport,

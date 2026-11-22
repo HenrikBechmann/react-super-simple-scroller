@@ -52,7 +52,14 @@ declare const useCells: ({ scrollerName, DOMManipulationQueueRef, viewportRef, o
     clearQuietAt: (end: any) => void;
     isEndAskAt: (direction: any) => boolean;
     endIndicatorComponentType: () => any;
-    runAnchorIndex: (direction: any) => any;
+    cutLimits: () => {
+        forwardCut: number;
+        backwardCut: any;
+        forwardAnchor: any;
+        axisIndex: number;
+        axisInForwardRun: boolean;
+    };
+    openingStands: () => boolean;
     rebuildPlaceholderPortals: () => void;
     placeholderReport: () => {
         forwardPlaceholders: number;

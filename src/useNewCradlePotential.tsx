@@ -34,6 +34,7 @@ const useCradlePotential = ({
     requestIntersectionsConnect,
     setPortalRenderList,
     removeCells,
+    cutLimits,
     trimCradle,
     getSeed,
     followViewport,
@@ -103,11 +104,17 @@ const useCradlePotential = ({
                 updateBand(band)
             })
 
+            // while a placeholder run stands, what this layout may cut is what the trim may (cutLimits): the fit at
+            // each end reaches every cell the cut may not take, past the potential's band count where it must. The
+            // trim takes the excess when the run is answered
+            const {forwardCut, backwardCut} = cutLimits()
+
             // --------------------[ update headblock ]----------------------
 
-            const headBandsToFit = 
+            const headBandsToFit = Math.max(
                     Math.min(cradlePotential.backwardBands, 
-                        Math.ceil(startingCradleActual.backwardCells/newCellsPerBand))
+                        Math.ceil(startingCradleActual.backwardCells/newCellsPerBand)),
+                    Math.ceil((startingCradleActual.backwardCells - backwardCut)/newCellsPerBand))
 
             let newBackwardCellCount = 0
 
@@ -157,9 +164,10 @@ const useCradlePotential = ({
             // ------------------------[ update tailblock ]--------------------------
 
             const
-                tailBandsToFit = 
+                tailBandsToFit = Math.max(
                     Math.min(cradlePotential.forwardBands, 
-                        Math.ceil(startingCradleActual.forwardCells/newCellsPerBand))
+                        Math.ceil(startingCradleActual.forwardCells/newCellsPerBand)),
+                    Math.ceil((startingCradleActual.forwardCells - forwardCut)/newCellsPerBand))
 
             let newForwardCellCount = 0
 
