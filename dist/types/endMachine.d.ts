@@ -96,6 +96,10 @@ export type EndEvent = {
     end: End;
     mark: number;
 } | {
+    type: 'measured';
+    end: End;
+    mark: number;
+} | {
     type: 'shifted';
     delta: number;
 };
@@ -105,3 +109,8 @@ export declare const createEndMachine: () => {
     tell: (event: EndEvent) => void;
     read: () => EndMachineState;
 };
+export declare const isEndKnown: (state: EndMachineState, end: End) => boolean;
+export declare const isEndStanding: (state: EndMachineState, end: End) => boolean;
+export declare const isEndAsking: (state: EndMachineState, end: End) => boolean;
+export declare const endReasonAt: (state: EndMachineState, end: End) => EndReason | null;
+export declare const endMarkAt: (state: EndMachineState, end: End) => number | null;

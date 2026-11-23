@@ -1,4 +1,4 @@
-declare const useCells: ({ scrollerName, DOMManipulationQueueRef, viewportRef, orientationRef, layoutRef, spacingRef, cradlePotentialRef, cradleActualRef, cellPortalListRef, portalIDListRef, cellDataListRef, portalContainerMapRef, cellDimensionsRef, tailblockRef, tailBandListRef, leadTailblockBandRef, headblockRef, headBandListRef, leadHeadblockBandRef, setPortalRenderList, fetchCellsRef, operationsRef, fetchCeilingRef, placeholdersRef, onRunEndedRef, tellEnd, bringOutrunCradleRef, resetRef, updateCurrentAxisReferenceID, currentAxisReferenceIDRef, callbacksRef, bandMutationObserverRef, requestIntersectionsConnect, trimCradle, }: {
+declare const useCells: ({ scrollerName, DOMManipulationQueueRef, viewportRef, orientationRef, layoutRef, spacingRef, cradlePotentialRef, cradleActualRef, cellPortalListRef, portalIDListRef, cellDataListRef, portalContainerMapRef, cellDimensionsRef, tailblockRef, tailBandListRef, leadTailblockBandRef, headblockRef, headBandListRef, leadHeadblockBandRef, setPortalRenderList, fetchCellsRef, operationsRef, fetchCeilingRef, placeholdersRef, onRunEndedRef, tellEnd, readEnd, bringOutrunCradleRef, resetRef, updateCurrentAxisReferenceID, currentAxisReferenceIDRef, callbacksRef, bandMutationObserverRef, requestIntersectionsConnect, trimCradle, }: {
     scrollerName: any;
     DOMManipulationQueueRef: any;
     viewportRef: any;
@@ -25,6 +25,7 @@ declare const useCells: ({ scrollerName, DOMManipulationQueueRef, viewportRef, o
     placeholdersRef: any;
     onRunEndedRef: any;
     tellEnd: any;
+    readEnd: any;
     bringOutrunCradleRef: any;
     resetRef: any;
     updateCurrentAxisReferenceID: any;
@@ -47,7 +48,8 @@ declare const useCells: ({ scrollerName, DOMManipulationQueueRef, viewportRef, o
         endID: any;
     };
     isQuietAt: (direction: any) => boolean;
-    quietReasonAt: (direction: any) => any;
+    quietMarkStandsAt: (direction: any) => boolean;
+    quietReasonAt: (direction: any) => import("./endMachine").EndReason;
     clearQuietMarks: () => void;
     clearQuietAt: (end: any) => void;
     isEndAskAt: (direction: any) => boolean;
@@ -69,8 +71,8 @@ declare const useCells: ({ scrollerName, DOMManipulationQueueRef, viewportRef, o
         firstRealReferenceID: any;
         lastRealReferenceID: any;
         quiet: {
-            forward: any;
-            backward: any;
+            forward: import("./endMachine").EndReason;
+            backward: import("./endMachine").EndReason;
         };
     };
 };

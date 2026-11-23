@@ -206,8 +206,8 @@ const Viewport = (props) =>{
         // the placeholder cells and the one fetch out at a time (useCells); a holder of its own, as callbacksRef
         placeholdersRef = useState(() => ({current: createPlaceholderState()}))[0],
         // the end state declared as one record with one writer (endMachine). The hooks tell it each event beside the
-        // fields they act on, and nothing reads it
-        tellEnd = useState(createEndMachine)[0].tell,
+        // fields they act on, and read it through the module's readings
+        { tell: tellEnd, read: readEnd } = useState(createEndMachine)[0],
         // the intersections' answer to an empty fetch at an end (useIntersections sets it, useCells calls it)
         onRunEndedRef = useRef(null),
         // the intersections' bring of a cradle the scroll has outrun, for the answer's task (useIntersections sets
@@ -592,7 +592,7 @@ const Viewport = (props) =>{
     // ===================[ breakout code to use* modules ]======================
 
     const 
-        {getCells, withdrawPlaceholders, abortFetches, clearPlaceholders, isFetchOpenAt, isEndFixed, isCellScrollRestored, markQuiet, isQuietAt, quietReasonAt, clearQuietMarks, clearQuietAt, isEndAskAt, endIndicatorComponentType, cutLimits, openingStands, rebuildPlaceholderPortals, placeholderReport} = useCells({
+        {getCells, withdrawPlaceholders, abortFetches, clearPlaceholders, isFetchOpenAt, isEndFixed, isCellScrollRestored, markQuiet, isQuietAt, quietMarkStandsAt, quietReasonAt, clearQuietMarks, clearQuietAt, isEndAskAt, endIndicatorComponentType, cutLimits, openingStands, rebuildPlaceholderPortals, placeholderReport} = useCells({
 
             scrollerName,
 
@@ -628,6 +628,7 @@ const Viewport = (props) =>{
             placeholdersRef,
             onRunEndedRef,
             tellEnd,
+            readEnd,
             bringOutrunCradleRef,
             resetRef,
             updateCurrentAxisReferenceID,
@@ -678,6 +679,7 @@ const Viewport = (props) =>{
             holdCrossOpenRef,
             canTakeEndInputRef,
             tellEnd,
+            readEnd,
             scrollTopRef,
             scrollLeftRef,
             restoreScrollingTimeoutIDRef,
@@ -713,6 +715,7 @@ const Viewport = (props) =>{
             isEndFixed,
             markQuiet,
             isQuietAt,
+            quietMarkStandsAt,
             quietReasonAt,
             clearQuietAt,
             isEndAskAt,

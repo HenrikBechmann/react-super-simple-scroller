@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useRef } from 'react'
 
 import { reportError, errorMessage } from './utilities'
 import { isPlaceholderID } from './placeholders'
+import { isEndStanding, endMarkAt } from './endMachine'
 
 // The end state (below) rests the viewport's edge this far past the content's edge at the tail in variable layout, so
 // that the rows' own settling there (a late image, a reflow) is absorbed in the room rather than moving the list;
@@ -61,6 +62,7 @@ const useIntersections = ({
     holdCrossOpenRef,
     canTakeEndInputRef,
     tellEnd,
+    readEnd,
     restoreScrollingTimeoutIDRef,
 
     // methods
@@ -77,6 +79,7 @@ const useIntersections = ({
     isEndFixed,
     markQuiet,
     isQuietAt,
+    quietMarkStandsAt,
     quietReasonAt,
     clearQuietAt,
     isEndAskAt,
@@ -764,11 +767,11 @@ const useIntersections = ({
     // the position mark is dropped when the end memory is found gone, unless a re-ask is out: the re-ask cleared the
     // memory itself (reaskOpen while the adjustment has the ask, the open fetch after), and an empty answer stands the
     // state up again on the mark it kept
-    const insideEndState = (end) => {
+    const bothMarksStandAt = (end) => {
 
         const state = endStateRef.current[end]
 
-        if (isQuietAt(directionAt(end))) return state.markFromAxis !== null
+        if (quietMarkStandsAt(directionAt(end))) return state.markFromAxis !== null
 
         if (!state.reaskOpen && !isFetchOpenAt(end)) state.markFromAxis = null
 
@@ -776,9 +779,20 @@ const useIntersections = ({
 
     }
 
-    // the end stands inside the state and through its re-ask: insideEndState drops the mark when the memory is gone
-    // for any other reason, so a mark still held after it is read is the state's or its re-ask's
-    const endStands = (end) => insideEndState(end) || (endStateRef.current[end].markFromAxis !== null)
+    // inside the end state: the end is standing, as the declared end state has it (endMachine). The marks are read
+    // first, for the position mark that read drops
+    const insideEndState = (end) => {
+
+        bothMarksStandAt(end)
+
+        return isEndStanding(readEnd(), end)
+
+    }
+
+    // the end stands inside the state and through its re-ask: bothMarksStandAt drops the mark when the memory is gone
+    // for any other reason, so a mark still held after it is read is the state's or its re-ask's. It is read from the
+    // marks, not from the declared end state, which has no cell for a fetch open at an end
+    const endStands = (end) => bothMarksStandAt(end) || (endStateRef.current[end].markFromAxis !== null)
 
     // an empty headblock still measures a pixel: with no head row the head's dimension is nothing
     const headRowsDimension = () => {
@@ -912,6 +926,18 @@ const useIntersections = ({
 
     }
 
+    // every reading of the mark is told to the declared end state (endMachine): nothing reports a row at the end
+    // growing, so the mark it holds is the one last measured here
+    const measureEndMark = (end) => {
+
+        const mark = endMark(end)
+
+        tellEnd({type: 'measured', end, mark})
+
+        return mark
+
+    }
+
     // a shift moves the axis under the content by the moved band's dimension, and each mark stays with the content:
     // the tail's is that much nearer the axis, the head's that much further. An indicator that is shown stands on
     // its mark from the axis, so it is told the mark again
@@ -954,12 +980,15 @@ const useIntersections = ({
 
         const state = endStateRef.current[end]
 
+        // told before the mark is tested: an end that is known and was never entered has no mark, and rows placed
+        // there end its memory as they end a standing one's
+        tellEnd({type: 'invalidated', end})
+
         if (state.markFromAxis === null) return
 
         clearTimeout(state.gestureTimeoutID)
         state.gestureTimeoutID = null
         state.markFromAxis = null
-        tellEnd({type: 'invalidated', end})
 
         yieldBringBack()
 
@@ -988,11 +1017,11 @@ const useIntersections = ({
             const
                 state = endStateRef.current[end],
                 direction = directionAt(end),
-                past = endStands(end) && ((endGeometry(end).viewportEdge > endMark(end)) || (endStateRef.current.sliding?.end == end)),
+                past = endStands(end) && ((endGeometry(end).viewportEdge > measureEndMark(end)) || (endStateRef.current.sliding?.end == end)),
                 shown = !past ? null
                     : insideEndState(end) ? ((quietReasonAt(direction) == 'failed') ? 'failed' : 'end')
                     : (state.reaskOpen || isEndAskAt(direction)) ? 'searching' : null,
-                shownAt = (shown === null) ? null : endMark(end)
+                shownAt = (shown === null) ? null : measureEndMark(end)
 
             if ((shown !== state.shown) || (shownAt !== state.shownAt)) {
                 state.shown = shown
@@ -1029,9 +1058,11 @@ const useIntersections = ({
 
         const direction = directionAt(end)
 
-        if (!isQuietAt(direction)) markQuiet(direction, 'end')
+        // the end memory itself is read, not the declared end state: this decides the memory's write, and the mark
+        // tested below stands on it
+        if (!quietMarkStandsAt(direction)) markQuiet(direction, 'end')
 
-        if (insideEndState(end)) {
+        if (bothMarksStandAt(end)) {
 
             readViewportAtEnd(end, false)
             tellEnd({type: 'arrived', end, mark: endStateRef.current[end].markFromAxis, enters: false, inputRecent: false, finger: false})
@@ -1040,7 +1071,7 @@ const useIntersections = ({
 
         }
 
-        const mark = endMark(end)
+        const mark = measureEndMark(end)
 
         tellEnd({type: 'arrived', end, mark, enters: true, inputRecent: isScrollInputRecent(), finger: endStateRef.current.touches.size > 0})
 
@@ -1102,7 +1133,7 @@ const useIntersections = ({
         if (!ask && (state.gestureTimeoutID !== null)) return
 
         const
-            mark = endMark(end),
+            mark = measureEndMark(end),
             { viewportEdge } = endGeometry(end)
 
         clearTimeout(state.gestureTimeoutID)
@@ -1183,7 +1214,7 @@ const useIntersections = ({
             if (rebanded) {
 
                 endStateRef.current[end].markFromAxis = null
-                endMark(end)
+                measureEndMark(end)
                 tellEnd({type: 'resized', end, mark: endStateRef.current[end].markFromAxis})
 
             }
@@ -1250,9 +1281,7 @@ const useIntersections = ({
 
         if (!isEndFixed('head') || !isEndFixed('tail') || !insideEndState('head') || !insideEndState('tail')) return false
 
-        const { head, tail } = endStateRef.current
-
-        return (head.markFromAxis + tail.markFromAxis - endGeometry('tail').viewportDim) < 1
+        return (endMarkAt(readEnd(), 'head') + endMarkAt(readEnd(), 'tail') - endGeometry('tail').viewportDim) < 1
 
     }
 
@@ -1300,7 +1329,7 @@ const useIntersections = ({
 
         const
             { isH, axis, viewportDim, viewportEdge, axisAt } = endGeometry(end),
-            past = viewportEdge - endMark(end),
+            past = viewportEdge - measureEndMark(end),
             held = otherEndHolds(end),
             gap = held ? 0 : Math.max(past, 0),
             cap = endElasticCap(viewportDim),
@@ -1319,7 +1348,7 @@ const useIntersections = ({
 
         if (!state.travel && !endStateRef.current.touches.size && (isScrollInputRecent() || (state.short && !restsAreOne()))) {
 
-            const rest = axisAt(endMark(end)), seat = (end == 'tail') ? Math.ceil(rest) : Math.floor(rest)
+            const rest = axisAt(measureEndMark(end)), seat = (end == 'tail') ? Math.ceil(rest) : Math.floor(rest)
 
             setAxisPosition(isH ? seat : 0, isH ? 0 : seat)
             readEndElastic(end)
@@ -1362,7 +1391,7 @@ const useIntersections = ({
 
         const
             { viewportDim, viewportEdge } = endGeometry(end),
-            past = viewportEdge - endMark(end),
+            past = viewportEdge - measureEndMark(end),
             gap = otherEndHolds(end) ? 0 : Math.max(past, 0)
 
         if (gap > 0) closeOtherEnd(end)
@@ -1389,7 +1418,7 @@ const useIntersections = ({
 
                 const
                     { isH, axis, viewportEdge, axisAt } = endGeometry(end),
-                    mark = endMark(end),
+                    mark = measureEndMark(end),
                     one = restsAreOne(),
                     whole = one ? axisAt(mark) : axis,
                     position = (end == 'tail') ? Math.ceil(whole) : Math.floor(whole)
@@ -1400,7 +1429,7 @@ const useIntersections = ({
 
                     const other = (end == 'tail') ? 'head' : 'tail'
 
-                    if (endGeometry(other).viewportEdge > endStateRef.current[other].markFromAxis) return
+                    if (endGeometry(other).viewportEdge > endMarkAt(readEnd(), other)) return
 
                 }
 
@@ -1471,7 +1500,7 @@ const useIntersections = ({
 
             const
                 outward = (end == 'tail') ? delta : -delta,
-                gap = endGeometry(end).viewportEdge - endMark(end),
+                gap = endGeometry(end).viewportEdge - measureEndMark(end),
                 taken = (gap > 0)
                     ? (gap + outward > 0)
                     : (gap > -1) && (outward > 0) && (Math.abs(across) <= Math.abs(delta)) && !scrollsWithin(event.target, delta)
@@ -1506,7 +1535,7 @@ const useIntersections = ({
 
                 const
                     { isH, viewportDim, viewportEdge, axisAt } = endGeometry(end),
-                    mark = endMark(end),
+                    mark = measureEndMark(end),
                     gap = viewportEdge - mark
 
                 if (gap <= -1) return
@@ -1612,7 +1641,7 @@ const useIntersections = ({
         if (!viewportRef.current || !endStands(end) || endStateRef.current.touches.size) return
 
         const
-            mark = endMark(end),
+            mark = measureEndMark(end),
             { isH, viewportEdge, scrollPositionAt } = endGeometry(end),
             position = scrollPositionAt(mark)
 
@@ -1644,7 +1673,7 @@ const useIntersections = ({
 
         const
             { isH, axis, axisAt } = endGeometry(end),
-            rest = axisAt(endMark(end)),
+            rest = axisAt(measureEndMark(end)),
             position = (end == 'tail') ? Math.ceil(rest) : Math.floor(rest)
 
         setAxisPosition(isH ? position : 0, isH ? 0 : position)
@@ -1892,8 +1921,11 @@ const useIntersections = ({
 
             if (cellsAtEnd() > cellsBefore || isFetchOpenAt(end)) return false
 
-            if (!isQuietAt(direction) && !isCradleShortAt(end)) tellEnd({type: 'invalidated', end})
-            if (!isQuietAt(direction) && !isCradleShortAt(end)) return false
+            // the end memory itself is read, not the declared end state: a re-ask waiting its turn behind this
+            // task has the end asked already while its memory still stands, and it is the memory that says the
+            // host answered here
+            if (!quietMarkStandsAt(direction) && !isCradleShortAt(end)) tellEnd({type: 'invalidated', end})
+            if (!quietMarkStandsAt(direction) && !isCradleShortAt(end)) return false
 
             enterEndState(end, onlyIfPast)
 
@@ -1921,7 +1953,7 @@ const useIntersections = ({
             if (!inside || !viewportRef.current) return {inside, mark:null, slack, contentEdge:null}
 
             const
-                mark = endMark(end),
+                mark = measureEndMark(end),
                 { contentEdge, positionAt } = endGeometry(end)
 
             return {inside, mark:positionAt(mark), slack, contentEdge:positionAt(contentEdge)}

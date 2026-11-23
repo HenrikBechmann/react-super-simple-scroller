@@ -18,8 +18,10 @@
 // place the record is assigned, and it does not wait.
 //
 // The declaration runs beside the fields the scroller acts on (the end state and the hold in useIntersections, the
-// fill's end memory in useCells): each of their writes is told here as the event that causes it, and nothing in the
-// scroller reads the record.
+// fill's end memory in useCells): each of their writes is told here as the event that causes it. The scroller reads
+// the record through the readings at the foot of this file, and no other way: whether an end is known, standing or
+// asking, its reason and its mark. Whether an end stands through a fetch that is open there, and everything of the
+// activity, it reads from those fields: the record has no cell for a fetch.
 
 export type End = 'head' | 'tail'
 
@@ -59,6 +61,7 @@ export type EndEvent =
     | { type: 'returned', way: 'glide' | 'slide' }
     | { type: 'holdReleased' }
     | { type: 'resized', end: End, mark: number }
+    | { type: 'measured', end: End, mark: number }
     | { type: 'shifted', delta: number }
 
 const AWAY: EndRegion = { at: 'away' }
@@ -286,6 +289,16 @@ export const stepEndMachine = (state: EndMachineState, event: EndEvent): EndMach
 
         }
 
+        // the mark is a measurement, and nothing reports a row at the end growing: each reading of it is told, so
+        // that the record's mark is the one the scroller last acted on
+        case 'measured': {
+
+            setRegion(event.end, markedAt(regionAt(event.end), event.mark))
+
+            break
+
+        }
+
         // the axis has moved under the rows: a mark is a distance from the axis, and moves with it
         case 'shifted': {
 
@@ -320,5 +333,30 @@ export const createEndMachine = () => {
         },
         read: () => state,
     }
+
+}
+
+// The scroller's readings of the record. An end is known where the data's end is known there, reached or not, and
+// not while it is being asked again.
+
+export const isEndKnown = (state: EndMachineState, end: End) => (state[end].at == 'known') || (state[end].at == 'standing')
+
+export const isEndStanding = (state: EndMachineState, end: End) => state[end].at == 'standing'
+
+export const isEndAsking = (state: EndMachineState, end: End) => state[end].at == 'asking'
+
+export const endReasonAt = (state: EndMachineState, end: End): EndReason | null => {
+
+    const region = state[end]
+
+    return ((region.at == 'known') || (region.at == 'standing')) ? region.why : null
+
+}
+
+export const endMarkAt = (state: EndMachineState, end: End): number | null => {
+
+    const region = state[end]
+
+    return ((region.at == 'standing') || (region.at == 'asking')) ? region.mark : null
 
 }

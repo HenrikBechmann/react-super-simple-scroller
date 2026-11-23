@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom'
 
 import { createBand, createContainer, setPlaceholderSpread, clearPlaceholderSpread, removeEmptyBands, isValidID, reportError, reportFailed, reportWarning, errorMessage } from './utilities'
 import { DefaultPlaceholder, DefaultEndIndicator, placeholderID } from './placeholders'
+import { isEndKnown, isEndAsking, endReasonAt } from './endMachine'
 
 // Two ways to grow the cradle, chosen by operations.placeholderCap.
 //
@@ -66,6 +67,7 @@ const useCells = ({
     placeholdersRef,
     onRunEndedRef,
     tellEnd,
+    readEnd,
     bringOutrunCradleRef,
     resetRef,
     updateCurrentAxisReferenceID,
@@ -290,7 +292,7 @@ const useCells = ({
 
             // the end memory gates the ask here as it gates the placeholder fill: an end the host has answered is asked
             // again only once input reaches it (clearQuietAt), not on every shift into the room past the last row
-            let moreExpected = !isQuietAt('forward')
+            let moreExpected = !quietMarkStandsAt('forward')
             while ((cradleActual.forwardCells < (cradlePotential.forwardCells - offset)) && moreExpected) {
 
                 const
@@ -335,7 +337,7 @@ const useCells = ({
 
         } else if (startCode == 'before') {
 
-            let moreExpected = !isQuietAt('backward')
+            let moreExpected = !quietMarkStandsAt('backward')
             while ((cradleActual.backwardCells < cradlePotential.backwardCells) && moreExpected) {
 
                 const
@@ -508,7 +510,7 @@ const useCells = ({
 
     // the mark stands until the end state asks its end again (clearQuietAt), a structural call or a reset
     // (clearQuietMarks), a new cradle, or a change of the cell at that end; it is cleared when read otherwise
-    const isQuietAt = (direction) => {
+    const quietMarkStandsAt = (direction) => {
 
         const
             state = placeholderState(),
@@ -524,10 +526,22 @@ const useCells = ({
 
     }
 
+    // the data's end is known at this end, as the declared end state has it (endMachine). The mark is read first, for
+    // the clearing that read makes
+    const isQuietAt = (direction) => {
+
+        quietMarkStandsAt(direction)
+
+        return isEndKnown(readEnd(), (direction == 'forward')?'tail':'head')
+
+    }
+
     // what closed the run at an end whose memory stands: 'end' (the host answered with nothing) or 'failed'
     const quietReasonAt = (direction) => {
 
-        return isQuietAt(direction) ? placeholderState().quiet[direction].reason : null
+        quietMarkStandsAt(direction)
+
+        return endReasonAt(readEnd(), (direction == 'forward')?'tail':'head')
 
     }
 
@@ -558,7 +572,7 @@ const useCells = ({
     // an end the end state is asking again, with placeholders on: {cradleActual, endID}. Nothing is placed at that end
     // for the ask, and its rows are added there (applyAnswer). It stands while the cradle and the row at that end are as
     // they were when it was set
-    const isEndAskAt = (direction) => {
+    const endAskStandsAt = (direction) => {
 
         const
             state = placeholderState(),
@@ -572,6 +586,16 @@ const useCells = ({
         }
 
         return true
+
+    }
+
+    // the end is being asked again with placeholders on, as the declared end state has it (endMachine). The ask's
+    // record is read first, for the clearing that read makes
+    const isEndAskAt = (direction) => {
+
+        endAskStandsAt(direction)
+
+        return (placeholderCap() > 0) && isEndAsking(readEnd(), (direction == 'forward')?'tail':'head')
 
     }
 
@@ -787,7 +811,7 @@ const useCells = ({
 
             if (!ids.length) {
 
-                if (!isEndAskAt(direction)) continue
+                if (!endAskStandsAt(direction)) continue
 
                 room = (anchor !== undefined)?roomAt(direction):0
 
@@ -1267,7 +1291,7 @@ const useCells = ({
 
         const direction = (end == 'tail')?'forward':'backward'
 
-        return !!standingAt(direction).length || (placeholderState().pending?.direction == direction) || isEndAskAt(direction)
+        return !!standingAt(direction).length || (placeholderState().pending?.direction == direction) || endAskStandsAt(direction)
 
     }
 
@@ -1289,8 +1313,8 @@ const useCells = ({
 
     }
 
-    // the cradle's real rows, and its placeholders, as the host reads them. quiet reads the end marks as isQuietAt
-    // tests them, but never clears one: a report is a read, and a mark that no longer stands is the end state's to drop
+    // the cradle's real rows, and its placeholders, as the host reads them. quiet is each end's reason as the declared
+    // end state has it (endMachine): a report is a read, and clears no mark
     const placeholderReport = () => {
 
         const
@@ -1298,10 +1322,7 @@ const useCells = ({
             cradleActual = cradleActualRef.current,
             state = placeholderState(),
             map = state.map,
-            quietReason = (direction) => {
-                const mark = state.quiet[direction]
-                return (mark && (mark.cradleActual === cradleActual) && (mark.endID === endID(direction)))?mark.reason:null
-            }
+            quietReason = (direction) => endReasonAt(readEnd(), (direction == 'forward')?'tail':'head')
 
         let forwardPlaceholders = 0, backwardPlaceholders = 0
 
@@ -1565,6 +1586,7 @@ const useCells = ({
         isCellScrollRestored,
         markQuiet,
         isQuietAt,
+        quietMarkStandsAt,
         quietReasonAt,
         clearQuietMarks,
         clearQuietAt,

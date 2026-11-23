@@ -1,4 +1,4 @@
-declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortMomentumFadeRef, AXIS_START_POSITION, DOMManipulationQueueRef, orientationRef, layoutRef, viewportRef, headblockRef, leadHeadblockBandRef, headblockOverflowTriggerRef, tailblockRef, tailblockOverflowTriggerRef, leadTailblockBandRef, cradleActualRef, cradlePotentialRef, headBandListRef, tailBandListRef, intersectionsMapRef, scrollTopRef, scrollLeftRef, axisPositionRef, portalIDListRef, immediateIsScrollingRef, lastScrollEventTimeRef, immediateStopScrollingRef, holdCrossOpenRef, canTakeEndInputRef, tellEnd, restoreScrollingTimeoutIDRef, callbacksRef, setAxisPosition, slideAxis, readAxisSlide, assertIntersectionsDisconnect, requestIntersectionsConnect, fillCradle, updateCurrentAxisReferenceID, trimCradle, isFetchOpenAt, isEndFixed, markQuiet, isQuietAt, quietReasonAt, clearQuietAt, isEndAskAt, onRunEndedRef, bringOutrunCradleRef, setEndIndicators, }: {
+declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortMomentumFadeRef, AXIS_START_POSITION, DOMManipulationQueueRef, orientationRef, layoutRef, viewportRef, headblockRef, leadHeadblockBandRef, headblockOverflowTriggerRef, tailblockRef, tailblockOverflowTriggerRef, leadTailblockBandRef, cradleActualRef, cradlePotentialRef, headBandListRef, tailBandListRef, intersectionsMapRef, scrollTopRef, scrollLeftRef, axisPositionRef, portalIDListRef, immediateIsScrollingRef, lastScrollEventTimeRef, immediateStopScrollingRef, holdCrossOpenRef, canTakeEndInputRef, tellEnd, readEnd, restoreScrollingTimeoutIDRef, callbacksRef, setAxisPosition, slideAxis, readAxisSlide, assertIntersectionsDisconnect, requestIntersectionsConnect, fillCradle, updateCurrentAxisReferenceID, trimCradle, isFetchOpenAt, isEndFixed, markQuiet, isQuietAt, quietMarkStandsAt, quietReasonAt, clearQuietAt, isEndAskAt, onRunEndedRef, bringOutrunCradleRef, setEndIndicators, }: {
     scrollerName: any;
     standardMomentumFadeRef: any;
     shortMomentumFadeRef: any;
@@ -28,6 +28,7 @@ declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortM
     holdCrossOpenRef: any;
     canTakeEndInputRef: any;
     tellEnd: any;
+    readEnd: any;
     restoreScrollingTimeoutIDRef: any;
     callbacksRef: any;
     setAxisPosition: any;
@@ -42,6 +43,7 @@ declare const useIntersections: ({ scrollerName, standardMomentumFadeRef, shortM
     isEndFixed: any;
     markQuiet: any;
     isQuietAt: any;
+    quietMarkStandsAt: any;
     quietReasonAt: any;
     clearQuietAt: any;
     isEndAskAt: any;
