@@ -867,10 +867,24 @@ const useIntersections = ({
     }
 
     // The viewport's forward edge, from the axis, with its leading edge at the head's rest. The head's repositioning
-    // rests the viewport a pixel short of the first row's edge (as isViewportAtEnd reads it); a fixed head rests on
-    // that edge, its mark (enterEndState). One line, for the tail's floor (endMark) and its wait for the head
-    // (tailWaitsForHead): a list that fits its viewport with both ends fixed then rests on both marks
-    const forwardEdgeAtHeadRest = (viewportDim) => (isEndFixed('head') ? 0 : 1) - rowsEdgeAt('head') + viewportDim
+    // rests the viewport a pixel short of the first row's edge (as isViewportAtEnd reads it). A fixed head rests on
+    // that edge, its mark, with the axis on the whole pixel at the edge or before it: its seat (enterEndState). The
+    // forward edge is read from that seat, so it holds the part of a pixel the seat is short of the rest, and a list
+    // that fits its viewport with both ends fixed has one seat, the head's: the tail's arrival, its return and its
+    // settle read it back from the tail's mark and compute none of their own. It is written as the viewport's edge
+    // is read (endGeometry), so on that seat the tail's edge is on its mark exactly. One definition, for the tail's
+    // floor (endMark) and its wait for the head (tailWaitsForHead)
+    const forwardEdgeAtHeadRest = (viewportDim) => {
+
+        const rowsEdge = rowsEdgeAt('head')
+
+        if (!isEndFixed('head')) return 1 - rowsEdge + viewportDim
+
+        const { axisAt } = endGeometry('head')
+
+        return axisAt(viewportDim) - Math.floor(axisAt(rowsEdge))
+
+    }
 
     // The mark (markFromAxis) is the rows' edge plus that end's slack, or the previous mark where that is further out:
     // growth moves it on, and a shrink leaves the room the viewport had shown. A viewport whose edge is short of the
@@ -999,7 +1013,9 @@ const useIntersections = ({
     // nothing at the tail, and the trigger's inference from a cradle still short after the fill is the end). The
     // viewport is snapped to the mark (only when it is past it, where the caller says so: a list opened or arrived at
     // on its first row is not moved) and, under input, held to stop its momentum: the plain hold, with
-    // no quiet window and no wheel cancelling, since the state does from here what a longer hold would. A re-entry
+    // no quiet window and no wheel cancelling, since the state does from here what a longer hold would. No hold is
+    // taken while a finger is down: the scroll is the finger's, not a momentum, and a hold would take the list out
+    // of the hand for as long as it stood. A re-entry
     // during a bring-back neither snaps nor holds: the smooth scroll is already taking the viewport to the mark. An
     // answer that stands the state up again on a kept mark reads the viewport against it: one still past the mark is
     // returned to it.
@@ -1018,7 +1034,7 @@ const useIntersections = ({
         if (insideEndState(end)) {
 
             readViewportAtEnd(end, false)
-            tellEnd({type: 'arrived', end, mark: endStateRef.current[end].markFromAxis, enters: false, inputRecent: false})
+            tellEnd({type: 'arrived', end, mark: endStateRef.current[end].markFromAxis, enters: false, inputRecent: false, finger: false})
             readEndIndicators()
             return
 
@@ -1026,7 +1042,7 @@ const useIntersections = ({
 
         const mark = endMark(end)
 
-        tellEnd({type: 'arrived', end, mark, enters: true, inputRecent: isScrollInputRecent()})
+        tellEnd({type: 'arrived', end, mark, enters: true, inputRecent: isScrollInputRecent(), finger: endStateRef.current.touches.size > 0})
 
         if (endStateRef.current.glidingTo === null) {
 
@@ -1041,7 +1057,7 @@ const useIntersections = ({
 
             }
 
-            if (holdRef.current.viewport || isScrollInputRecent()) holdScrolling(end)
+            if (!endStateRef.current.touches.size && (holdRef.current.viewport || isScrollInputRecent())) holdScrolling(end)
 
         }
 
@@ -1225,12 +1241,44 @@ const useIntersections = ({
 
     const elasticGapAt = (travel, cap) => (travel <= 0) ? travel : (travel < Infinity) ? cap * travel / (travel + cap) : cap
 
+    // A list that fits its viewport with both ends fixed rests on both marks at one position (forwardEdgeAtHeadRest):
+    // the two rests are less than the pixel the seat is quantized to apart, read from the two marks as they are
+    // kept, wherever the viewport is. There the ends are one place, and at most one of them is out at a time: an end
+    // that goes out closes what the other kept of its own stretch (closeOtherEnd: its travel, its drawn gap and its
+    // gesture's clock), and while one end holds the scroll the other reads nothing past its mark (otherEndHolds)
+    const restsAreOne = () => {
+
+        if (!isEndFixed('head') || !isEndFixed('tail') || !insideEndState('head') || !insideEndState('tail')) return false
+
+        const { head, tail } = endStateRef.current
+
+        return (head.markFromAxis + tail.markFromAxis - endGeometry('tail').viewportDim) < 1
+
+    }
+
+    const otherEndHolds = (end) => !!holdRef.current.viewport && (holdRef.current.endOfData == ((end == 'tail') ? 'head' : 'tail'))
+
+    const closeOtherEnd = (end) => {
+
+        if (!restsAreOne()) return
+
+        const other = endStateRef.current[(end == 'tail') ? 'head' : 'tail']
+
+        other.travel = other.drawn = 0
+        clearTimeout(other.gestureTimeoutID)
+        other.gestureTimeoutID = null
+
+    }
+
     // A pull the browser makes at a fixed end (one the scroller could not take) is drawn on the same curve: a scroll
     // that begins at rest on the mark, within the pixel the axis is seated on, and every scroll after it for as long
-    // as the pull stands (travel). Any other scroll that carries the viewport past the mark arrives there, as a
-    // scroll arrives at an end whose answer comes back empty: one in flight, and one that came from a pixel or more
-    // short of the mark (short, the reading the last scroll left). The axis is put where the content's edge is on
-    // the mark under the viewport, as the return leaves it, and the scroll is held: a momentum is the compositor's,
+    // as the pull stands (travel). So is every scroll made past the mark with a finger down: it is the finger's
+    // travel, and nothing arrives under a finger. Any other scroll that carries the viewport past the mark arrives
+    // there, as a scroll arrives at an end whose answer comes back empty: one in flight, and one that came from a
+    // pixel or more short of the mark (short, the reading the last scroll left; not where the two rests are one,
+    // since a viewport short of one mark there is out past the other, and has come from nowhere inside the list).
+    // The axis is put where the content's edge is on the mark under the viewport, as the return leaves it, the clock
+    // an earlier reading left at that end is ended, and the scroll is held: a momentum is the compositor's,
     // and a write of the axis in its scroll events is a frame behind it. Past the mark the scroll position travels as the
     // browser scrolls it, and the axis goes with it, short of the part of the travel that is drawn. Here the axis
     // moves by whole pixels, as a shift moves it, and never draws past the curve; the travel is kept unrounded, so a
@@ -1253,11 +1301,14 @@ const useIntersections = ({
         const
             { isH, axis, viewportDim, viewportEdge, axisAt } = endGeometry(end),
             past = viewportEdge - endMark(end),
-            gap = Math.max(past, 0),
+            held = otherEndHolds(end),
+            gap = held ? 0 : Math.max(past, 0),
             cap = endElasticCap(viewportDim),
             moved = gap - state.drawn
 
-        if (moved <= 0) {
+        if (gap > 0) closeOtherEnd(end)
+
+        if (held || (moved <= 0)) {
             state.drawn = gap
             state.travel = elasticTravelAt(gap, cap)
             state.short = past <= -1
@@ -1266,12 +1317,14 @@ const useIntersections = ({
             return
         }
 
-        if (!state.travel && (state.short || isScrollInputRecent())) {
+        if (!state.travel && !endStateRef.current.touches.size && (isScrollInputRecent() || (state.short && !restsAreOne()))) {
 
             const rest = axisAt(endMark(end)), seat = (end == 'tail') ? Math.ceil(rest) : Math.floor(rest)
 
             setAxisPosition(isH ? seat : 0, isH ? 0 : seat)
             readEndElastic(end)
+            clearTimeout(state.gestureTimeoutID)
+            state.gestureTimeoutID = null
             holdScrolling(end)
             tellEnd({type: 'scrolled', end, read: 'arrival'})
 
@@ -1310,7 +1363,9 @@ const useIntersections = ({
         const
             { viewportDim, viewportEdge } = endGeometry(end),
             past = viewportEdge - endMark(end),
-            gap = Math.max(past, 0)
+            gap = otherEndHolds(end) ? 0 : Math.max(past, 0)
+
+        if (gap > 0) closeOtherEnd(end)
 
         state.drawn = gap
         state.travel = elasticTravelAt(gap, endElasticCap(viewportDim))
@@ -1321,7 +1376,9 @@ const useIntersections = ({
 
     // A stretch is drawn between pixels, and a pull back that the browser takes over (takeEndInput) scrolls on from
     // there. The axis is put on its whole pixel, toward the content, once the viewport is at the mark or inside it:
-    // by less than a pixel, in its turn of the queue, read again as it runs
+    // by less than a pixel, in its turn of the queue, read again as it runs. Where the two rests are one
+    // (restsAreOne) the whole pixel is the seat, read from this end's mark, whichever end settles, and nothing is
+    // settled while the other end is out: the axis is that end's stretch
     const settleAxisAtEnd = (end) => {
 
         const settleTask = async () => {
@@ -1331,10 +1388,21 @@ const useIntersections = ({
                 if (!viewportRef.current || !isEndFixed(end) || !insideEndState(end)) return
 
                 const
-                    { isH, axis, viewportEdge } = endGeometry(end),
-                    position = (end == 'tail') ? Math.ceil(axis) : Math.floor(axis)
+                    { isH, axis, viewportEdge, axisAt } = endGeometry(end),
+                    mark = endMark(end),
+                    one = restsAreOne(),
+                    whole = one ? axisAt(mark) : axis,
+                    position = (end == 'tail') ? Math.ceil(whole) : Math.floor(whole)
 
-                if ((viewportEdge > endMark(end)) || (position === axis)) return
+                if ((viewportEdge > mark) || (position === axis)) return
+
+                if (one) {
+
+                    const other = (end == 'tail') ? 'head' : 'tail'
+
+                    if (endGeometry(other).viewportEdge > endStateRef.current[other].markFromAxis) return
+
+                }
 
                 setAxisPosition(isH ? position : 0, isH ? 0 : position)
 

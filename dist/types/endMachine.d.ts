@@ -46,6 +46,7 @@ export type EndEvent = {
     mark: number;
     enters: boolean;
     inputRecent: boolean;
+    finger: boolean;
 } | {
     type: 'scrolled';
     end: End;

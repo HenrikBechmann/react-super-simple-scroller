@@ -47,7 +47,7 @@ export type EndMachineState = { head: EndRegion, tail: EndRegion, activity: EndA
 // and the return starting ('return').
 export type EndEvent =
     | { type: 'runEnded', end: End, reason: EndReason }
-    | { type: 'arrived', end: End, mark: number, enters: boolean, inputRecent: boolean }
+    | { type: 'arrived', end: End, mark: number, enters: boolean, inputRecent: boolean, finger: boolean }
     | { type: 'scrolled', end: End, read: 'clock', mark: number, past: boolean, armed: boolean }
     | { type: 'scrolled', end: End, read: 'stretch', travel: number, drawn: number }
     | { type: 'scrolled', end: End, read: 'arrival' }
@@ -124,10 +124,10 @@ export const stepEndMachine = (state: EndMachineState, event: EndEvent): EndMach
         }
 
         // the viewport is at an end whose data has ended. An entry (enters) takes the hold where one stands or
-        // input is recent, unless a glide is out; an end found on a mark it kept takes nothing
+        // input is recent, unless a glide is out or a finger is down; an end found on a mark it kept takes nothing
         case 'arrived': {
 
-            const { end, mark, enters, inputRecent } = event, region = regionAt(end)
+            const { end, mark, enters, inputRecent, finger } = event, region = regionAt(end)
 
             if (region.at == 'away') setRegion(end, { at: 'standing', mark, why: 'end' })
             else if (region.at == 'known') setRegion(end, { at: 'standing', mark, why: region.why })
@@ -135,7 +135,7 @@ export const stepEndMachine = (state: EndMachineState, event: EndEvent): EndMach
 
             const gliding = (activity.at == 'returning') && (activity.way == 'glide')
 
-            if (enters && !gliding && ((activity.at == 'held') || inputRecent)) {
+            if (enters && !gliding && !finger && ((activity.at == 'held') || inputRecent)) {
                 if ((activity.at != 'held') || (activity.end != end)) activity = { at: 'held', end }
             }
 
