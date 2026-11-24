@@ -1119,7 +1119,11 @@ const useCells = ({
         // the container is the row's from here: a spread size left on it would stand the row at the placeholder's
         clearPlaceholderSpread(container, orientationRef.current, layoutRef.current)
 
+        // an end's memory is kept on the id of the cell at that end. A row that takes that cell takes the memory's
+        // ground: the declared end state is told here, as the memory itself is only found stale at its next read
         portalIDList[index] = id
+        if (index == 0) tellEnd({type: 'invalidated', end: 'head'})
+        if (index == portalIDList.length - 1) tellEnd({type: 'invalidated', end: 'tail'})
         cellDataListRef.current[index] = cellPack
         cellPortalListRef.current[index] = createPortal(component, container, id)
 
@@ -1247,7 +1251,9 @@ const useCells = ({
             cellDataList = cellDataListRef.current,
             portalContainerMap = portalContainerMapRef.current,
             cradleActual = cradleActualRef.current,
-            state = placeholderState()
+            state = placeholderState(),
+            headID = endID('backward'),
+            tailID = endID('forward')
 
         ids.forEach((id) => {
 
@@ -1272,6 +1278,10 @@ const useCells = ({
             else cradleActual.forwardCells--
 
         })
+
+        // a cell taken out at an end takes the ground of that end's memory, as a row that takes the cell does
+        if (endID('backward') !== headID) tellEnd({type: 'invalidated', end: 'head'})
+        if (endID('forward') !== tailID) tellEnd({type: 'invalidated', end: 'tail'})
 
         cradleActual.totalCells = cradleActual.backwardCells + cradleActual.forwardCells
 
