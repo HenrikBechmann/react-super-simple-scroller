@@ -207,7 +207,7 @@ const Viewport = (props) =>{
         placeholdersRef = useState(() => ({current: createPlaceholderState()}))[0],
         // the end state declared as one record with one writer (endMachine). The hooks tell it each event beside the
         // fields they act on, and read it through the module's readings
-        { tell: tellEnd, read: readEnd } = useState(createEndMachine)[0],
+        { tell: tellEnd, read: readEnd, follow: followEnd } = useState(createEndMachine)[0],
         // the intersections' answer to an empty fetch at an end (useIntersections sets it, useCells calls it)
         onRunEndedRef = useRef(null),
         // the intersections' bring of a cradle the scroll has outrun, for the answer's task (useIntersections sets
@@ -680,6 +680,7 @@ const Viewport = (props) =>{
             canTakeEndInputRef,
             tellEnd,
             readEnd,
+            followEnd,
             scrollTopRef,
             scrollLeftRef,
             restoreScrollingTimeoutIDRef,

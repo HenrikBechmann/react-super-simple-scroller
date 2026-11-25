@@ -20,8 +20,10 @@
 // The declaration runs beside the fields the scroller acts on (the end state and the hold in useIntersections, the
 // fill's end memory in useCells): each of their writes is told here as the event that causes it. The scroller reads
 // the record through the readings at the foot of this file, and no other way: whether an end is known, standing or
-// asking, its reason and its mark. Whether an end stands through a fetch that is open there, and everything of the
-// activity, it reads from those fields: the record has no cell for a fetch.
+// asking, its reason and its mark; whether scrolling is held at an end; and, where an entry decides its hold, whether
+// a glide is out. Whether an end stands through a fetch that is open there, the gesture's clock, the stretch, and a
+// return's own running, it reads from those fields: the record has no cell for a fetch, and it holds one activity
+// where the fields can keep two (a clock or a stretch at each end; a return still running beside a hold).
 
 export type End = 'head' | 'tail'
 
@@ -91,12 +93,16 @@ const tieActivity = (head: EndRegion, tail: EndRegion, activity: EndActivity): E
 const markedAt = (region: EndRegion, mark: number): EndRegion =>
     (!ownsActivity(region) || ((region as any).mark === mark)) ? region : { ...region, mark } as EndRegion
 
+// an elastic stretch is out where a gap is drawn: a pull under a pixel leaves travel with nothing drawn, or with a
+// drawn below zero, and the end is at rest
+const isOut = (drawn: number) => drawn > 0
+
 // the clock of a gesture past an end has stopped: what is left is the stretch, or nothing
 const clockStopped = (activity: EndActivity, end: End): EndActivity => {
 
     if ((activity.at != 'past') || (activity.end != end) || !activity.clock) return activity
 
-    return (activity.travel || activity.drawn) ? { ...activity, clock: false } : IDLE
+    return isOut(activity.drawn) ? { ...activity, clock: false } : IDLE
 
 }
 
@@ -127,7 +133,8 @@ export const stepEndMachine = (state: EndMachineState, event: EndEvent): EndMach
         }
 
         // the viewport is at an end whose data has ended. An entry (enters) takes the hold where one stands or
-        // input is recent, unless a glide is out or a finger is down; an end found on a mark it kept takes nothing
+        // input is recent, unless a glide is out (one decided and not started is not) or a finger is down; an end
+        // found on a mark it kept takes nothing
         case 'arrived': {
 
             const { end, mark, enters, inputRecent, finger } = event, region = regionAt(end)
@@ -136,7 +143,7 @@ export const stepEndMachine = (state: EndMachineState, event: EndEvent): EndMach
             else if (region.at == 'known') setRegion(end, { at: 'standing', mark, why: region.why })
             else setRegion(end, markedAt(region, mark))
 
-            const gliding = (activity.at == 'returning') && (activity.way == 'glide')
+            const gliding = (activity.at == 'returning') && (activity.way == 'glide') && (activity.target !== null)
 
             if (enters && !gliding && !finger && ((activity.at == 'held') || inputRecent)) {
                 if ((activity.at != 'held') || (activity.end != end)) activity = { at: 'held', end }
@@ -179,7 +186,7 @@ export const stepEndMachine = (state: EndMachineState, event: EndEvent): EndMach
 
             } else if (event.read == 'stretch') {
 
-                const { travel, drawn } = event, stretched = !!(travel || drawn)
+                const { travel, drawn } = event, stretched = isOut(drawn)
 
                 if ((activity.at == 'past') && (activity.end == end)) {
 
@@ -323,15 +330,28 @@ export const stepEndMachine = (state: EndMachineState, event: EndEvent): EndMach
 
 }
 
+// The writer follows the record. Where a step ends an activity because its end no longer owns it (the tie), and not
+// by the activity's own event, the follower is given what was ended, in that step, after the record is assigned: the
+// scroller ends the thing itself there, at the one place the record is told
 export const createEndMachine = () => {
 
     let state = END_MACHINE_INITIAL
+    let follower: ((ended: EndActivity) => void) | null = null
 
     return {
         tell: (event: EndEvent) => {
+
+            const { activity } = state
+
             state = stepEndMachine(state, event)
+
+            if (follower && (activity.at != 'idle') && (tieActivity(state.head, state.tail, activity).at == 'idle')) follower(activity)
+
         },
         read: () => state,
+        follow: (fn: (ended: EndActivity) => void) => {
+            follower = fn
+        },
     }
 
 }
@@ -360,3 +380,11 @@ export const endMarkAt = (state: EndMachineState, end: End): number | null => {
     return ((region.at == 'standing') || (region.at == 'asking')) ? region.mark : null
 
 }
+
+// The activity's readings. Scrolling is held at an end. One viewport has one glide, so its reading takes no end: a glide
+// is out once its scroll has been started, and a return that is decided and not started is no glide yet
+
+export const isEndHeld = (state: EndMachineState, end: End) => (state.activity.at == 'held') && (state.activity.end == end)
+
+export const isGliding = (state: EndMachineState) =>
+    (state.activity.at == 'returning') && (state.activity.way == 'glide') && (state.activity.target !== null)

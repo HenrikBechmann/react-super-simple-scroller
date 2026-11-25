@@ -108,9 +108,12 @@ export declare const stepEndMachine: (state: EndMachineState, event: EndEvent) =
 export declare const createEndMachine: () => {
     tell: (event: EndEvent) => void;
     read: () => EndMachineState;
+    follow: (fn: (ended: EndActivity) => void) => void;
 };
 export declare const isEndKnown: (state: EndMachineState, end: End) => boolean;
 export declare const isEndStanding: (state: EndMachineState, end: End) => boolean;
 export declare const isEndAsking: (state: EndMachineState, end: End) => boolean;
 export declare const endReasonAt: (state: EndMachineState, end: End) => EndReason | null;
 export declare const endMarkAt: (state: EndMachineState, end: End) => number | null;
+export declare const isEndHeld: (state: EndMachineState, end: End) => boolean;
+export declare const isGliding: (state: EndMachineState) => boolean;

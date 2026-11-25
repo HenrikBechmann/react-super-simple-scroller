@@ -5,7 +5,7 @@ import React, { useCallback, useEffect, useRef } from 'react'
 
 import { reportError, errorMessage } from './utilities'
 import { isPlaceholderID } from './placeholders'
-import { isEndStanding, endMarkAt } from './endMachine'
+import { isEndStanding, isEndAsking, endMarkAt, isEndHeld, isGliding } from './endMachine'
 
 // The end state (below) rests the viewport's edge this far past the content's edge at the tail in variable layout, so
 // that the rows' own settling there (a late image, a reflow) is absorbed in the room rather than moving the list;
@@ -63,6 +63,7 @@ const useIntersections = ({
     canTakeEndInputRef,
     tellEnd,
     readEnd,
+    followEnd,
     restoreScrollingTimeoutIDRef,
 
     // methods
@@ -643,13 +644,12 @@ const useIntersections = ({
     const onHoldWheel = (event) => {
 
         const
-            hold = holdRef.current,
             vertical = (orientationRef.current == 'vertical'),
             delta = vertical?event.deltaY:event.deltaX
 
         if (!delta || event.ctrlKey) return // a cross-axis gesture, or a zoom, is not input to this list's scroll
 
-        if (hold.endOfData && ((delta > 0) != (hold.endOfData == 'tail'))) releaseHold() // away from the held end
+        if (isEndHeld(readEnd(), (delta > 0) ? 'head' : 'tail')) releaseHold() // away from the held end
 
     }
 
@@ -757,6 +757,7 @@ const useIntersections = ({
         sliding:null,
         touches:new Set(),
         touchAt:null,
+        rereadOwed:false,
         inputAt:-Infinity,
     })
 
@@ -793,6 +794,14 @@ const useIntersections = ({
     // for any other reason, so a mark still held after it is read is the state's or its re-ask's. It is read from the
     // marks, not from the declared end state, which has no cell for a fetch open at an end
     const endStands = (end) => bothMarksStandAt(end) || (endStateRef.current[end].markFromAxis !== null)
+
+    // the declared end state has the end: it is standing there, or being asked again. Nothing is begun at an end the
+    // record has left (no clock armed, no return started), though a fetch open there still keeps its mark: what was
+    // begun would be ended with nothing to end it by
+    const endOwnsActivity = (end) => isEndStanding(readEnd(), end) || isEndAsking(readEnd(), end)
+
+    // scrolling is held, at whichever end: one viewport has one hold
+    const isScrollingHeld = () => isEndHeld(readEnd(), 'head') || isEndHeld(readEnd(), 'tail')
 
     // an empty headblock still measures a pixel: with no head row the head's dimension is nothing
     const headRowsDimension = () => {
@@ -1047,7 +1056,8 @@ const useIntersections = ({
     // of the hand for as long as it stood. A re-entry
     // during a bring-back neither snaps nor holds: the smooth scroll is already taking the viewport to the mark. An
     // answer that stands the state up again on a kept mark reads the viewport against it: one still past the mark is
-    // returned to it.
+    // returned to it. The arrival is told before that reading is taken, which begins nothing at an end the record
+    // does not have.
     // A fixed head rests on its mark. The mount and the head's repositioning rest the viewport a pixel short of the
     // first row (isViewportAtEnd), which keeps the head's triggers before the viewport while the head may still
     // bring rows. From the entry they are not consulted, and a pull is taken from the mark and from no pixel short
@@ -1064,8 +1074,8 @@ const useIntersections = ({
 
         if (bothMarksStandAt(end)) {
 
-            readViewportAtEnd(end, false)
             tellEnd({type: 'arrived', end, mark: endStateRef.current[end].markFromAxis, enters: false, inputRecent: false, finger: false})
+            readViewportAtEnd(end, false)
             readEndIndicators()
             return
 
@@ -1075,7 +1085,7 @@ const useIntersections = ({
 
         tellEnd({type: 'arrived', end, mark, enters: true, inputRecent: isScrollInputRecent(), finger: endStateRef.current.touches.size > 0})
 
-        if (endStateRef.current.glidingTo === null) {
+        if (!isGliding(readEnd())) {
 
             snapToEndMark(end, mark, onlyIfPast)
 
@@ -1088,7 +1098,7 @@ const useIntersections = ({
 
             }
 
-            if (!endStateRef.current.touches.size && (holdRef.current.viewport || isScrollInputRecent())) holdScrolling(end)
+            if (!endStateRef.current.touches.size && (isScrollingHeld() || isScrollInputRecent())) holdScrolling(end)
 
         }
 
@@ -1126,7 +1136,7 @@ const useIntersections = ({
 
         const state = endStateRef.current[end]
 
-        if (holdRef.current.viewport || !(ask ? insideEndState(end) : endStands(end))) return
+        if (isScrollingHeld() || !(ask ? insideEndState(end) : (endStands(end) && endOwnsActivity(end)))) return
 
         if (ask && (endStateRef.current.glidingTo !== null)) return
 
@@ -1231,18 +1241,24 @@ const useIntersections = ({
 
     }
 
-    // An answer at the head may be the one a reading of the tail waited for. The tail is read again in a task of the
-    // queue, which runs after the answer's own: it reads the head as the answer left it, and waits again where the
-    // head is asked again
+    // An answer at the head may be the one a reading of the tail waited for, or the tail's entry (onRunEnded). The
+    // tail is read again in a task of the queue, which runs after the answer's own: it reads the head as the answer
+    // left it, and waits again where the head is asked again. An entry that waited is taken where the host's answer
+    // there still stands and the viewport is at the tail. A hold at the head does not stand it off, as it stands off
+    // an answer: the head's own entry may have taken that hold in the answer this task is behind, and nothing reads
+    // the tail after it
     const rereadTailAfterHead = () => {
 
-        if (!endStands('tail')) return
+        if (!endStands('tail') && !isQuietAt('forward')) return
 
         const rereadTask = async () => {
 
             try {
 
-                if (viewportRef.current && !tailWaitsForHead()) readViewportAtEnd('tail', false, true)
+                if (!viewportRef.current || tailWaitsForHead()) return
+
+                if (endOwnsActivity('tail')) readViewportAtEnd('tail', false, true)
+                else if (isQuietAt('forward') && isViewportAtEnd('tail')) enterEndState('tail', true)
 
             } finally {
 
@@ -1285,7 +1301,7 @@ const useIntersections = ({
 
     }
 
-    const otherEndHolds = (end) => !!holdRef.current.viewport && (holdRef.current.endOfData == ((end == 'tail') ? 'head' : 'tail'))
+    const otherEndHolds = (end) => isEndHeld(readEnd(), (end == 'tail') ? 'head' : 'tail')
 
     const closeOtherEnd = (end) => {
 
@@ -1492,7 +1508,7 @@ const useIntersections = ({
 
         if (!canTakeEndInputRef.current) return
 
-        if (!event.cancelable || holdRef.current.viewport || DOMManipulationQueue.isBusy()) return
+        if (!event.cancelable || isScrollingHeld() || DOMManipulationQueue.isBusy()) return
 
         for (const end of ['head', 'tail']) {
 
@@ -1529,7 +1545,7 @@ const useIntersections = ({
 
             try {
 
-                if (!viewportRef.current || holdRef.current.viewport || !isEndFixed(end) || !insideEndState(end)) return
+                if (!viewportRef.current || isScrollingHeld() || !isEndFixed(end) || !insideEndState(end)) return
 
                 foldSlide()
 
@@ -1585,6 +1601,8 @@ const useIntersections = ({
 
     const rereadEnds = () => {
 
+        endStateRef.current.rereadOwed = false
+
         readViewportAtEnd('head', false)
         readViewportAtEnd('tail', false)
 
@@ -1638,7 +1656,7 @@ const useIntersections = ({
         state.gestureTimeoutID = null
         tellEnd({type: 'gestureEnded', end, part: 'clock', ask: false, finger: endStateRef.current.touches.size > 0})
 
-        if (!viewportRef.current || !endStands(end) || endStateRef.current.touches.size) return
+        if (!viewportRef.current || !endStands(end) || !endOwnsActivity(end) || endStateRef.current.touches.size) return
 
         const
             mark = measureEndMark(end),
@@ -1724,7 +1742,8 @@ const useIntersections = ({
     // Input during a bring-back. The user's hand has the list: a smooth scroll is ended where it is (an instant
     // scroll to the position it has reached ends it) and a slide is taken up where it has reached (foldSlide), in
     // the event itself, not on a turn of the queue, since the hand does not wait. The viewport is read again, so
-    // one the input leaves past a mark is brought back when the input is over
+    // one the input leaves past a mark is brought back when the input is over; so is it where a return was stopped
+    // with its end (stopEndedActivity), which left this reading owed
     const yieldBringBack = () => {
 
         const
@@ -1735,7 +1754,7 @@ const useIntersections = ({
 
         const folded = foldSlide()
 
-        if (!folded && (state.glidingTo === null)) return
+        if (!folded && !state.rereadOwed && (state.glidingTo === null)) return
 
         if (state.glidingTo !== null) {
             viewport.scrollTo(viewport.scrollLeft, viewport.scrollTop)
@@ -1748,6 +1767,56 @@ const useIntersections = ({
     }
 
     const isBringingBack = () => endStateRef.current.glidingTo !== null
+
+    // The writer follows the record. The declared end state ends an activity with the end that owned it (endMachine:
+    // the tie), in the step that end is left, and hands what it ended to this, inside that step: what the scroller
+    // keeps of the activity is ended here, so that no hold, clock, stretch or return outlives its end. Only what the
+    // record named is ended: the hold where it is that end's, the glide where it runs to that target. The stretch is
+    // zeroed as a reading away from the end zeroes it (drawEndElastic), and the content is left where it is, as
+    // input leaves it (foldSlide). The viewport is not read here: the caller is part way through its own change to
+    // the list. A return stopped here leaves that reading owed, and the next input takes it (yieldBringBack), or the
+    // scrolling mode's end
+    const stopEndedActivity = (ended) => {
+
+        const
+            state = endStateRef.current,
+            viewport = viewportRef.current
+
+        if (ended.at == 'held') {
+
+            if (holdRef.current.endOfData == ended.end) releaseHold()
+
+        } else if (ended.at == 'past') {
+
+            const atEnd = state[ended.end]
+
+            clearTimeout(atEnd.gestureTimeoutID)
+            atEnd.gestureTimeoutID = null
+            atEnd.travel = atEnd.drawn = 0
+            atEnd.short = false
+
+        } else if (!viewport) {
+
+            return
+
+        } else if (ended.way == 'slide') {
+
+            if (state.sliding?.end == ended.end) {
+                foldSlide()
+                state.rereadOwed = true
+            }
+
+        } else if ((ended.target !== null) && (state.glidingTo === ended.target)) {
+
+            viewport.scrollTo(viewport.scrollLeft, viewport.scrollTop)
+            state.glidingTo = null
+            state.rereadOwed = true
+
+        }
+
+    }
+
+    followEnd(stopEndedActivity)
 
     // A wheel along the list's axis is input; one across it, or a pinch, does not scroll this list. A wheel measured
     // in pixels is offered to the take, whichever way it goes: one across the list is still the scroller's while a
@@ -1855,7 +1924,9 @@ const useIntersections = ({
 
     // The re-ask goes through the overflow adjustment, whose answer is the entry's (an inline empty answer at cap 0
     // enters by its inference, as at the trigger). The end memory is cleared inside the task, so that nothing reads
-    // the state between the clearing and the ask; the adjustment closes reaskOpen with its answer. The fill sends the
+    // the state between the clearing and the ask; the adjustment closes reaskOpen with its answer, and no other
+    // adjustment does: one the trigger runs for this end before the task has its turn leaves the re-ask open, so the
+    // task still finds the mark it returns to. The fill sends the
     // ask before it first waits, with nothing placed at the end for it, and the bring-back is made then, before the
     // answer is waited for: a host slow to answer does not keep the viewport out past the end (a viewport that goes
     // out past the mark while the answer is out is read as anywhere the end stands)
@@ -1874,7 +1945,7 @@ const useIntersections = ({
 
                 readEndIndicators()
 
-                const answered = adjustForEndOverflow(end, true)
+                const answered = adjustForEndOverflow(end, true, true)
 
                 glideToEndMark(end)
 
@@ -1882,6 +1953,8 @@ const useIntersections = ({
 
             } finally {
 
+                // a task that fails before its adjustment has closed nothing
+                endStateRef.current[end].reaskOpen = false
                 requestIntersectionsConnect()
 
             }
@@ -1906,7 +1979,7 @@ const useIntersections = ({
     // nothing to ask for was outrun, not ended: the rows ahead answer that, by the shift the caller measures and the
     // outrun branch on the next observation. A cradle still short after the fill with no fetch open was answered
     // inline with nothing, which is the end
-    const adjustForEndOverflow = async (end, onlyIfPast) => {
+    const adjustForEndOverflow = async (end, onlyIfPast, reask = false) => {
 
         try {
 
@@ -1933,7 +2006,7 @@ const useIntersections = ({
 
         } finally {
 
-            endStateRef.current[end].reaskOpen = false
+            if (reask) endStateRef.current[end].reaskOpen = false
 
             readEndIndicators()
 
@@ -1976,9 +2049,7 @@ const useIntersections = ({
 
         if (!viewportRef.current) return
 
-        const
-            end = (direction == 'forward')?'tail':'head',
-            hold = holdRef.current
+        const end = (direction == 'forward')?'tail':'head'
 
         if (end == 'head') rereadTailAfterHead()
 
@@ -1989,7 +2060,13 @@ const useIntersections = ({
 
         }
 
-        if (hold.viewport && hold.endOfData && (hold.endOfData != end)) return // held at the other end
+        if (otherEndHolds(end)) return // held at the other end
+
+        // the tail's first entry waits for the head's answer as its readings do (tailWaitsForHead): until then its
+        // mark is its rows' edge, short of the floor the head's answer may give it, and the snap to that mark takes
+        // the viewport off the head's rest before the head's rows are there. The head's answer takes the entry
+        // (rereadTailAfterHead). A tail the declared end state has, standing or asked again, takes its answer at once
+        if ((end == 'tail') && !endOwnsActivity('tail') && tailWaitsForHead()) return
 
         if (!isViewportAtEnd(end)) return
 
