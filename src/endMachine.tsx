@@ -20,10 +20,11 @@
 // The declaration runs beside the fields the scroller acts on (the end state and the hold in useIntersections, the
 // fill's end memory in useCells): each of their writes is told here as the event that causes it. The scroller reads
 // the record through the readings at the foot of this file, and no other way: whether an end is known, standing or
-// asking, its reason and its mark; whether scrolling is held at an end; and, where an entry decides its hold, whether
-// a glide is out. Whether an end stands through a fetch that is open there, the gesture's clock, the stretch, and a
-// return's own running, it reads from those fields: the record has no cell for a fetch, and it holds one activity
-// where the fields can keep two (a clock or a stretch at each end; a return still running beside a hold).
+// asking, its reason and its mark; whether scrolling is held at an end; where an entry decides its hold, whether
+// a glide is out; and, where the viewport comes to rest, whether anything is under way. Whether an end stands
+// through a fetch that is open there, the gesture's clock, the stretch, and a return's own running, it reads from
+// those fields: the record has no cell for a fetch, and it holds one activity where the fields can keep two (a
+// clock or a stretch at each end; a return still running beside a hold).
 
 export type End = 'head' | 'tail'
 
@@ -388,3 +389,6 @@ export const isEndHeld = (state: EndMachineState, end: End) => (state.activity.a
 
 export const isGliding = (state: EndMachineState) =>
     (state.activity.at == 'returning') && (state.activity.way == 'glide') && (state.activity.target !== null)
+
+// nothing is under way at either end: no gesture's clock and no stretch, no return, no hold
+export const isIdle = (state: EndMachineState) => state.activity.at == 'idle'

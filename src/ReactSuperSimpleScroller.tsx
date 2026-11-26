@@ -389,6 +389,24 @@ const Viewport = (props) =>{
 
     },[])
 
+    // The observers are asked to report the layout as it stands. What they reported before is dropped, and what they
+    // had still to deliver with it (a disconnect is not specified to empty an observer's queue; takeRecords is), so
+    // that the next evaluation reads every trigger as it is now. Asked while the queue is at work, the report comes
+    // as the queue drains, of the layout it leaves
+    const requestIntersectionsReport = useCallback(() => {
+
+        if (!isMountedRef.current) return
+
+        assertIntersectionsDisconnect()
+
+        intersectionObserverRef.current.takeRecords()
+
+        intersectionsMapRef.current.clear()
+
+        requestIntersectionsConnect()
+
+    },[])
+
     useLayoutEffect(()=>{
 
         if (intersectionsConnectWantedRef.current) assertIntersectionsConnect()
@@ -708,6 +726,7 @@ const Viewport = (props) =>{
             readAxisSlide,
             assertIntersectionsDisconnect,
             requestIntersectionsConnect,
+            requestIntersectionsReport,
 
             trimCradle,
             fillCradle,
@@ -1553,7 +1572,15 @@ const Viewport = (props) =>{
 
     useLayoutEffect(()=>{
 
-        if (scrollerStateRef.current == 'setup') return
+        if (scrollerStateRef.current == 'setup') {
+
+            // a scroll the setup made is not the user's: the mode it began ends here with nothing to read, and the
+            // flag it raised is lowered, or the first scroll after the mount would be read as input still arriving
+            if (!isScrollingMode) immediateIsScrollingRef.current = false
+
+            return
+
+        }
 
         if (!isScrollingMode) {
 

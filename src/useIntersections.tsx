@@ -5,7 +5,7 @@ import React, { useCallback, useEffect, useRef } from 'react'
 
 import { reportError, errorMessage } from './utilities'
 import { isPlaceholderID } from './placeholders'
-import { isEndStanding, isEndAsking, endMarkAt, isEndHeld, isGliding } from './endMachine'
+import { isEndStanding, isEndAsking, endMarkAt, isEndHeld, isGliding, isIdle } from './endMachine'
 
 // The end state (below) rests the viewport's edge this far past the content's edge at the tail in variable layout, so
 // that the rows' own settling there (a late image, a reflow) is absorbed in the room rather than moving the list;
@@ -73,6 +73,7 @@ const useIntersections = ({
     readAxisSlide,
     assertIntersectionsDisconnect,
     requestIntersectionsConnect,
+    requestIntersectionsReport,
     fillCradle,
     updateCurrentAxisReferenceID,
     trimCradle,
@@ -563,10 +564,15 @@ const useIntersections = ({
     },[])
 
     // The callers do not wait for an evaluation, so a failure inside one is reported, and the observers
-    // are reconnected, here.
+    // are reconnected, here. The rest's reading is made once the evaluation has asked the queue for what the report
+    // calls for, which it does before it first waits: the queue then tells whether the layout is to change
     const evaluateIntersections = useCallback((source) => {
 
-        return evaluate(source).catch((error) => {
+        const evaluation = evaluate(source)
+
+        readEndsAsReported()
+
+        return evaluation.catch((error) => {
 
             if (!viewportRef.current) return
 
@@ -635,7 +641,7 @@ const useIntersections = ({
         }
 
         clearTimeout(restoreScrollingTimeoutIDRef.current)
-        restoreScrollingTimeoutIDRef.current = setTimeout(releaseHold,standardMomentumFadeRef.current)
+        restoreScrollingTimeoutIDRef.current = setTimeout(releaseHoldAtRest,standardMomentumFadeRef.current)
 
         return hold.count
 
@@ -683,6 +689,14 @@ const useIntersections = ({
         hold.viewport = null
         hold.endOfData = null
         tellEnd({type: 'holdReleased'})
+
+    }
+
+    // a hold that runs out leaves the viewport where it kept it, at rest
+    const releaseHoldAtRest = () => {
+
+        releaseHold()
+        readEndsAtRest()
 
     }
 
@@ -758,6 +772,7 @@ const useIntersections = ({
         touches:new Set(),
         touchAt:null,
         rereadOwed:false,
+        restOwed:false,
         inputAt:-Infinity,
     })
 
@@ -1063,8 +1078,10 @@ const useIntersections = ({
     // bring rows. From the entry they are not consulted, and a pull is taken from the mark and from no pixel short
     // of it (takeEndInput), so the pixel is given up here: the axis is put under the viewport, as an arrival seats
     // it (drawEndElastic), and the viewport is not scrolled. The content moves by that pixel, once. A viewport that
-    // is further from the mark has scrolled there, is left where it is, and arrives. The tail has no such pixel
-    const enterEndState = (end, onlyIfPast) => {
+    // is further from the mark has scrolled there, is left where it is, and arrives. The tail has no such pixel.
+    // An entry where the viewport has come to rest (atRest, readEndsAsReported) takes no hold: nothing is arriving to
+    // hold, though the scrolling that brought the viewport may still read as recent
+    const enterEndState = (end, onlyIfPast, atRest = false) => {
 
         const direction = directionAt(end)
 
@@ -1083,7 +1100,7 @@ const useIntersections = ({
 
         const mark = measureEndMark(end)
 
-        tellEnd({type: 'arrived', end, mark, enters: true, inputRecent: isScrollInputRecent(), finger: endStateRef.current.touches.size > 0})
+        tellEnd({type: 'arrived', end, mark, enters: true, inputRecent: !atRest && isScrollInputRecent(), finger: endStateRef.current.touches.size > 0})
 
         if (!isGliding(readEnd())) {
 
@@ -1098,7 +1115,7 @@ const useIntersections = ({
 
             }
 
-            if (!endStateRef.current.touches.size && (isScrollingHeld() || isScrollInputRecent())) holdScrolling(end)
+            if (!atRest && !endStateRef.current.touches.size && (isScrollingHeld() || isScrollInputRecent())) holdScrolling(end)
 
         }
 
@@ -1610,6 +1627,67 @@ const useIntersections = ({
 
     }
 
+    // an end the rest reads: its data has ended and it is not entered, the viewport is at it, and the tail does not
+    // wait for the head (as its entry on its own answer does not)
+    const isEndReadAtRest = (end) => {
+
+        if (endOwnsActivity(end) || !isQuietAt(directionAt(end)) || !isViewportAtEnd(end)) return false
+
+        return !((end == 'tail') && tailWaitsForHead())
+
+    }
+
+    // Where the viewport comes to rest: as the scrolling mode ends, as a slide of the axis finishes, and as a hold
+    // runs out. An end whose data has ended is entered by the answer that ended it only where that answer finds the
+    // viewport (onRunEnded), and nothing else reads an end that does not stand: so an end that is known and not
+    // entered is entered where the viewport rests at it, whatever brought it there. Nothing is under way at either
+    // end, or the viewport is not at rest and what is under way reads the rest as it ends.
+    // The viewport's rest is not yet the scroller's. The observers report a crossing after the scroll that made it
+    // has ended, and the overflow they report brings the axis to the end's row before it enters the end: an end
+    // entered ahead of that report stands a row short of the axis, and stands the overflow off. So the rest enters
+    // nothing itself. It asks the observers to report the layout as it stands, and the reading is made as that
+    // report is evaluated (restOwed, readEndsAsReported)
+    const readEndsAtRest = () => {
+
+        if (!viewportRef.current || !isIdle(readEnd())) return
+
+        if (!isEndReadAtRest('head') && !isEndReadAtRest('tail')) return
+
+        endStateRef.current.restOwed = true
+
+        requestIntersectionsReport()
+
+    }
+
+    // The rest's reading, made as the report it asked for is evaluated (evaluateIntersections). A report short of a
+    // trigger is still arriving. Where the evaluation has put the queue to work the layout has yet to change, and
+    // the report is asked for again behind the queue. A scroll begun since, or something under way at an end, reads
+    // its own rest as it ends. The head first, as the tail's floor reads it
+    const readEndsAsReported = () => {
+
+        if (!endStateRef.current.restOwed || !viewportRef.current) return
+
+        if (intersectionsMapRef.current.size < 7) return
+
+        if (DOMManipulationQueue.isBusy()) {
+
+            requestIntersectionsReport()
+            return
+
+        }
+
+        endStateRef.current.restOwed = false
+
+        if (immediateIsScrollingRef.current || !isIdle(readEnd())) return
+
+        for (const end of ['head', 'tail']) {
+
+            if (isEndReadAtRest(end)) enterEndState(end, true, true)
+
+        }
+
+    }
+
     // the scrolling mode's end is the end of any bring-back, completed or not: a viewport it left past a mark is read
     // here. A scroll made as the scrolling ended, whose scroll event the reset of the scroll position has left with
     // nothing to report, is a gesture nothing else will read: it is read first, as its event would have been, so
@@ -1620,6 +1698,7 @@ const useIntersections = ({
         endStateRef.current.glidingTo = null
         tellEnd({type: 'returned', way: 'glide'})
         rereadEnds()
+        readEndsAtRest()
 
     }
 
@@ -1709,6 +1788,7 @@ const useIntersections = ({
 
             endStateRef.current.sliding = null
             tellEnd({type: 'returned', way: 'slide'})
+            readEndsAtRest()
 
             if (viewportRef.current) readEndIndicators()
 

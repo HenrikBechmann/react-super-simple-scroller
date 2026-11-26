@@ -117,3 +117,4 @@ export declare const endReasonAt: (state: EndMachineState, end: End) => EndReaso
 export declare const endMarkAt: (state: EndMachineState, end: End) => number | null;
 export declare const isEndHeld: (state: EndMachineState, end: End) => boolean;
 export declare const isGliding: (state: EndMachineState) => boolean;
+export declare const isIdle: (state: EndMachineState) => boolean;
